@@ -1,101 +1,126 @@
+
 "use client";
 import React, { useState, useContext, createContext, useEffect } from 'react';
-import { ChevronRight, Home, Users, DollarSign, CheckSquare, Plus, UserPlus, LogOut, Menu, X, ArrowLeft, Check, User, Loader2 } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
-import { User as SupabaseUser } from '@supabase/supabase-js';
-import * as api from '@/lib/api';
-import type { Profile, Household, HouseholdMember, Expense, Task } from '@/lib/api';
+import { ChevronRight, Home, Users, DollarSign, CheckSquare, Plus, UserPlus, LogOut, Menu, X, ArrowLeft, Check, Calendar, User } from 'lucide-react';
 
-// Auth Context
-interface AuthContextType {
-  user: SupabaseUser | null;
-  profile: Profile | null;
-  loading: boolean;
-  signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
-  signUp: (email: string, password: string, name: string) => Promise<{ error: Error | null }>;
-  signOut: () => Promise<void>;
+// Types
+interface User {
+  id: string;
+  email: string;
+  name: string;
+  avatarUrl?: string;
 }
 
-const AuthContext = createContext<AuthContextType>({
+interface Household {
+  id: string;
+  name: string;
+  createdAt: string;
+  memberCount: number;
+}
+
+interface HouseholdMember {
+  id: string;
+  userId: string;
+  householdId: string;
+  user: User;
+  joinedAt: string;
+}
+
+interface Expense {
+  id: string;
+  householdId: string;
+  description: string;
+  amount: number;
+  paidBy: string;
+  paidByUser: User;
+  date: string;
+  settled: boolean;
+  splits: ExpenseSplit[];
+}
+
+interface ExpenseSplit {
+  id: string;
+  expenseId: string;
+  userId: string;
+  amount: number;
+  settled: boolean;
+  user: User;
+}
+
+interface Task {
+  id: string;
+  householdId: string;
+  title: string;
+  assignedTo?: string;
+  assignedToUser?: User;
+  completed: boolean;
+  createdAt: string;
+}
+
+interface Balance {
+  userId: string;
+  user: User;
+  balance: number; // positive = owed to them, negative = they owe
+}
+
+// Auth Context
+const AuthContext = createContext<{
+  user: User | null;
+  login: (email: string, password: string) => Promise<void>;
+  register: (email: string, password: string, name: string) => Promise<void>;
+  logout: () => void;
+  loading: boolean;
+}>({
   user: null,
-  profile: null,
+  login: async () => {},
+  register: async () => {},
+  logout: () => {},
   loading: true,
-  signIn: async () => ({ error: null }),
-  signUp: async () => ({ error: null }),
-  signOut: async () => {},
 });
 
 // Auth Provider
 const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<SupabaseUser | null>(null);
-  const [profile, setProfile] = useState<Profile | null>(null);
+  const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const initializeAuth = async () => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        
-        if (session?.user) {
-          setUser(session.user);
-          const { data: profileData } = await api.getProfile(session.user.id);
-          if (profileData) setProfile(profileData);
-        }
-      } catch (error) {
-        console.error('Error initializing auth:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    initializeAuth();
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      setUser(session?.user ?? null);
-      
-      if (session?.user) {
-        const { data: profileData } = await api.getProfile(session.user.id);
-        if (profileData) setProfile(profileData);
-      } else {
-        setProfile(null);
-      }
-    });
-
-    return () => {
-      subscription.unsubscribe();
-    };
+    // Simulate checking for existing session
+    const savedUser = localStorage.getItem('user');
+    if (savedUser) {
+      setUser(JSON.parse(savedUser));
+    }
+    setLoading(false);
   }, []);
 
-  const signIn = async (email: string, password: string) => {
-    try {
-      const { error } = await api.signIn(email, password);
-      if (error) throw error;
-      return { error: null };
-    } catch (error) {
-      return { error: error as Error };
-    }
+  const login = async (email: string, password: string) => {
+    // Simulate API call
+    const mockUser: User = {
+      id: '1',
+      email,
+      name: email.split('@')[0],
+    };
+    setUser(mockUser);
+    localStorage.setItem('user', JSON.stringify(mockUser));
   };
 
-  const signUp = async (email: string, password: string, name: string) => {
-    try {
-      const { error } = await api.signUp(email, password, name);
-      if (error) throw error;
-      return { error: null };
-    } catch (error) {
-      return { error: error as Error };
-    }
+  const register = async (email: string, password: string, name: string) => {
+    // Simulate API call
+    const mockUser: User = {
+      id: Date.now().toString(),
+      email,
+      name,
+    };
+    setUser(mockUser);
+    localStorage.setItem('user', JSON.stringify(mockUser));
   };
 
-  const signOut = async () => {
-    try {
-      await api.signOut();
-    } catch (error) {
-      console.error('Error signing out:', error);
-    }
+  const logout = () => {
+    setUser(null);
+    localStorage.removeItem('user');
   };
 
   return (
-    <AuthContext.Provider value={{ user, profile, loading, signIn, signUp, signOut }}>
+    <AuthContext.Provider value={{ user, login, register, logout, loading }}>
       {children}
     </AuthContext.Provider>
   );
@@ -110,7 +135,7 @@ const Layout: React.FC<{ children: React.ReactNode; title?: string; showBack?: b
   showBack = false,
   onBack
 }) => {
-  const { profile, signOut } = useAuth();
+  const { user, logout } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   return (
@@ -131,9 +156,9 @@ const Layout: React.FC<{ children: React.ReactNode; title?: string; showBack?: b
             </div>
             
             <div className="hidden md:flex items-center space-x-4">
-              <span className="text-sm text-gray-600">{profile?.name}</span>
+              <span className="text-sm text-gray-600">{user?.name}</span>
               <button
-                onClick={signOut}
+                onClick={logout}
                 className="text-sm text-gray-500 hover:text-gray-700 flex items-center"
               >
                 <LogOut className="h-4 w-4 mr-1" />
@@ -153,9 +178,9 @@ const Layout: React.FC<{ children: React.ReactNode; title?: string; showBack?: b
         {mobileMenuOpen && (
           <div className="md:hidden border-t border-gray-200">
             <div className="px-4 py-3 space-y-2">
-              <div className="text-sm text-gray-600">{profile?.name}</div>
+              <div className="text-sm text-gray-600">{user?.name}</div>
               <button
-                onClick={signOut}
+                onClick={logout}
                 className="text-sm text-gray-500 hover:text-gray-700 flex items-center"
               >
                 <LogOut className="h-4 w-4 mr-1" />
@@ -172,39 +197,24 @@ const Layout: React.FC<{ children: React.ReactNode; title?: string; showBack?: b
   );
 };
 
-// Loading Component
-const LoadingSpinner = () => (
-  <div className="flex items-center justify-center p-4">
-    <Loader2 className="h-6 w-6 animate-spin text-gray-500" />
-  </div>
-);
-
 // Auth Pages
 const LoginPage: React.FC = () => {
-  const { signIn, signUp } = useAuth();
+  const { login } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [name, setName] = useState('');
   const [error, setError] = useState('');
   const [isRegistering, setIsRegistering] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
+  const [name, setName] = useState('');
 
   const handleSubmit = async () => {
-    setError('');
-    setIsLoading(true);
-    
     try {
-      const { error } = isRegistering 
-        ? await signUp(email, password, name)
-        : await signIn(email, password);
-      
-      if (error) {
-        setError(error.message);
+      if (isRegistering) {
+        await login(email, password);
+      } else {
+        await login(email, password);
       }
     } catch (err) {
-      setError('An unexpected error occurred');
-    } finally {
-      setIsLoading(false);
+      setError('Invalid credentials');
     }
   };
 
@@ -271,14 +281,9 @@ const LoginPage: React.FC = () => {
           <div>
             <button
               onClick={handleSubmit}
-              disabled={isLoading}
-              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
             >
-              {isLoading ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                isRegistering ? 'Create Account' : 'Sign in'
-              )}
+              {isRegistering ? 'Create Account' : 'Sign in'}
             </button>
           </div>
 
@@ -286,7 +291,6 @@ const LoginPage: React.FC = () => {
             <button
               onClick={() => setIsRegistering(!isRegistering)}
               className="text-sm text-blue-600 hover:text-blue-500"
-              disabled={isLoading}
             >
               {isRegistering ? 'Already have an account? Sign in' : "Don't have an account? Sign up"}
             </button>
@@ -300,43 +304,35 @@ const LoginPage: React.FC = () => {
 // Dashboard
 const Dashboard: React.FC = () => {
   const { user } = useAuth();
-  const [households, setHouseholds] = useState<Household[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [households, setHouseholds] = useState<Household[]>([
+    {
+      id: '1',
+      name: 'Beach House',
+      createdAt: '2024-01-15',
+      memberCount: 3,
+    },
+    {
+      id: '2',
+      name: 'City Apartment',
+      createdAt: '2024-02-20',
+      memberCount: 2,
+    },
+  ]);
   const [showCreateHousehold, setShowCreateHousehold] = useState(false);
   const [newHouseholdName, setNewHouseholdName] = useState('');
-  const [creating, setCreating] = useState(false);
   const [selectedHousehold, setSelectedHousehold] = useState<string | null>(null);
 
-  useEffect(() => {
-    loadHouseholds();
-  }, [user]);
-
-  const loadHouseholds = async () => {
-    try {
-      setLoading(true);
-      const data = await api.getUserHouseholds();
-      setHouseholds(data);
-    } catch (error) {
-      console.error('Error loading households:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const createHousehold = async () => {
-    if (!newHouseholdName.trim()) return;
-    
-    setCreating(true);
-    try {
-      await api.createHousehold(newHouseholdName);
-      await loadHouseholds();
+  const createHousehold = () => {
+    if (newHouseholdName.trim()) {
+      const newHousehold: Household = {
+        id: Date.now().toString(),
+        name: newHouseholdName,
+        createdAt: new Date().toISOString(),
+        memberCount: 1,
+      };
+      setHouseholds([...households, newHousehold]);
       setNewHouseholdName('');
       setShowCreateHousehold(false);
-    } catch (error) {
-      console.error('Error creating household:', error);
-      alert('Failed to create household');
-    } finally {
-      setCreating(false);
     }
   };
 
@@ -358,9 +354,7 @@ const Dashboard: React.FC = () => {
           </button>
         </div>
 
-        {loading ? (
-          <LoadingSpinner />
-        ) : households.length === 0 ? (
+        {households.length === 0 ? (
           <div className="text-center py-12">
             <Home className="mx-auto h-12 w-12 text-gray-400" />
             <h3 className="mt-2 text-sm font-medium text-gray-900">No households</h3>
@@ -404,16 +398,14 @@ const Dashboard: React.FC = () => {
                 <button
                   onClick={() => setShowCreateHousehold(false)}
                   className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-500"
-                  disabled={creating}
                 >
                   Cancel
                 </button>
                 <button
                   onClick={createHousehold}
-                  disabled={creating}
-                  className="px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50"
+                  className="px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
                 >
-                  {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Create'}
+                  Create
                 </button>
               </div>
             </div>
@@ -428,64 +420,150 @@ const Dashboard: React.FC = () => {
 const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = ({ householdId, onBack }) => {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<'expenses' | 'members' | 'tasks'>('expenses');
-  const [household, setHousehold] = useState<Household | null>(null);
-  const [members, setMembers] = useState<HouseholdMember[]>([]);
-  const [expenses, setExpenses] = useState<Expense[]>([]);
-  const [tasks, setTasks] = useState<Task[]>([]);
-  const [loading, setLoading] = useState(true);
-  
+  const [members] = useState<HouseholdMember[]>([
+    {
+      id: '1',
+      userId: '1',
+      householdId,
+      user: { id: '1', email: 'john@example.com', name: 'John' },
+      joinedAt: '2024-01-15',
+    },
+    {
+      id: '2',
+      userId: '2',
+      householdId,
+      user: { id: '2', email: 'sarah@example.com', name: 'Sarah' },
+      joinedAt: '2024-01-16',
+    },
+    {
+      id: '3',
+      userId: '3',
+      householdId,
+      user: { id: '3', email: 'mike@example.com', name: 'Mike' },
+      joinedAt: '2024-01-17',
+    },
+  ]);
+
+  const [expenses, setExpenses] = useState<Expense[]>([
+    {
+      id: '1',
+      householdId,
+      description: 'Groceries',
+      amount: 120.50,
+      paidBy: '1',
+      paidByUser: members[0].user,
+      date: '2024-03-20',
+      settled: false,
+      splits: members.map((m, i) => ({
+        id: `split-1-${i}`,
+        expenseId: '1',
+        userId: m.userId,
+        amount: 40.17,
+        settled: i === 0,
+        user: m.user,
+      })),
+    },
+    {
+      id: '2',
+      householdId,
+      description: 'Internet Bill',
+      amount: 60,
+      paidBy: '2',
+      paidByUser: members[1].user,
+      date: '2024-03-15',
+      settled: false,
+      splits: members.map((m, i) => ({
+        id: `split-2-${i}`,
+        expenseId: '2',
+        userId: m.userId,
+        amount: 20,
+        settled: i === 1,
+        user: m.user,
+      })),
+    },
+  ]);
+
+  const [tasks, setTasks] = useState<Task[]>([
+    {
+      id: '1',
+      householdId,
+      title: 'Clean kitchen',
+      assignedTo: '1',
+      assignedToUser: members[0].user,
+      completed: false,
+      createdAt: '2024-03-20',
+    },
+    {
+      id: '2',
+      householdId,
+      title: 'Take out trash',
+      assignedTo: '2',
+      assignedToUser: members[1].user,
+      completed: true,
+      createdAt: '2024-03-19',
+    },
+  ]);
+
   const [showAddExpense, setShowAddExpense] = useState(false);
   const [showAddTask, setShowAddTask] = useState(false);
   const [showInviteMember, setShowInviteMember] = useState(false);
 
-  useEffect(() => {
-    loadHouseholdData();
-  }, [householdId]);
+  // Calculate balances
+  const calculateBalances = (): Balance[] => {
+    const balanceMap = new Map<string, number>();
+    
+    members.forEach(m => balanceMap.set(m.userId, 0));
 
-  const loadHouseholdData = async () => {
-    try {
-      setLoading(true);
-      const [membersData, expensesData, tasksData] = await Promise.all([
-        api.getHouseholdMembers(householdId),
-        api.getHouseholdExpenses(householdId),
-        api.getHouseholdTasks(householdId)
-      ]);
-      
-      setMembers(membersData);
-      setExpenses(expensesData);
-      setTasks(tasksData);
-      
-      // Get household name from members data
-      if (membersData.length > 0 && membersData[0].households) {
-        setHousehold(membersData[0].households);
-      }
-    } catch (error) {
-      console.error('Error loading household data:', error);
-    } finally {
-      setLoading(false);
-    }
+    expenses.forEach(expense => {
+      // Add what the payer is owed
+      const payerBalance = balanceMap.get(expense.paidBy) || 0;
+      balanceMap.set(expense.paidBy, payerBalance + expense.amount);
+
+      // Subtract what each person owes
+      expense.splits.forEach(split => {
+        if (!split.settled) {
+          const currentBalance = balanceMap.get(split.userId) || 0;
+          balanceMap.set(split.userId, currentBalance - split.amount);
+        }
+      });
+    });
+
+    return Array.from(balanceMap.entries()).map(([userId, balance]) => ({
+      userId,
+      user: members.find(m => m.userId === userId)!.user,
+      balance,
+    }));
   };
 
-  const balances = api.calculateBalances(expenses, members);
+  const balances = calculateBalances();
 
   const AddExpenseModal = () => {
     const [description, setDescription] = useState('');
     const [amount, setAmount] = useState('');
-    const [submitting, setSubmitting] = useState(false);
+    const [paidBy, setPaidBy] = useState(user?.id || '1');
 
-    const handleSubmit = async () => {
-      if (!description || !amount) return;
-      
-      setSubmitting(true);
-      try {
-        await api.createExpense(householdId, description, parseFloat(amount));
-        await loadHouseholdData();
+    const handleSubmit = () => {
+      if (description && amount) {
+        const newExpense: Expense = {
+          id: Date.now().toString(),
+          householdId,
+          description,
+          amount: parseFloat(amount),
+          paidBy,
+          paidByUser: members.find(m => m.userId === paidBy)!.user,
+          date: new Date().toISOString().split('T')[0],
+          settled: false,
+          splits: members.map((m) => ({
+            id: `split-${Date.now()}-${m.userId}`,
+            expenseId: Date.now().toString(),
+            userId: m.userId,
+            amount: parseFloat(amount) / members.length,
+            settled: m.userId === paidBy,
+            user: m.user,
+          })),
+        };
+        setExpenses([newExpense, ...expenses]);
         setShowAddExpense(false);
-      } catch (error) {
-        console.error('Error creating expense:', error);
-        alert('Failed to create expense');
-      } finally {
-        setSubmitting(false);
       }
     };
 
@@ -513,21 +591,33 @@ const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = (
                 onChange={(e) => setAmount(e.target.value)}
               />
             </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Paid by</label>
+              <select
+                className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                value={paidBy}
+                onChange={(e) => setPaidBy(e.target.value)}
+              >
+                {members.map(member => (
+                  <option key={member.userId} value={member.userId}>
+                    {member.user.name}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
           <div className="mt-6 flex justify-end space-x-3">
             <button
               onClick={() => setShowAddExpense(false)}
               className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-500"
-              disabled={submitting}
             >
               Cancel
             </button>
             <button
               onClick={handleSubmit}
-              disabled={submitting}
-              className="px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50"
+              className="px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
             >
-              {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Add Expense'}
+              Add Expense
             </button>
           </div>
         </div>
@@ -538,21 +628,20 @@ const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = (
   const AddTaskModal = () => {
     const [title, setTitle] = useState('');
     const [assignedTo, setAssignedTo] = useState('');
-    const [submitting, setSubmitting] = useState(false);
 
-    const handleSubmit = async () => {
-      if (!title) return;
-      
-      setSubmitting(true);
-      try {
-        await api.createTask(householdId, title, assignedTo || undefined);
-        await loadHouseholdData();
+    const handleSubmit = () => {
+      if (title) {
+        const newTask: Task = {
+          id: Date.now().toString(),
+          householdId,
+          title,
+          assignedTo: assignedTo || undefined,
+          assignedToUser: assignedTo ? members.find(m => m.userId === assignedTo)?.user : undefined,
+          completed: false,
+          createdAt: new Date().toISOString(),
+        };
+        setTasks([newTask, ...tasks]);
         setShowAddTask(false);
-      } catch (error) {
-        console.error('Error creating task:', error);
-        alert('Failed to create task');
-      } finally {
-        setSubmitting(false);
       }
     };
 
@@ -579,8 +668,8 @@ const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = (
               >
                 <option value="">Unassigned</option>
                 {members.map(member => (
-                  <option key={member.user_id} value={member.user_id}>
-                    {member.profiles?.name}
+                  <option key={member.userId} value={member.userId}>
+                    {member.user.name}
                   </option>
                 ))}
               </select>
@@ -590,16 +679,14 @@ const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = (
             <button
               onClick={() => setShowAddTask(false)}
               className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-500"
-              disabled={submitting}
             >
               Cancel
             </button>
             <button
               onClick={handleSubmit}
-              disabled={submitting}
-              className="px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50"
+              className="px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
             >
-              {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Add Task'}
+              Add Task
             </button>
           </div>
         </div>
@@ -607,34 +694,69 @@ const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = (
     );
   };
 
-  const markExpenseSettled = async (expenseId: string, userId: string) => {
-    try {
-      await api.markExpenseSettled(expenseId, userId);
-      await loadHouseholdData();
-    } catch (error) {
-      console.error('Error marking expense as settled:', error);
-    }
-  };
+  const InviteMemberModal = () => {
+    const [email, setEmail] = useState('');
 
-  const completeTask = async (taskId: string) => {
-    try {
-      await api.completeTask(taskId);
-      await loadHouseholdData();
-    } catch (error) {
-      console.error('Error completing task:', error);
-    }
-  };
+    const handleSubmit = () => {
+      if (email) {
+        // In a real app, this would send an invitation
+        alert(`Invitation sent to ${email}`);
+        setShowInviteMember(false);
+        setEmail('');
+      }
+    };
 
-  if (loading) {
     return (
-      <Layout title="Loading..." showBack onBack={onBack}>
-        <LoadingSpinner />
-      </Layout>
+      <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center p-4 z-50">
+        <div className="bg-white rounded-lg p-6 max-w-md w-full">
+          <h3 className="text-lg font-medium text-gray-900 mb-4">Invite Member</h3>
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Email address</label>
+              <input
+                type="email"
+                className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                placeholder="roommate@example.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
+            </div>
+          </div>
+          <div className="mt-6 flex justify-end space-x-3">
+            <button
+              onClick={() => setShowInviteMember(false)}
+              className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-500"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleSubmit}
+              className="px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
+            >
+              Send Invite
+            </button>
+          </div>
+        </div>
+      </div>
     );
-  }
+  };
+
+  const markExpenseSettled = (expenseId: string, userId: string) => {
+    setExpenses(expenses.map(expense => {
+      if (expense.id === expenseId) {
+        return {
+          ...expense,
+          splits: expense.splits.map(split => 
+            split.userId === userId ? { ...split, settled: true } : split
+          )
+        };
+      }
+      return expense;
+    }));
+  };
 
   return (
-    <Layout title={household?.name || 'Household'} showBack onBack={onBack}>
+    <Layout title="Beach House" showBack onBack={onBack}>
       <div className="space-y-6">
         {/* Balance Summary */}
         <div className="bg-white rounded-lg shadow p-6">
@@ -642,7 +764,7 @@ const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = (
           <div className="space-y-2">
             {balances.map(balance => (
               <div key={balance.userId} className="flex justify-between items-center">
-                <span className="text-sm text-gray-600">{balance.profile?.name}</span>
+                <span className="text-sm text-gray-600">{balance.user.name}</span>
                 <span className={`text-sm font-medium ${
                   balance.balance > 0 ? 'text-green-600' : balance.balance < 0 ? 'text-red-600' : 'text-gray-600'
                 }`}>
@@ -707,48 +829,42 @@ const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = (
               </button>
             </div>
             <div className="space-y-3">
-              {expenses.length === 0 ? (
-                <p className="text-gray-500 text-center py-4">No expenses yet</p>
-              ) : (
-                expenses.map(expense => (
-                  <div key={expense.id} className="bg-white rounded-lg shadow p-4">
-                    <div className="flex justify-between items-start">
-                      <div className="flex-1">
-                        <h4 className="font-medium text-gray-900">{expense.description}</h4>
-                        <p className="text-sm text-gray-500">
-                          Paid by {expense.profiles?.name} • {expense.date}
-                        </p>
-                        
-                        {/* Show who owes what */}
-                        <div className="mt-2 space-y-1">
-                          {expense.expense_splits?.filter(split => 
-                            split.user_id !== expense.paid_by && !split.settled
-                          ).map(split => (
-                            <div key={split.id} className="flex items-center justify-between text-sm">
-                              <span className="text-gray-600">{split.profiles?.name} owes</span>
-                              <div className="flex items-center space-x-2">
-                                <span className="font-medium">${split.amount.toFixed(2)}</span>
-                                <button
-                                  onClick={() => markExpenseSettled(expense.id, split.user_id)}
-                                  className="text-xs text-blue-600 hover:text-blue-500"
-                                >
-                                  Mark paid
-                                </button>
-                              </div>
+              {expenses.map(expense => (
+                <div key={expense.id} className="bg-white rounded-lg shadow p-4">
+                  <div className="flex justify-between items-start">
+                    <div className="flex-1">
+                      <h4 className="font-medium text-gray-900">{expense.description}</h4>
+                      <p className="text-sm text-gray-500">
+                        Paid by {expense.paidByUser.name} • {expense.date}
+                      </p>
+                      
+                      {/* Show who owes what */}
+                      <div className="mt-2 space-y-1">
+                        {expense.splits.filter(split => split.userId !== expense.paidBy && !split.settled).map(split => (
+                          <div key={split.id} className="flex items-center justify-between text-sm">
+                            <span className="text-gray-600">{split.user.name} owes</span>
+                            <div className="flex items-center space-x-2">
+                              <span className="font-medium">${split.amount.toFixed(2)}</span>
+                              <button
+                                onClick={() => markExpenseSettled(expense.id, split.userId)}
+                                className="text-xs text-blue-600 hover:text-blue-500"
+                              >
+                                Mark paid
+                              </button>
                             </div>
-                          ))}
-                        </div>
-                      </div>
-                      <div className="text-right ml-4">
-                        <p className="font-medium text-gray-900">${expense.amount.toFixed(2)}</p>
-                        <p className="text-xs text-gray-500">
-                          ${(expense.amount / members.length).toFixed(2)} each
-                        </p>
+                          </div>
+                        ))}
                       </div>
                     </div>
+                    <div className="text-right ml-4">
+                      <p className="font-medium text-gray-900">${expense.amount.toFixed(2)}</p>
+                      <p className="text-xs text-gray-500">
+                        ${(expense.amount / members.length).toFixed(2)} each
+                      </p>
+                    </div>
                   </div>
-                ))
-              )}
+                </div>
+              ))}
             </div>
           </div>
         )}
@@ -774,8 +890,8 @@ const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = (
                         <User className="h-5 w-5 text-gray-500" />
                       </div>
                       <div className="ml-3">
-                        <p className="font-medium text-gray-900">{member.profiles?.name}</p>
-                        <p className="text-sm text-gray-500">{member.role}</p>
+                        <p className="font-medium text-gray-900">{member.user.name}</p>
+                        <p className="text-sm text-gray-500">{member.user.email}</p>
                       </div>
                     </div>
                   </div>
@@ -798,44 +914,42 @@ const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = (
               </button>
             </div>
             <div className="space-y-3">
-              {tasks.filter(t => !t.completed).length === 0 && tasks.filter(t => t.completed).length === 0 ? (
-                <p className="text-gray-500 text-center py-4">No tasks yet</p>
-              ) : (
+              {tasks.filter(t => !t.completed).map(task => (
+                <div key={task.id} className="bg-white rounded-lg shadow p-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center">
+                      <button
+                        onClick={() => {
+                          setTasks(tasks.map(t => 
+                            t.id === task.id ? { ...t, completed: true } : t
+                          ));
+                        }}
+                        className="flex-shrink-0"
+                      >
+                        <div className="h-5 w-5 rounded border-2 border-gray-300 hover:border-gray-400" />
+                      </button>
+                      <div className="ml-3">
+                        <p className="font-medium text-gray-900">{task.title}</p>
+                        {task.assignedToUser && (
+                          <p className="text-sm text-gray-500">Assigned to {task.assignedToUser.name}</p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+              
+              {tasks.filter(t => t.completed).length > 0 && (
                 <>
-                  {tasks.filter(t => !t.completed).map(task => (
-                    <div key={task.id} className="bg-white rounded-lg shadow p-4">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center">
-                          <button
-                            onClick={() => completeTask(task.id)}
-                            className="flex-shrink-0"
-                          >
-                            <div className="h-5 w-5 rounded border-2 border-gray-300 hover:border-gray-400" />
-                          </button>
-                          <div className="ml-3">
-                            <p className="font-medium text-gray-900">{task.title}</p>
-                            {task.profiles && (
-                              <p className="text-sm text-gray-500">Assigned to {task.profiles.name}</p>
-                            )}
-                          </div>
-                        </div>
+                  <h4 className="text-sm font-medium text-gray-500 mt-6">Completed</h4>
+                  {tasks.filter(t => t.completed).map(task => (
+                    <div key={task.id} className="bg-gray-50 rounded-lg p-4">
+                      <div className="flex items-center">
+                        <Check className="h-5 w-5 text-green-500 flex-shrink-0" />
+                        <p className="ml-3 text-gray-500 line-through">{task.title}</p>
                       </div>
                     </div>
                   ))}
-                  
-                  {tasks.filter(t => t.completed).length > 0 && (
-                    <>
-                      <h4 className="text-sm font-medium text-gray-500 mt-6">Completed</h4>
-                      {tasks.filter(t => t.completed).map(task => (
-                        <div key={task.id} className="bg-gray-50 rounded-lg p-4">
-                          <div className="flex items-center">
-                            <Check className="h-5 w-5 text-green-500 flex-shrink-0" />
-                            <p className="ml-3 text-gray-500 line-through">{task.title}</p>
-                          </div>
-                        </div>
-                      ))}
-                    </>
-                  )}
                 </>
               )}
             </div>
@@ -845,24 +959,7 @@ const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = (
 
       {showAddExpense && <AddExpenseModal />}
       {showAddTask && <AddTaskModal />}
-      {showInviteMember && (
-        <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full">
-            <h3 className="text-lg font-medium text-gray-900 mb-4">Invite Member</h3>
-            <p className="text-sm text-gray-500 mb-4">
-              Invitation functionality coming soon! For now, share the household name with your roommates.
-            </p>
-            <div className="mt-6 flex justify-end">
-              <button
-                onClick={() => setShowInviteMember(false)}
-                className="px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
-              >
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {showInviteMember && <InviteMemberModal />}
     </Layout>
   );
 };
@@ -874,7 +971,7 @@ const App: React.FC = () => {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-gray-500" />
+        <div className="text-gray-500">Loading...</div>
       </div>
     );
   }

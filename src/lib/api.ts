@@ -1,3 +1,4 @@
+import { ReactNode } from 'react'
 import { supabase } from './supabase'
 
 // Types
@@ -10,6 +11,7 @@ export interface Profile {
 }
 
 export interface Household {
+  memberCount: ReactNode
   id: string
   name: string
   created_by: string
@@ -156,10 +158,22 @@ export const getUserHouseholds = async () => {
 
   if (error) throw error
   
-  return data?.map(item => ({
-    ...item.households,
-    memberCount: 0 // We'll update this with a proper count query
-  })) || []
+  // Get member counts for each household
+  const householdsWithCounts = await Promise.all(
+    (data || []).map(async (item) => {
+      const { count } = await supabase
+        .from('household_members')
+        .select('*', { count: 'exact', head: true })
+        .eq('household_id', item.household_id)
+      
+      return {
+        ...item.households,
+        memberCount: count || 0
+      }
+    })
+  )
+  
+  return householdsWithCounts
 }
 
 export const getHouseholdMembers = async (householdId: string) => {
@@ -204,10 +218,18 @@ export const getHouseholdExpenses = async (householdId: string) => {
     .from('expenses')
     .select(`
       *,
-      profiles!paid_by (*),
+      profiles:paid_by (
+        id,
+        name,
+        avatar_url
+      ),
       expense_splits (
         *,
-        profiles (*)
+        profiles:user_id (
+          id,
+          name,
+          avatar_url
+        )
       )
     `)
     .eq('household_id', householdId)
@@ -238,16 +260,25 @@ export const createTask = async (
   title: string,
   assignedTo?: string
 ) => {
+  const taskData: any = {
+    household_id: householdId,
+    title
+  }
+  
+  if (assignedTo) {
+    taskData.assigned_to = assignedTo
+  }
+
   const { data, error } = await supabase
     .from('tasks')
-    .insert({
-      household_id: householdId,
-      title,
-      assigned_to: assignedTo
-    })
+    .insert(taskData)
     .select(`
       *,
-      profiles!assigned_to (*)
+      profiles:assigned_to (
+        id,
+        name,
+        avatar_url
+      )
     `)
     .single()
 
@@ -260,7 +291,11 @@ export const getHouseholdTasks = async (householdId: string) => {
     .from('tasks')
     .select(`
       *,
-      profiles!assigned_to (*)
+      profiles:assigned_to (
+        id,
+        name,
+        avatar_url
+      )
     `)
     .eq('household_id', householdId)
     .order('completed', { ascending: true })
@@ -277,7 +312,11 @@ export const updateTask = async (taskId: string, updates: Partial<Task>) => {
     .eq('id', taskId)
     .select(`
       *,
-      profiles!assigned_to (*)
+      profiles:assigned_to (
+        id,
+        name,
+        avatar_url
+      )
     `)
     .single()
 
