@@ -20,3 +20,4 @@ if (!supabase) {
 
 
 export { supabase }; // Export the supabase client directly
+
