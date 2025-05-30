@@ -1,106 +1,66 @@
 
 "use client";
 import React, { useState, useContext, createContext, useEffect } from 'react';
-import { ChevronRight, Home, Users, DollarSign, CheckSquare, Plus, UserPlus, LogOut, Menu, X, ArrowLeft, Check, Calendar, User as LucideUserIcon } from 'lucide-react'; // Renamed User to avoid conflict
-import { supabase } from '../lib/supabase';
-import type { User as SupabaseUser, Session } from '@supabase/supabase-js';
+import { ChevronRight, Home, Users, DollarSign, CheckSquare, Plus, UserPlus, LogOut, Menu, X, ArrowLeft, Check, Calendar, User } from 'lucide-react';
 
 // Types
-
-// User object used within the AuthContext and for displaying current user info
 interface User {
-  id: string; // from Supabase auth: auth.users.id
-  email?: string; // from Supabase auth: auth.users.email
-  name: string; // from public.profiles.name (fallback to email part if not available)
-  avatarUrl?: string; // from public.profiles.avatar_url
-}
-
-// Represents the 'households' table
-interface Household {
-  id: string; // PK, UUID
+  id: string;
+  email: string;
   name: string;
-  created_by: string; // FK to auth.users.id
-  created_at: string; // timestamptz
-  // updated_at: string; // timestamptz, if you select it
+  avatarUrl?: string;
 }
 
-// Represents the 'household_members' table, potentially joined with 'profiles'
+interface Household {
+  id: string;
+  name: string;
+  createdAt: string;
+  memberCount: number;
+}
+
 interface HouseholdMember {
-  id: string; // PK, UUID for the membership record itself
-  household_id: string; // FK to households.id
-  user_id: string; // FK to auth.users.id (and public.profiles.id)
-  role: 'admin' | 'member';
-  joined_at: string; // timestamptz
-  
-  // Nested profile data if joined: .select('*, profiles(name, avatar_url)')
-  profiles?: { 
-    name: string;
-    avatar_url?: string | null;
-  } | null; 
-  
-  // Client-side enriched/denormalized fields (optional as they are added after fetch)
-  user_name?: string; 
-  user_avatar_url?: string | null;
+  id: string;
+  userId: string;
+  householdId: string;
+  user: User;
+  joinedAt: string;
 }
 
-// Represents the 'expense_splits' table
-interface ExpenseSplit {
-  id: string; // PK, UUID
-  expense_id: string; // FK to expenses.id
-  user_id: string; // FK to auth.users.id
-  amount: number; // numeric
-  settled: boolean;
-  settled_at?: string | null; // timestamptz
-  
-  // Client-side enriched/denormalized fields
-  user_name?: string;
-  user_avatar_url?: string | null;
-}
-
-// Represents the 'expenses' table, potentially with 'expense_splits' embedded
 interface Expense {
-  id: string; // PK, UUID
-  household_id: string; // FK to households.id
+  id: string;
+  householdId: string;
   description: string;
-  amount: number; // numeric
-  paid_by: string; // FK to auth.users.id
-  date: string; // date type in DB, string in JS
-  created_at: string; // timestamptz
-  updated_at: string; // timestamptz
-  
-  // Embedded splits if queried like: .select('*, expense_splits(*)')
-  expense_splits: ExpenseSplit[]; 
-  
-  // Client-side enriched/denormalized fields
-  paid_by_user_name?: string;
-  paid_by_user_avatar_url?: string | null;
+  amount: number;
+  paidBy: string;
+  paidByUser: User;
+  date: string;
+  settled: boolean;
+  splits: ExpenseSplit[];
 }
 
-// Represents the 'tasks' table
+interface ExpenseSplit {
+  id: string;
+  expenseId: string;
+  userId: string;
+  amount: number;
+  settled: boolean;
+  user: User;
+}
+
 interface Task {
-  id: string; // PK, UUID
-  household_id: string; // FK to households.id
+  id: string;
+  householdId: string;
   title: string;
-  assigned_to?: string | null; // FK to auth.users.id
+  assignedTo?: string;
+  assignedToUser?: User;
   completed: boolean;
-  completed_at?: string | null; // timestamptz
-  created_at: string; // timestamptz
-  updated_at: string; // timestamptz
-  
-  // Client-side enriched/denormalized fields
-  assigned_to_user_name?: string;
-  assigned_to_user_avatar_url?: string | null;
+  createdAt: string;
 }
 
-// Represents the structure for displaying user balances within a household
 interface Balance {
-  userId: string; // Corresponds to a user_id
-  user: { // Simplified user object for display purposes within Balance context
-    id: string;
-    name: string;
-    avatarUrl?: string | null;
-  };
-  balance: number; // positive = user is owed, negative = user owes
+  userId: string;
+  user: User;
+  balance: number; // positive = owed to them, negative = they owe
 }
 
 // Auth Context
@@ -108,13 +68,13 @@ const AuthContext = createContext<{
   user: User | null;
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string, name: string) => Promise<void>;
-  logout: () => Promise<void>; // Make logout async
+  logout: () => void;
   loading: boolean;
 }>({
   user: null,
   login: async () => {},
   register: async () => {},
-  logout: async () => {},
+  logout: () => {},
   loading: true,
 });
 
@@ -124,98 +84,39 @@ const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => 
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    setLoading(true);
-    const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log('Auth event:', event, session);
-      if (event === 'INITIAL_SESSION' || event === 'SIGNED_IN') {
-        if (session?.user) {
-          try {
-            const { data: profile, error } = await supabase
-              .from('profiles')
-              .select('name, avatar_url')
-              .eq('id', session.user.id)
-              .single();
-
-            if (error) {
-              console.error('Error fetching profile:', error);
-              // Potentially sign out user if profile is crucial and missing
-              // await supabase.auth.signOut(); 
-              // setUser(null);
-            }
-            
-            const appUser: User = {
-              id: session.user.id,
-              email: session.user.email,
-              name: profile?.name || session.user.email?.split('@')[0] || 'User', // Fallback for name
-              avatarUrl: profile?.avatar_url,
-            };
-            setUser(appUser);
-          } catch (profileError) {
-            console.error('Error processing profile:', profileError);
-            setUser(null); // Or handle more gracefully
-          }
-        } else {
-          setUser(null);
-        }
-      } else if (event === 'SIGNED_OUT') {
-        setUser(null);
-      }
-      // Only set loading to false once after initial check or sign-in/out attempt
-      if (event === 'INITIAL_SESSION' || event === 'SIGNED_IN' || event === 'SIGNED_OUT') {
-         setLoading(false);
-      }
-    });
-
-    // Check initial session (this will trigger INITIAL_SESSION above)
-    // supabase.auth.getSession().then(({ data: { session } }) => {
-    //   if (!session) { // If no session, ensure loading is false
-    //      setLoading(false);
-    //   }
-    //   // onAuthStateChange will handle setting user and loading state
-    // });
-
-
-    return () => {
-      authListener?.unsubscribe();
-    };
+    // Simulate checking for existing session
+    const savedUser = localStorage.getItem('user');
+    if (savedUser) {
+      setUser(JSON.parse(savedUser));
+    }
+    setLoading(false);
   }, []);
 
   const login = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) {
-      console.error('Login error:', error);
-      throw error;
-    }
-    // onAuthStateChange will handle setting the user state
+    // Simulate API call
+    const mockUser: User = {
+      id: '1',
+      email,
+      name: email.split('@')[0],
+    };
+    setUser(mockUser);
+    localStorage.setItem('user', JSON.stringify(mockUser));
   };
 
   const register = async (email: string, password: string, name: string) => {
-    const { data, error } = await supabase.auth.signUp({
+    // Simulate API call
+    const mockUser: User = {
+      id: Date.now().toString(),
       email,
-      password,
-      options: {
-        data: { name }, // This will be available in raw_user_meta_data for your trigger
-      },
-    });
-    if (error) {
-      console.error('Registration error:', error);
-      throw error;
-    }
-    // Optional: handle if user needs to be manually set or if confirmation is needed
-    // For now, assuming handle_new_user trigger and onAuthStateChange do the work.
-    // If email confirmation is enabled, user won't be signed in immediately.
-    console.log('Registration successful, session data:', data.session);
-    // If session is returned and email confirmation is off, onAuthStateChange will pick it up.
-    // If email confirmation is on, user needs to confirm first.
+      name,
+    };
+    setUser(mockUser);
+    localStorage.setItem('user', JSON.stringify(mockUser));
   };
 
-  const logout = async () => {
-    const { error } = await supabase.auth.signOut();
-    if (error) {
-      console.error('Logout error:', error);
-      throw error;
-    }
-    // onAuthStateChange will handle setting user to null
+  const logout = () => {
+    setUser(null);
+    localStorage.removeItem('user');
   };
 
   return (
@@ -298,7 +199,7 @@ const Layout: React.FC<{ children: React.ReactNode; title?: string; showBack?: b
 
 // Auth Pages
 const LoginPage: React.FC = () => {
-  const { login, register } = useAuth(); // Added register here
+  const { login } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -307,23 +208,13 @@ const LoginPage: React.FC = () => {
 
   const handleSubmit = async () => {
     try {
-      setError(''); // Clear previous errors
       if (isRegistering) {
-        // Ensure name is provided for registration
-        if (!name.trim()) {
-          setError('Name is required for registration.');
-          return;
-        }
-        await register(email, password, name);
-        // Potentially show a message about checking email for confirmation if enabled
+        await login(email, password);
       } else {
         await login(email, password);
       }
-      // Navigation or state change will be handled by onAuthStateChange
-      // leading to Dashboard display if successful.
-    } catch (err: any) {
-      console.error("Auth error:", err);
-      setError(err.message || 'An unexpected error occurred.');
+    } catch (err) {
+      setError('Invalid credentials');
     }
   };
 
@@ -410,122 +301,52 @@ const LoginPage: React.FC = () => {
   );
 };
 
-// Dashboard Component
+// Dashboard
 const Dashboard: React.FC = () => {
-  const { user } = useAuth(); // Assuming useAuth provides the authenticated user
-  const [households, setHouseholds] = useState<Household[]>([]);
-  const [loadingHouseholds, setLoadingHouseholds] = useState(true);
+  const { user } = useAuth();
+  const [households, setHouseholds] = useState<Household[]>([
+    {
+      id: '1',
+      name: 'Beach House',
+      createdAt: '2024-01-15',
+      memberCount: 3,
+    },
+    {
+      id: '2',
+      name: 'City Apartment',
+      createdAt: '2024-02-20',
+      memberCount: 2,
+    },
+  ]);
   const [showCreateHousehold, setShowCreateHousehold] = useState(false);
   const [newHouseholdName, setNewHouseholdName] = useState('');
-  const [selectedHousehold, setSelectedHousehold] = useState<string | null>(null); // Keep this for navigation
-    const [dashboardError, setDashboardError] = useState<string | null>(null); // Renamed for clarity
-    const [isCreatingHousehold, setIsCreatingHousehold] = useState(false);
+  const [selectedHousehold, setSelectedHousehold] = useState<string | null>(null);
 
-  // Fetch households
-  useEffect(() => {
-    const fetchHouseholds = async () => {
-      if (!user) {
-        setHouseholds([]);
-        setLoadingHouseholds(false);
-        return;
-      }
-
-      setLoadingHouseholds(true);
-      setDashboardError(null);
-      try {
-        // Supabase RLS policy "Users can view households they belong to"
-        // is expected to filter households for the current user.
-        const { data, error: householdsError } = await supabase
-          .from('households')
-          .select('*'); // RLS handles filtering
-
-        if (householdsError) {
-          throw householdsError;
-        }
-        setHouseholds(data || []);
-      } catch (err: any) {
-        console.error('Error fetching households:', err);
-        setDashboardError('Failed to fetch households. ' + err.message);
-        setHouseholds([]);
-      } finally {
-        setLoadingHouseholds(false);
-      }
-    };
-
-    fetchHouseholds();
-  }, [user]); // Re-fetch if user changes
-
-  const handleCreateHousehold = async () => {
-    if (!newHouseholdName.trim() || !user) {
-      setDashboardError('Household name is required.'); // Use dashboardError for this modal
-      return;
-    }
-    setDashboardError(null);
-    setIsCreatingHousehold(true);
-
-    try {
-      // 1. Create the household
-      const { data: newHousehold, error: createHouseholdError } = await supabase
-        .from('households')
-        .insert({ name: newHouseholdName, created_by: user.id })
-        .select() // To get the created household back, especially its ID
-        .single(); // Expecting a single object back
-
-      if (createHouseholdError) {
-        throw createHouseholdError;
-      }
-
-      if (!newHousehold) {
-        throw new Error('Failed to create household, no data returned.');
-      }
-
-      // 2. Add the creator as an admin member of the new household
-      const { error: addMemberError } = await supabase
-        .from('household_members')
-        .insert({ household_id: newHousehold.id, user_id: user.id, role: 'admin' });
-
-      if (addMemberError) {
-        // Attempt to clean up if adding member fails? This is complex client-side.
-        // For now, log error. A database function/transaction would be better.
-        console.error('Failed to add creator to household members after household creation:', addMemberError);
-        // Potentially inform user that member addition failed.
-        throw new Error(`Household created, but failed to add you as a member: ${addMemberError.message}`);
-      }
-
-      // Add to local state or re-fetch
-      setHouseholds(prevHouseholds => [...prevHouseholds, newHousehold]);
+  const createHousehold = () => {
+    if (newHouseholdName.trim()) {
+      const newHousehold: Household = {
+        id: Date.now().toString(),
+        name: newHouseholdName,
+        createdAt: new Date().toISOString(),
+        memberCount: 1,
+      };
+      setHouseholds([...households, newHousehold]);
       setNewHouseholdName('');
       setShowCreateHousehold(false);
-
-    } catch (err: any) {
-      console.error('Error creating household:', err);
-      setDashboardError('Failed to create household: ' + err.message); // Use dashboardError
-    } finally {
-      setIsCreatingHousehold(false);
     }
   };
 
   if (selectedHousehold) {
-    // Ensure HouseholdDetail props are updated according to new data structures
     return <HouseholdDetail householdId={selectedHousehold} onBack={() => setSelectedHousehold(null)} />;
-  }
-  
-  if (loadingHouseholds) {
-    return (
-      <Layout>
-        <div className="text-center py-12">Loading households...</div>
-      </Layout>
-    );
   }
 
   return (
     <Layout>
       <div className="space-y-6">
-          {dashboardError && !showCreateHousehold && <div className="text-red-500 p-3 bg-red-100 rounded-md mb-4">{dashboardError}</div>}
         <div className="flex justify-between items-center">
           <h2 className="text-2xl font-bold text-gray-900">Your Households</h2>
           <button
-              onClick={() => { setShowCreateHousehold(true); setDashboardError(null); }}
+            onClick={() => setShowCreateHousehold(true)}
             className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700"
           >
             <Plus className="h-4 w-4 mr-2" />
@@ -533,7 +354,7 @@ const Dashboard: React.FC = () => {
           </button>
         </div>
 
-        {households.length === 0 && !loadingHouseholds ? (
+        {households.length === 0 ? (
           <div className="text-center py-12">
             <Home className="mx-auto h-12 w-12 text-gray-400" />
             <h3 className="mt-2 text-sm font-medium text-gray-900">No households</h3>
@@ -550,13 +371,8 @@ const Dashboard: React.FC = () => {
                 <div className="flex items-center justify-between">
                   <div>
                     <h3 className="text-lg font-medium text-gray-900">{household.name}</h3>
-                    {/* 
-                      memberCount is not directly available. 
-                      Could display created_at or fetch member count separately if needed.
-                      For now, let's display created_at date for simplicity.
-                    */}
                     <p className="mt-1 text-sm text-gray-500">
-                      Created on: {new Date(household.created_at).toLocaleDateString()}
+                      {household.memberCount} {household.memberCount === 1 ? 'member' : 'members'}
                     </p>
                   </div>
                   <ChevronRight className="h-5 w-5 text-gray-400" />
@@ -570,29 +386,26 @@ const Dashboard: React.FC = () => {
           <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center p-4 z-50">
             <div className="bg-white rounded-lg p-6 max-w-md w-full">
               <h3 className="text-lg font-medium text-gray-900 mb-4">Create New Household</h3>
-              {dashboardError && showCreateHousehold && <div className="text-red-500 p-2 bg-red-100 rounded-md mb-3">{dashboardError}</div>}
               <input
                 type="text"
                 placeholder="Household name"
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                 value={newHouseholdName}
                 onChange={(e) => setNewHouseholdName(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && handleCreateHousehold()}
+                onKeyPress={(e) => e.key === 'Enter' && createHousehold()}
               />
               <div className="mt-4 flex justify-end space-x-3">
                 <button
-                  onClick={() => { setShowCreateHousehold(false); setDashboardError(null); }}
-                  disabled={isCreatingHousehold}
-                  className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-500 disabled:opacity-50"
+                  onClick={() => setShowCreateHousehold(false)}
+                  className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-500"
                 >
                   Cancel
                 </button>
                 <button
-                  onClick={handleCreateHousehold}
-                  disabled={isCreatingHousehold}
-                  className="px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50"
+                  onClick={createHousehold}
+                  className="px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
                 >
-                  {isCreatingHousehold ? 'Creating...' : 'Create'}
+                  Create
                 </button>
               </div>
             </div>
@@ -605,134 +418,91 @@ const Dashboard: React.FC = () => {
 
 // Household Detail Page
 const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = ({ householdId, onBack }) => {
-  const { user: currentUser } = useAuth(); // Get current authenticated user
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<'expenses' | 'members' | 'tasks'>('expenses');
-  
-  // Add new state for members
-  const [members, setMembers] = useState<HouseholdMember[]>([]);
-  const [loadingMembers, setLoadingMembers] = useState(true);
-  const [errorMembers, setErrorMembers] = useState<string | null>(null);
+  const [members] = useState<HouseholdMember[]>([
+    {
+      id: '1',
+      userId: '1',
+      householdId,
+      user: { id: '1', email: 'john@example.com', name: 'John' },
+      joinedAt: '2024-01-15',
+    },
+    {
+      id: '2',
+      userId: '2',
+      householdId,
+      user: { id: '2', email: 'sarah@example.com', name: 'Sarah' },
+      joinedAt: '2024-01-16',
+    },
+    {
+      id: '3',
+      userId: '3',
+      householdId,
+      user: { id: '3', email: 'mike@example.com', name: 'Mike' },
+      joinedAt: '2024-01-17',
+    },
+  ]);
 
-  // Fetch members and their profiles
-  useEffect(() => {
-    const fetchMembers = async () => {
-      if (!householdId) return;
-      setLoadingMembers(true);
-      setErrorMembers(null);
-      try {
-        const { data, error } = await supabase
-          .from('household_members')
-          .select('*, profiles(name, avatar_url)') // Fetch related profile
-          .eq('household_id', householdId);
+  const [expenses, setExpenses] = useState<Expense[]>([
+    {
+      id: '1',
+      householdId,
+      description: 'Groceries',
+      amount: 120.50,
+      paidBy: '1',
+      paidByUser: members[0].user,
+      date: '2024-03-20',
+      settled: false,
+      splits: members.map((m, i) => ({
+        id: `split-1-${i}`,
+        expenseId: '1',
+        userId: m.userId,
+        amount: 40.17,
+        settled: i === 0,
+        user: m.user,
+      })),
+    },
+    {
+      id: '2',
+      householdId,
+      description: 'Internet Bill',
+      amount: 60,
+      paidBy: '2',
+      paidByUser: members[1].user,
+      date: '2024-03-15',
+      settled: false,
+      splits: members.map((m, i) => ({
+        id: `split-2-${i}`,
+        expenseId: '2',
+        userId: m.userId,
+        amount: 20,
+        settled: i === 1,
+        user: m.user,
+      })),
+    },
+  ]);
 
-        if (error) throw error;
-        
-        const fetchedMembers = (data || []).map(m => ({
-          ...m,
-          user_name: m.profiles?.name,
-          user_avatar_url: m.profiles?.avatar_url
-        })) as HouseholdMember[];
-        setMembers(fetchedMembers);
-
-      } catch (err: any) {
-        console.error('Error fetching members:', err);
-        setErrorMembers('Failed to fetch members: ' + err.message);
-      } finally {
-        setLoadingMembers(false);
-      }
-    };
-    // Fetch members whenever householdId changes, or if the members tab is active
-    // to ensure data is fresh if user navigates back and forth.
-    if (householdId) {
-      fetchMembers();
-    }
-  }, [householdId]);
-  
-  // Add new state for expenses
-  const [expenses, setExpenses] = useState<Expense[]>([]);
-  const [loadingExpenses, setLoadingExpenses] = useState(true);
-  const [errorExpenses, setErrorExpenses] = useState<string | null>(null);
-
-  // Fetch expenses and their splits
-  useEffect(() => {
-    const fetchExpenses = async () => {
-      if (!householdId) return;
-      setLoadingExpenses(true);
-      setErrorExpenses(null);
-      try {
-        const { data, error } = await supabase
-          .from('expenses')
-          .select('*, expense_splits(*)') // Embed splits
-          .eq('household_id', householdId)
-          .order('date', { ascending: false });
-
-        if (error) throw error;
-        
-        // Basic mapping, ideally enrich with user names later
-        const fetchedExpenses = data.map(exp => ({
-          ...exp,
-          // Ensure expense_splits is always an array
-          expense_splits: exp.expense_splits || [], 
-        })) as Expense[];
-
-        // TODO: Enrich expenses with paid_by_user_name and splits with user_name
-        // This requires fetching profiles based on IDs. This can be a follow-up optimization
-        // or done when members list is fully available.
-        setExpenses(fetchedExpenses);
-
-      } catch (err: any) {
-        console.error('Error fetching expenses:', err);
-        setErrorExpenses('Failed to fetch expenses: ' + err.message);
-      } finally {
-        setLoadingExpenses(false);
-      }
-    };
-    fetchExpenses();
-  }, [householdId]);
-
-  const [tasks, setTasks] = useState<Task[]>([]);
-  const [loadingTasks, setLoadingTasks] = useState(true);
-  const [errorTasks, setErrorTasks] = useState<string | null>(null);
-
-  // Fetch tasks (depends on householdId and activeTab)
-  useEffect(() => {
-    const fetchTasks = async () => {
-      if (!householdId) return;
-      setLoadingTasks(true);
-      setErrorTasks(null);
-      try {
-        const { data, error } = await supabase
-          .from('tasks')
-          .select('*')
-          .eq('household_id', householdId)
-          .order('created_at', { ascending: false });
-
-        if (error) throw error;
-        
-        const enrichedTasks = (data || []).map(task => {
-          const assignedMember = members.find(m => m.user_id === task.assigned_to);
-          return {
-            ...task,
-            assigned_to_user_name: assignedMember?.user_name || task.assigned_to,
-          };
-        });
-        setTasks(enrichedTasks);
-
-      } catch (err: any) {
-        console.error('Error fetching tasks:', err);
-        setErrorTasks('Failed to fetch tasks: ' + err.message);
-      } finally {
-        setLoadingTasks(false);
-      }
-    };
-
-    if (householdId && (activeTab === 'tasks' || tasks.length === 0)) {
-      if (members.length > 0 || activeTab === 'tasks') { // Ensure members are loaded or tab is active
-         fetchTasks();
-      }
-    }
-  }, [householdId, activeTab, members]); // Add members as dependency for enrichment
-
+  const [tasks, setTasks] = useState<Task[]>([
+    {
+      id: '1',
+      householdId,
+      title: 'Clean kitchen',
+      assignedTo: '1',
+      assignedToUser: members[0].user,
+      completed: false,
+      createdAt: '2024-03-20',
+    },
+    {
+      id: '2',
+      householdId,
+      title: 'Take out trash',
+      assignedTo: '2',
+      assignedToUser: members[1].user,
+      completed: true,
+      createdAt: '2024-03-19',
+    },
+  ]);
 
   const [showAddExpense, setShowAddExpense] = useState(false);
   const [showAddTask, setShowAddTask] = useState(false);
@@ -741,175 +511,113 @@ const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = (
   // Calculate balances
   const calculateBalances = (): Balance[] => {
     const balanceMap = new Map<string, number>();
-    // Ensure members are populated before calculating balances
-    if (members && members.length > 0) {
-      members.forEach(m => balanceMap.set(m.user_id, 0));
+    
+    members.forEach(m => balanceMap.set(m.userId, 0));
 
-      expenses.forEach(expense => {
-        // Add what the payer is owed
-        const payerBalance = balanceMap.get(expense.paid_by) || 0;
-        balanceMap.set(expense.paid_by, payerBalance + expense.amount);
-  
-        // Subtract what each person owes
-        expense.expense_splits.forEach(split => {
-          if (!split.settled) {
-            const currentBalance = balanceMap.get(split.user_id) || 0;
-            balanceMap.set(split.user_id, currentBalance - split.amount);
-          }
-        });
-      });
+    expenses.forEach(expense => {
+      // Add what the payer is owed
+      const payerBalance = balanceMap.get(expense.paidBy) || 0;
+      balanceMap.set(expense.paidBy, payerBalance + expense.amount);
 
-      return Array.from(balanceMap.entries()).map(([userId, balance]) => {
-        const memberProfile = members.find(m => m.user_id === userId);
-        return {
-          userId,
-          user: { 
-            id: userId, 
-            name: memberProfile?.user_name || memberProfile?.profiles?.name || 'Unknown User',
-            avatarUrl: memberProfile?.user_avatar_url || memberProfile?.profiles?.avatar_url
-          },
-          balance,
-        };
+      // Subtract what each person owes
+      expense.splits.forEach(split => {
+        if (!split.settled) {
+          const currentBalance = balanceMap.get(split.userId) || 0;
+          balanceMap.set(split.userId, currentBalance - split.amount);
+        }
       });
-    }
-    return []; // Return empty if no members
+    });
+
+    return Array.from(balanceMap.entries()).map(([userId, balance]) => ({
+      userId,
+      user: members.find(m => m.userId === userId)!.user,
+      balance,
+    }));
   };
 
   const balances = calculateBalances();
 
-  // Inside AddExpenseModal component defined within HouseholdDetail:
   const AddExpenseModal = () => {
     const [description, setDescription] = useState('');
     const [amount, setAmount] = useState('');
-    const [paidBy, setPaidBy] = useState(currentUser?.id || ''); 
-    const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
-    const [addExpenseError, setAddExpenseError] = useState<string | null>(null);
-    const [isSubmittingExpense, setIsSubmittingExpense] = useState(false);
+    const [paidBy, setPaidBy] = useState(user?.id || '1');
 
-    useEffect(() => {
-      if (currentUser && members.length > 0 && !members.find(m => m.user_id === currentUser.id)) {
-        if (members.length > 0 && (!paidBy || !members.find(m => m.user_id === paidBy)) ) setPaidBy(members[0].user_id);
-      } else if (currentUser && !paidBy) {
-         setPaidBy(currentUser.id);
-      }
-    }, [currentUser, members, paidBy]);
-
-
-    const handleSubmit = async () => {
-      if (!description || !amount || !paidBy || !date) {
-        setAddExpenseError('Please fill all fields.');
-        return;
-      }
-      setAddExpenseError(null);
-      setIsSubmittingExpense(true);
-      try {
-        const parsedAmount = parseFloat(amount);
-        if (isNaN(parsedAmount) || parsedAmount <= 0) {
-          setAddExpenseError('Invalid amount.');
-          setIsSubmittingExpense(false);
-          return;
-        }
-
-        // Call the Supabase RPC function
-        const { data: newExpenseId, error: rpcError } = await supabase.rpc('create_expense_with_splits', {
-          p_household_id: householdId,
-          p_description: description,
-          p_amount: parsedAmount,
-          p_paid_by: paidBy, // This should be the UUID of the user who paid
-          p_date: date,
-        });
-
-        if (rpcError) throw rpcError;
-
-        // Success: close modal, refresh expenses
-        // A simple way to refresh is to re-fetch all expenses.
-        // More optimized: if RPC returns the new expense, add it to state.
-        // For now, re-fetching is simpler to implement.
-        setShowAddExpense(false); // Assuming setShowAddExpense controls modal visibility
-        setLoadingExpenses(true); // Trigger loading state for feedback
-        // Re-fetch (or you can try to append if the RPC returned the full expense object)
-        const { data: refreshedExpensesData, error: fetchError } = await supabase
-          .from('expenses')
-          .select('*, expense_splits(*)')
-          .eq('household_id', householdId)
-          .order('date', { ascending: false });
-        
-        if (fetchError) throw fetchError;
-        setExpenses(refreshedExpensesData.map(exp => ({ ...exp, expense_splits: exp.expense_splits || [] })) as Expense[]);
-        setShowAddExpense(false); // Close modal on success
-        setDescription(''); setAmount(''); // Reset form
-      } catch (err: any) {
-        console.error('Error adding expense:', err);
-        setAddExpenseError('Failed to add expense: ' + err.message);
-      } finally {
-         setIsSubmittingExpense(false);
-         // setLoadingExpenses(false); // This might be too broad if only one expense is being added
+    const handleSubmit = () => {
+      if (description && amount) {
+        const newExpense: Expense = {
+          id: Date.now().toString(),
+          householdId,
+          description,
+          amount: parseFloat(amount),
+          paidBy,
+          paidByUser: members.find(m => m.userId === paidBy)!.user,
+          date: new Date().toISOString().split('T')[0],
+          settled: false,
+          splits: members.map((m) => ({
+            id: `split-${Date.now()}-${m.userId}`,
+            expenseId: Date.now().toString(),
+            userId: m.userId,
+            amount: parseFloat(amount) / members.length,
+            settled: m.userId === paidBy,
+            user: m.user,
+          })),
+        };
+        setExpenses([newExpense, ...expenses]);
+        setShowAddExpense(false);
       }
     };
-    
-    // Return JSX for AddExpenseModal
-    // Ensure the 'Paid by' select uses 'members' state.
-    // Example for Paid by select:
-    // <select value={paidBy} onChange={(e) => setPaidBy(e.target.value)}>
-    //   {members.map(member => (
-    //    <option key={member.user_id} value={member.user_id}>{member.user?.name || member.user_id}</option>
-    //   ))}
-    // </select>
-    // Also add a date input:
-    // <input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
-    
-    // This is a simplified version of the modal. The full JSX is already in RoomiesApp.tsx.
-    // The main change is the handleSubmit logic and adding a date field.
-    // The worker should adapt the existing modal's handleSubmit.
+
     return (
-      // ... Modal JSX ...
-      // Ensure there's an input for date:
-      // <div>
-      //   <label className="block text-sm font-medium text-gray-700">Date</label>
-      //   <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md ..."/>
-      // </div>
-      // Ensure the "Paid by" select is populated (even if with current user only for now):
-      // <select value={paidBy} onChange={(e) => setPaidBy(e.target.value)} className="mt-1 w-full ...">
-      //    <option value={user?.id}>{user?.name || 'You'}</option>
-      //    {/* Populate with other members once members list is available */}
-      // </select>
-      // ... rest of the modal JSX ...
-      // The existing modal structure should be largely preserved, just updating the state and submit logic.
       <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center p-4 z-50">
         <div className="bg-white rounded-lg p-6 max-w-md w-full">
           <h3 className="text-lg font-medium text-gray-900 mb-4">Add Expense</h3>
-          {addExpenseError && <div className="text-red-500 p-2 bg-red-100 rounded-md mb-3">{addExpenseError}</div>}
           <div className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700">Description</label>
-              <input type="text" value={description} onChange={(e) => setDescription(e.target.value)} className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md"/>
+              <input
+                type="text"
+                className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+              />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700">Amount</label>
-              <input type="number" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md"/>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Date</label>
-              <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md"/>
+              <input
+                type="number"
+                step="0.01"
+                className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+              />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700">Paid by</label>
-              <select value={paidBy} onChange={(e) => setPaidBy(e.target.value)} className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md">
+              <select
+                className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                value={paidBy}
+                onChange={(e) => setPaidBy(e.target.value)}
+              >
                 {members.map(member => (
-                  <option key={member.user_id} value={member.user_id}>
-                    {member.user_name || member.profiles?.name || member.user_id}
+                  <option key={member.userId} value={member.userId}>
+                    {member.user.name}
                   </option>
                 ))}
-                {!members.find(m => m.user_id === currentUser?.id) && currentUser && (
-                   <option value={currentUser.id}>{currentUser.name || 'You (Not in member list yet)'}</option>
-                )}
               </select>
             </div>
           </div>
           <div className="mt-6 flex justify-end space-x-3">
-            <button onClick={() => {setShowAddExpense(false); setAddExpenseError(null);}} disabled={isSubmittingExpense} className="px-4 py-2 text-sm font-medium disabled:opacity-50">Cancel</button>
-            <button onClick={handleSubmit} disabled={isSubmittingExpense} className="px-4 py-2 border text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50">
-              {isSubmittingExpense ? 'Adding...' : 'Add Expense'}
+            <button
+              onClick={() => setShowAddExpense(false)}
+              className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-500"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleSubmit}
+              className="px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
+            >
+              Add Expense
             </button>
           </div>
         </div>
@@ -917,86 +625,68 @@ const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = (
     );
   };
 
-  // Inside AddTaskModal component defined within HouseholdDetail:
   const AddTaskModal = () => {
     const [title, setTitle] = useState('');
-    const [assignedTo, setAssignedTo] = useState<string | undefined>(undefined);
-    const [addTaskError, setAddTaskError] = useState<string | null>(null);
-    const [isSubmittingTask, setIsSubmittingTask] = useState(false);
+    const [assignedTo, setAssignedTo] = useState('');
 
-    const handleSubmit = async () => {
-      if (!title.trim()) {
-        setAddTaskError('Task title is required.');
-        return;
-      }
-      setAddTaskError(null);
-      setIsSubmittingTask(true);
-      try {
-        const newTaskData: Partial<Task> = {
-          household_id: householdId,
-          title: title.trim(),
+    const handleSubmit = () => {
+      if (title) {
+        const newTask: Task = {
+          id: Date.now().toString(),
+          householdId,
+          title,
+          assignedTo: assignedTo || undefined,
+          assignedToUser: assignedTo ? members.find(m => m.userId === assignedTo)?.user : undefined,
           completed: false,
-          assigned_to: assignedTo || null, // Ensure it's null if undefined
+          createdAt: new Date().toISOString(),
         };
-
-        const { data: newTask, error } = await supabase
-          .from('tasks')
-          .insert(newTaskData)
-          .select()
-          .single();
-
-        if (error) throw error;
-        if (!newTask) throw new Error("Task creation failed, no data returned.");
-
-        setTasks(prevTasks => [newTask as Task, ...prevTasks]);
-        setShowAddTask(false); 
-        setTitle('');
-        setAssignedTo(undefined);
-      } catch (err: any) {
-        console.error('Error adding task:', err);
-        setAddTaskError('Failed to add task: ' + err.message);
-      } finally {
-        setIsSubmittingTask(false);
+        setTasks([newTask, ...tasks]);
+        setShowAddTask(false);
       }
     };
-    
-    // Return JSX for AddTaskModal
-    // Ensure "Assign to" select uses 'members' state.
-    // For now, it might be empty or simplified.
-    // Example for Assign to select:
-    // <select value={assignedTo || ''} onChange={(e) => setAssignedTo(e.target.value || undefined)}>
-    //   <option value="">Unassigned</option>
-    //   {members.map(member => (
-    //    <option key={member.user_id} value={member.user_id}>{member.user?.name || member.user_id}</option>
-    //   ))}
-    // </select>
-    // This is a simplified version. The worker should adapt the existing modal.
+
     return (
-       <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center p-4 z-50">
+      <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center p-4 z-50">
         <div className="bg-white rounded-lg p-6 max-w-md w-full">
           <h3 className="text-lg font-medium text-gray-900 mb-4">Add Task</h3>
-          {addTaskError && <div className="text-red-500 p-2 bg-red-100 rounded-md mb-3">{addTaskError}</div>}
           <div className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700">Task</label>
-              <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md"/>
+              <input
+                type="text"
+                className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+              />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700">Assign to (optional)</label>
-              <select value={assignedTo || ''} onChange={(e) => setAssignedTo(e.target.value || undefined)} className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md">
+              <select
+                className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                value={assignedTo}
+                onChange={(e) => setAssignedTo(e.target.value)}
+              >
                 <option value="">Unassigned</option>
                 {members.map(member => (
-                  <option key={member.user_id} value={member.user_id}>
-                    {member.user_name || member.profiles?.name || member.user_id}
+                  <option key={member.userId} value={member.userId}>
+                    {member.user.name}
                   </option>
                 ))}
               </select>
             </div>
           </div>
           <div className="mt-6 flex justify-end space-x-3">
-            <button onClick={() => {setShowAddTask(false); setAddTaskError(null);}} disabled={isSubmittingTask} className="px-4 py-2 text-sm font-medium disabled:opacity-50">Cancel</button>
-            <button onClick={handleSubmit} disabled={isSubmittingTask} className="px-4 py-2 border text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50">
-              {isSubmittingTask ? 'Adding...' : 'Add Task'}
+            <button
+              onClick={() => setShowAddTask(false)}
+              className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-500"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleSubmit}
+              className="px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
+            >
+              Add Task
             </button>
           </div>
         </div>
@@ -1006,54 +696,44 @@ const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = (
 
   const InviteMemberModal = () => {
     const [email, setEmail] = useState('');
-    const [isSubmitting, setIsSubmitting] = useState(false);
-    const [inviteError, setInviteError] = useState<string | null>(null);
 
-
-    const handleSubmit = async () => {
-      if (!email.trim() || !currentUser) {
-        setInviteError('Email is required.');
-        return;
-      }
-      setIsSubmitting(true);
-      setInviteError(null);
-      try {
-        const { error } = await supabase.from('invitations').insert({
-          household_id: householdId,
-          invited_by: currentUser.id,
-          email: email.trim(),
-          status: 'pending', // Default status
-        });
-
-        if (error) throw error;
-
-        alert(`Invitation sent to ${email}`); // Replace with better notification
-        setShowInviteMember(false); // Assuming setShowInviteMember controls modal visibility
+    const handleSubmit = () => {
+      if (email) {
+        // In a real app, this would send an invitation
+        alert(`Invitation sent to ${email}`);
+        setShowInviteMember(false);
         setEmail('');
-      } catch (err: any) {
-        console.error('Error sending invitation:', err);
-        setInviteError('Failed to send invitation: ' + err.message);
-      } finally {
-        setIsSubmitting(false);
       }
     };
-    
-    // Return JSX for InviteMemberModal
+
     return (
       <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center p-4 z-50">
         <div className="bg-white rounded-lg p-6 max-w-md w-full">
           <h3 className="text-lg font-medium text-gray-900 mb-4">Invite Member</h3>
-          {inviteError && <p className="text-red-500 text-sm mb-2">{inviteError}</p>}
           <div className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700">Email address</label>
-              <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="roommate@example.com" className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md"/>
+              <input
+                type="email"
+                className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                placeholder="roommate@example.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
             </div>
           </div>
           <div className="mt-6 flex justify-end space-x-3">
-            <button onClick={() => setShowInviteMember(false)} disabled={isSubmitting} className="px-4 py-2 text-sm font-medium">Cancel</button>
-            <button onClick={handleSubmit} disabled={isSubmitting} className="px-4 py-2 border text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50">
-              {isSubmitting ? 'Sending...' : 'Send Invite'}
+            <button
+              onClick={() => setShowInviteMember(false)}
+              className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-500"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleSubmit}
+              className="px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
+            >
+              Send Invite
             </button>
           </div>
         </div>
@@ -1061,34 +741,20 @@ const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = (
     );
   };
 
-  // Update the `markExpenseSettled` function
-  // Function to toggle task completion
-  const handleToggleTaskCompletion = async (taskToToggle: Task) => {
-    setErrorTasks(null);
-    try {
-      const newCompletedStatus = !taskToToggle.completed;
-      const { data: updatedTask, error } = await supabase
-        .from('tasks')
-        .update({
-          completed: newCompletedStatus,
-          completed_at: newCompletedStatus ? new Date().toISOString() : null,
-        })
-        .eq('id', taskToToggle.id)
-        .select()
-        .single();
-
-      if (error) throw error;
-      if (!updatedTask) throw new Error("Task update failed, no data returned.");
-
-      setTasks(prevTasks =>
-        prevTasks.map(task => (task.id === updatedTask.id ? updatedTask as Task : task))
-      );
-    } catch (err: any) {
-      console.error('Error toggling task completion:', err);
-      setErrorTasks('Failed to update task: ' + err.message); // Display this error
-    }
+  const markExpenseSettled = (expenseId: string, userId: string) => {
+    setExpenses(expenses.map(expense => {
+      if (expense.id === expenseId) {
+        return {
+          ...expense,
+          splits: expense.splits.map(split => 
+            split.userId === userId ? { ...split, settled: true } : split
+          )
+        };
+      }
+      return expense;
+    }));
   };
-  
+
   return (
     <Layout title="Beach House" showBack onBack={onBack}>
       <div className="space-y-6">
@@ -1162,56 +828,44 @@ const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = (
                 Add Expense
               </button>
             </div>
-            {loadingExpenses && <p>Loading expenses...</p>}
-            {errorExpenses && <div className="text-red-500 p-3 bg-red-100 rounded-md">{errorExpenses}</div>}
-            {!loadingExpenses && !errorExpenses && (
-              <div className="space-y-3">
-                {expenses.map(expense => (
-                  <div key={expense.id} className="bg-white rounded-lg shadow p-4">
-                    <div className="flex justify-between items-start">
-                      <div className="flex-1">
-                        <h4 className="font-medium text-gray-900">{expense.description}</h4>
-                        <p className="text-sm text-gray-500">
-                          Paid by {members.find(m=>m.user_id === expense.paid_by)?.user_name || expense.paid_by} • {new Date(expense.date).toLocaleDateString()}
-                        </p>
-                        
-                        <div className="mt-2 space-y-1">
-                          {expense.expense_splits.filter(split => split.user_id !== expense.paid_by && !split.settled).map(split => (
-                            <div key={split.id} className="flex items-center justify-between text-sm">
-                              <span className="text-gray-600">{members.find(m=>m.user_id === split.user_id)?.user_name || split.user_id} owes</span>
-                              <div className="flex items-center space-x-2">
-                                <span className="font-medium">${split.amount.toFixed(2)}</span>
-                                <button
-                                  onClick={() => markExpenseSettled(expense.id, split.user_id)} // markExpenseSettled needs to be defined or updated
-                                  className="text-xs text-blue-600 hover:text-blue-500"
-                                >
-                                  Mark paid
-                                </button>
-                              </div>
+            <div className="space-y-3">
+              {expenses.map(expense => (
+                <div key={expense.id} className="bg-white rounded-lg shadow p-4">
+                  <div className="flex justify-between items-start">
+                    <div className="flex-1">
+                      <h4 className="font-medium text-gray-900">{expense.description}</h4>
+                      <p className="text-sm text-gray-500">
+                        Paid by {expense.paidByUser.name} • {expense.date}
+                      </p>
+                      
+                      {/* Show who owes what */}
+                      <div className="mt-2 space-y-1">
+                        {expense.splits.filter(split => split.userId !== expense.paidBy && !split.settled).map(split => (
+                          <div key={split.id} className="flex items-center justify-between text-sm">
+                            <span className="text-gray-600">{split.user.name} owes</span>
+                            <div className="flex items-center space-x-2">
+                              <span className="font-medium">${split.amount.toFixed(2)}</span>
+                              <button
+                                onClick={() => markExpenseSettled(expense.id, split.userId)}
+                                className="text-xs text-blue-600 hover:text-blue-500"
+                              >
+                                Mark paid
+                              </button>
                             </div>
-                          ))}
-                           {expense.expense_splits.filter(split => split.settled).map(split => (
-                            <div key={split.id} className="flex items-center justify-between text-sm text-gray-400">
-                              <span>{members.find(m=>m.user_id === split.user_id)?.user_name || split.user_id} paid ${split.amount.toFixed(2)}</span>
-                              <span>(Settled)</span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                      <div className="text-right ml-4">
-                        <p className="font-medium text-gray-900">${expense.amount.toFixed(2)}</p>
-                        {members && members.length > 0 && expense.expense_splits.length > 0 && (
-                           <p className="text-xs text-gray-500">
-                             ${(expense.amount / expense.expense_splits.length).toFixed(2)} each
-                           </p>
-                        )}
+                          </div>
+                        ))}
                       </div>
                     </div>
+                    <div className="text-right ml-4">
+                      <p className="font-medium text-gray-900">${expense.amount.toFixed(2)}</p>
+                      <p className="text-xs text-gray-500">
+                        ${(expense.amount / members.length).toFixed(2)} each
+                      </p>
+                    </div>
                   </div>
-                ))}
-                {expenses.length === 0 && <p className="text-gray-500">No expenses yet. Add one to get started!</p>}
-              </div>
-            )}
+                </div>
+              ))}
+            </div>
           </div>
         )}
 
@@ -1227,23 +881,17 @@ const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = (
                 Invite
               </button>
             </div>
-            {loadingMembers && <p>Loading members...</p>}
-            {errorMembers && <div className="text-red-500 p-3 bg-red-100 rounded-md">{errorMembers}</div>}
-            {!loadingMembers && !errorMembers && (
-              <div className="space-y-3">
-                {members.map(member => (
-                  <div key={member.id} className="bg-white rounded-lg shadow p-4 flex items-center justify-between">
+            <div className="space-y-3">
+              {members.map(member => (
+                <div key={member.id} className="bg-white rounded-lg shadow p-4">
+                  <div className="flex items-center justify-between">
                     <div className="flex items-center">
-                      {member.user_avatar_url ? (
-                        <img src={member.user_avatar_url} alt={member.user_name} className="h-10 w-10 rounded-full" />
-                      ) : (
-                        <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center">
-                          <LucideUserIcon className="h-5 w-5 text-gray-500" />
-                        </div>
-                      )}
+                      <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center">
+                        <User className="h-5 w-5 text-gray-500" />
+                      </div>
                       <div className="ml-3">
-                        <p className="font-medium text-gray-900">{member.user_name || member.profiles?.name || member.user_id}</p>
-                        <p className="text-sm text-gray-500">Role: {member.role}</p>
+                        <p className="font-medium text-gray-900">{member.user.name}</p>
+                        <p className="text-sm text-gray-500">{member.user.email}</p>
                       </div>
                     </div>
                   </div>
@@ -1265,47 +913,46 @@ const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = (
                 Add Task
               </button>
             </div>
-            {loadingTasks && <p>Loading tasks...</p>}
-            {errorTasks && <div className="text-red-500 p-3 bg-red-100 rounded-md">{errorTasks}</div>}
-            {!loadingTasks && !errorTasks && (
-              <>
-                <div className="space-y-3">
-                  {tasks.filter(t => !t.completed).map(task => (
-                    <div key={task.id} className={`p-4 rounded-lg shadow bg-white`}>
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center">
-                          <button onClick={() => handleToggleTaskCompletion(task)} className="flex-shrink-0">
-                            <div className="h-5 w-5 rounded border-2 border-gray-300 hover:border-gray-400" />
-                          </button>
-                          <p className={`ml-3 text-gray-900`}>{task.title}</p>
-                        </div>
-                        {task.assigned_to && <span className="text-sm text-gray-500">Assigned to: {members.find(m=>m.user_id === task.assigned_to)?.user_name || task.assigned_to}</span>}
+            <div className="space-y-3">
+              {tasks.filter(t => !t.completed).map(task => (
+                <div key={task.id} className="bg-white rounded-lg shadow p-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center">
+                      <button
+                        onClick={() => {
+                          setTasks(tasks.map(t => 
+                            t.id === task.id ? { ...t, completed: true } : t
+                          ));
+                        }}
+                        className="flex-shrink-0"
+                      >
+                        <div className="h-5 w-5 rounded border-2 border-gray-300 hover:border-gray-400" />
+                      </button>
+                      <div className="ml-3">
+                        <p className="font-medium text-gray-900">{task.title}</p>
+                        {task.assignedToUser && (
+                          <p className="text-sm text-gray-500">Assigned to {task.assignedToUser.name}</p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+              
+              {tasks.filter(t => t.completed).length > 0 && (
+                <>
+                  <h4 className="text-sm font-medium text-gray-500 mt-6">Completed</h4>
+                  {tasks.filter(t => t.completed).map(task => (
+                    <div key={task.id} className="bg-gray-50 rounded-lg p-4">
+                      <div className="flex items-center">
+                        <Check className="h-5 w-5 text-green-500 flex-shrink-0" />
+                        <p className="ml-3 text-gray-500 line-through">{task.title}</p>
                       </div>
                     </div>
                   ))}
-                </div>
-                
-                {tasks.filter(t => t.completed).length > 0 && (
-                  <>
-                    <h4 className="text-sm font-medium text-gray-500 mt-6">Completed</h4>
-                    {tasks.filter(t => t.completed).map(task => (
-                       <div key={task.id} className={`p-4 rounded-lg shadow bg-gray-50`}>
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center">
-                            <button onClick={() => handleToggleTaskCompletion(task)} className="flex-shrink-0">
-                              <Check className="h-5 w-5 text-green-500" />
-                            </button>
-                            <p className={`ml-3 line-through text-gray-500`}>{task.title}</p>
-                          </div>
-                          {task.assigned_to && <span className="text-sm text-gray-500">Assigned to: {members.find(m=>m.user_id === task.assigned_to)?.user_name || task.assigned_to}</span>}
-                        </div>
-                      </div>
-                    ))}
-                  </>
-                )}
-                {tasks.length === 0 && <p className="text-gray-500">No tasks yet. Add one to get started!</p>}
-              </>
-            )}
+                </>
+              )}
+            </div>
           </div>
         )}
       </div>
