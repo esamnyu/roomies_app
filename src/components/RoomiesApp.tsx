@@ -1,3 +1,5 @@
+
+"use client";
 import React, { useState, useContext, createContext, useEffect } from 'react';
 import { ChevronRight, Home, Users, DollarSign, CheckSquare, Plus, UserPlus, LogOut, Menu, X, ArrowLeft, Check, Calendar, User } from 'lucide-react';
 
