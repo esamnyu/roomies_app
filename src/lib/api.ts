@@ -64,6 +64,18 @@ export interface Task {
   profiles?: Profile
 }
 
+export interface Settlement {
+  id: string
+  household_id: string
+  payer_id: string
+  payee_id: string
+  amount: number
+  description?: string
+  created_at: string
+  payer_profile?: Profile
+  payee_profile?: Profile
+}
+
 // Auth functions
 export const signUp = async (email: string, password: string, name: string) => {
   const { data, error } = await supabase.auth.signUp({
@@ -144,36 +156,30 @@ export const createHousehold = async (name: string) => {
   return household
 }
 
+// OPTIMIZED: Single query with proper joins
 export const getUserHouseholds = async () => {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) throw new Error('Not authenticated')
 
+  // Get all households with member count in a single query
   const { data, error } = await supabase
-    .from('household_members')
-    .select(`
-      *,
-      households (*)
-    `)
-    .eq('user_id', user.id)
+    .rpc('get_user_households_with_counts', {
+      p_user_id: user.id
+    })
 
   if (error) throw error
-  
-  // Get member counts for each household
-  const householdsWithCounts = await Promise.all(
-    (data || []).map(async (item) => {
-      const { count } = await supabase
-        .from('household_members')
-        .select('*', { count: 'exact', head: true })
-        .eq('household_id', item.household_id)
-      
-      return {
-        ...item.households,
-        memberCount: count || 0
-      }
+  return data || []
+}
+
+// OPTIMIZED: Get all household data in one call
+export const getHouseholdData = async (householdId: string) => {
+  const { data, error } = await supabase
+    .rpc('get_household_data', {
+      p_household_id: householdId
     })
-  )
-  
-  return householdsWithCounts
+
+  if (error) throw error
+  return data
 }
 
 export const getHouseholdMembers = async (householdId: string) => {
@@ -181,7 +187,8 @@ export const getHouseholdMembers = async (householdId: string) => {
     .from('household_members')
     .select(`
       *,
-      profiles (*)
+      profiles (*),
+      households (*)
     `)
     .eq('household_id', householdId)
 
@@ -262,7 +269,8 @@ export const createTask = async (
 ) => {
   const taskData: any = {
     household_id: householdId,
-    title
+    title,
+    completed: false
   }
   
   if (assignedTo) {
@@ -331,6 +339,68 @@ export const completeTask = async (taskId: string) => {
   })
 }
 
+// Settlement functions
+export const createSettlement = async (
+  householdId: string,
+  payeeId: string,
+  amount: number,
+  description?: string
+) => {
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) throw new Error('Not authenticated')
+
+  const { data, error } = await supabase
+    .from('settlements')
+    .insert({
+      household_id: householdId,
+      payer_id: user.id,
+      payee_id: payeeId,
+      amount,
+      description: description || `Payment from ${user.id} to ${payeeId}`
+    })
+    .select(`
+      *,
+      payer_profile:payer_id (
+        id,
+        name,
+        avatar_url
+      ),
+      payee_profile:payee_id (
+        id,
+        name,
+        avatar_url
+      )
+    `)
+    .single()
+
+  if (error) throw error
+  return data
+}
+
+export const getHouseholdSettlements = async (householdId: string) => {
+  const { data, error } = await supabase
+    .from('settlements')
+    .select(`
+      *,
+      payer_profile:payer_id (
+        id,
+        name,
+        avatar_url
+      ),
+      payee_profile:payee_id (
+        id,
+        name,
+        avatar_url
+      )
+    `)
+    .eq('household_id', householdId)
+    .order('created_at', { ascending: false })
+    .limit(50)
+
+  if (error) throw error
+  return data || []
+}
+
 // Invitation functions
 export const inviteToHousehold = async (householdId: string, email: string) => {
   const { data: { user } } = await supabase.auth.getUser()
@@ -353,10 +423,11 @@ export const inviteToHousehold = async (householdId: string, email: string) => {
   return data
 }
 
-// Balance calculation helper
+// Balance calculation helper - now includes settlements
 export const calculateBalances = (
   expenses: Expense[],
-  members: HouseholdMember[]
+  members: HouseholdMember[],
+  settlements?: Settlement[]
 ): { userId: string; balance: number; profile: Profile }[] => {
   const balanceMap = new Map<string, number>()
   
@@ -380,13 +451,68 @@ export const calculateBalances = (
     })
   })
 
+  // Apply settlements if provided
+  if (settlements) {
+    settlements.forEach(settlement => {
+      // Payer's balance decreases (they paid money)
+      const payerBalance = balanceMap.get(settlement.payer_id) || 0
+      balanceMap.set(settlement.payer_id, payerBalance - settlement.amount)
+
+      // Payee's balance increases (they received money)
+      const payeeBalance = balanceMap.get(settlement.payee_id) || 0
+      balanceMap.set(settlement.payee_id, payeeBalance + settlement.amount)
+    })
+  }
+
   // Convert to array with profile information
   return Array.from(balanceMap.entries()).map(([userId, balance]) => {
     const member = members.find(m => m.user_id === userId)
     return {
       userId,
-      balance,
+      balance: Math.round(balance * 100) / 100, // Round to 2 decimal places
       profile: member?.profiles!
     }
   })
+}
+
+// Smart settlement suggestions
+export const getSettlementSuggestions = (
+  balances: ReturnType<typeof calculateBalances>
+): { from: string; to: string; amount: number; fromProfile: Profile; toProfile: Profile }[] => {
+  const suggestions: { from: string; to: string; amount: number; fromProfile: Profile; toProfile: Profile }[] = []
+  
+  // Create separate arrays for those who owe and those who are owed
+  const debtors = balances.filter(b => b.balance < -0.01).sort((a, b) => a.balance - b.balance)
+  const creditors = balances.filter(b => b.balance > 0.01).sort((a, b) => b.balance - a.balance)
+  
+  // Create settlement suggestions to minimize transactions
+  const tempDebtors = [...debtors]
+  const tempCreditors = [...creditors]
+  
+  while (tempDebtors.length > 0 && tempCreditors.length > 0) {
+    const debtor = tempDebtors[0]
+    const creditor = tempCreditors[0]
+    
+    const debtAmount = Math.abs(debtor.balance)
+    const creditAmount = creditor.balance
+    const settlementAmount = Math.min(debtAmount, creditAmount)
+    
+    suggestions.push({
+      from: debtor.userId,
+      to: creditor.userId,
+      amount: Math.round(settlementAmount * 100) / 100,
+      fromProfile: debtor.profile,
+      toProfile: creditor.profile
+    })
+    
+    // Update balances
+    debtor.balance += settlementAmount
+    creditor.balance -= settlementAmount
+    
+    // Remove settled parties
+    if (Math.abs(debtor.balance) < 0.01) tempDebtors.shift()
+    if (creditor.balance < 0.01) tempCreditors.shift()
+  }
+  
+  return suggestions
 }

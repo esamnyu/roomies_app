@@ -1,10 +1,10 @@
 "use client";
 import React, { useState, useContext, createContext, useEffect } from 'react';
-import { ChevronRight, Home, Users, DollarSign, CheckSquare, Plus, UserPlus, LogOut, Menu, X, ArrowLeft, Check, User, Loader2 } from 'lucide-react';
+import { ChevronRight, Home, Users, DollarSign, CheckSquare, Plus, UserPlus, LogOut, Menu, X, ArrowLeft, Check, User, Loader2, CreditCard, ArrowRightLeft } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { User as SupabaseUser } from '@supabase/supabase-js';
 import * as api from '@/lib/api';
-import type { Profile, Household, HouseholdMember, Expense, Task } from '@/lib/api';
+import type { Profile, Household, HouseholdMember, Expense, Task, Settlement } from '@/lib/api';
 
 // Auth Context
 interface AuthContextType {
@@ -209,7 +209,7 @@ const LoginPage: React.FC = () => {
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
+    if (e.key === 'Enter' && !isLoading) {
       handleSubmit();
     }
   };
@@ -427,33 +427,68 @@ const Dashboard: React.FC = () => {
 // Household Detail Page
 const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = ({ householdId, onBack }) => {
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState<'expenses' | 'members' | 'tasks'>('expenses');
+  const [activeTab, setActiveTab] = useState<'expenses' | 'members' | 'tasks' | 'settlements'>('expenses');
   const [household, setHousehold] = useState<Household | null>(null);
   const [members, setMembers] = useState<HouseholdMember[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [settlements, setSettlements] = useState<Settlement[]>([]);
   const [loading, setLoading] = useState(true);
   
   const [showAddExpense, setShowAddExpense] = useState(false);
   const [showAddTask, setShowAddTask] = useState(false);
   const [showInviteMember, setShowInviteMember] = useState(false);
+  const [showSettleUp, setShowSettleUp] = useState(false);
 
   useEffect(() => {
-    loadHouseholdData();
+    const fetchData = async () => {
+      if (await api.getHouseholdData(householdId)) {
+        // Use optimized function if available
+        loadHouseholdDataOptimized();
+      } else {
+        // Fallback to original method
+        loadHouseholdData();
+      }
+    };
+    fetchData();
   }, [householdId]);
+
+  const loadHouseholdDataOptimized = async () => {
+    try {
+      setLoading(true);
+      const data = await api.getHouseholdData(householdId);
+      
+      // Parse the optimized response
+      if (data) {
+        setHousehold(data.household);
+        setMembers(data.members || []);
+        setExpenses(data.recent_expenses || []);
+        setTasks(data.tasks || []);
+        setSettlements(data.recent_settlements || []);
+      }
+    } catch (error) {
+      console.error('Error loading household data:', error);
+      // Fallback to original method
+      loadHouseholdData();
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const loadHouseholdData = async () => {
     try {
       setLoading(true);
-      const [membersData, expensesData, tasksData] = await Promise.all([
+      const [membersData, expensesData, tasksData, settlementsData] = await Promise.all([
         api.getHouseholdMembers(householdId),
         api.getHouseholdExpenses(householdId),
-        api.getHouseholdTasks(householdId)
+        api.getHouseholdTasks(householdId),
+        api.getHouseholdSettlements ? api.getHouseholdSettlements(householdId) : Promise.resolve([])
       ]);
       
       setMembers(membersData);
       setExpenses(expensesData);
       setTasks(tasksData);
+      setSettlements(settlementsData);
       
       // Get household name from members data
       if (membersData.length > 0 && membersData[0].households) {
@@ -466,7 +501,8 @@ const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = (
     }
   };
 
-  const balances = api.calculateBalances(expenses, members);
+  const balances = api.calculateBalances(expenses, members, settlements);
+  const settlementSuggestions = api.getSettlementSuggestions ? api.getSettlementSuggestions(balances) : [];
 
   const AddExpenseModal = () => {
     const [description, setDescription] = useState('');
@@ -607,6 +643,167 @@ const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = (
     );
   };
 
+  const SettleUpModal = () => {
+    const [selectedSuggestion, setSelectedSuggestion] = useState<typeof settlementSuggestions[0] | null>(null);
+    const [customAmount, setCustomAmount] = useState('');
+    const [payeeId, setPayeeId] = useState('');
+    const [description, setDescription] = useState('');
+    const [submitting, setSubmitting] = useState(false);
+
+    useEffect(() => {
+      if (selectedSuggestion) {
+        setPayeeId(selectedSuggestion.to);
+        setCustomAmount(selectedSuggestion.amount.toString());
+        setDescription(`Payment to ${selectedSuggestion.toProfile.name}`);
+      }
+    }, [selectedSuggestion]);
+
+    const handleSubmit = async () => {
+      if (!payeeId || !customAmount) return;
+      
+      setSubmitting(true);
+      try {
+        await api.createSettlement(
+          householdId,
+          payeeId,
+          parseFloat(customAmount),
+          description
+        );
+        await loadHouseholdData();
+        setShowSettleUp(false);
+      } catch (error) {
+        console.error('Error creating settlement:', error);
+        alert('Failed to record settlement');
+      } finally {
+        setSubmitting(false);
+      }
+    };
+
+    const myDebts = settlementSuggestions.filter(s => s.from === user?.id);
+    const owedToMe = settlementSuggestions.filter(s => s.to === user?.id);
+
+    return (
+      <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center p-4 z-50 overflow-y-auto">
+        <div className="bg-white rounded-lg p-6 max-w-2xl w-full my-8">
+          <h3 className="text-lg font-medium text-gray-900 mb-4">Settle Up</h3>
+          
+          {settlementSuggestions.length > 0 && (
+            <div className="mb-6">
+              <h4 className="text-sm font-medium text-gray-700 mb-3">Suggested Settlements</h4>
+              
+              {myDebts.length > 0 && (
+                <div className="mb-4">
+                  <p className="text-xs text-gray-500 mb-2">You owe:</p>
+                  <div className="space-y-2">
+                    {myDebts.map((suggestion, idx) => (
+                      <button
+                        key={idx}
+                        onClick={() => setSelectedSuggestion(suggestion)}
+                        className={`w-full text-left p-3 rounded-lg border ${
+                          selectedSuggestion === suggestion
+                            ? 'border-blue-500 bg-blue-50'
+                            : 'border-gray-200 hover:border-gray-300'
+                        }`}
+                      >
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm">
+                            Pay <strong>{suggestion.toProfile.name}</strong>
+                          </span>
+                          <span className="font-medium">${suggestion.amount.toFixed(2)}</span>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+              
+              {owedToMe.length > 0 && (
+                <div>
+                  <p className="text-xs text-gray-500 mb-2">Owed to you:</p>
+                  <div className="space-y-2">
+                    {owedToMe.map((suggestion, idx) => (
+                      <div
+                        key={idx}
+                        className="w-full text-left p-3 rounded-lg border border-gray-200 bg-gray-50"
+                      >
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm text-gray-600">
+                            <strong>{suggestion.fromProfile.name}</strong> owes you
+                          </span>
+                          <span className="font-medium text-gray-600">${suggestion.amount.toFixed(2)}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Pay to</label>
+              <select
+                className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                value={payeeId}
+                onChange={(e) => setPayeeId(e.target.value)}
+              >
+                <option value="">Select recipient</option>
+                {members
+                  .filter(member => member.user_id !== user?.id)
+                  .map(member => (
+                    <option key={member.user_id} value={member.user_id}>
+                      {member.profiles?.name}
+                    </option>
+                  ))}
+              </select>
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Amount</label>
+              <input
+                type="number"
+                step="0.01"
+                className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                value={customAmount}
+                onChange={(e) => setCustomAmount(e.target.value)}
+                placeholder="0.00"
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Description (optional)</label>
+              <input
+                type="text"
+                className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="Payment for..."
+              />
+            </div>
+          </div>
+          
+          <div className="mt-6 flex justify-end space-x-3">
+            <button
+              onClick={() => setShowSettleUp(false)}
+              className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-500"
+              disabled={submitting}
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleSubmit}
+              disabled={submitting || !payeeId || !customAmount}
+              className="px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50"
+            >
+              {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Record Payment'}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   const markExpenseSettled = async (expenseId: string, userId: string) => {
     try {
       await api.markExpenseSettled(expenseId, userId);
@@ -636,9 +833,18 @@ const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = (
   return (
     <Layout title={household?.name || 'Household'} showBack onBack={onBack}>
       <div className="space-y-6">
-        {/* Balance Summary */}
+        {/* Balance Summary with Settle Up */}
         <div className="bg-white rounded-lg shadow p-6">
-          <h3 className="text-lg font-medium text-gray-900 mb-4">Balance Summary</h3>
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-lg font-medium text-gray-900">Balance Summary</h3>
+            <button
+              onClick={() => setShowSettleUp(true)}
+              className="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700"
+            >
+              <CreditCard className="h-4 w-4 mr-1" />
+              Settle Up
+            </button>
+          </div>
           <div className="space-y-2">
             {balances.map(balance => (
               <div key={balance.userId} className="flex justify-between items-center">
@@ -667,6 +873,17 @@ const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = (
             >
               <DollarSign className="inline h-4 w-4 mr-1" />
               Expenses
+            </button>
+            <button
+              onClick={() => setActiveTab('settlements')}
+              className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                activeTab === 'settlements'
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              <ArrowRightLeft className="inline h-4 w-4 mr-1" />
+              Settlements
             </button>
             <button
               onClick={() => setActiveTab('members')}
@@ -744,6 +961,38 @@ const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = (
                         <p className="text-xs text-gray-500">
                           ${(expense.amount / members.length).toFixed(2)} each
                         </p>
+                      </div>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'settlements' && (
+          <div className="space-y-4">
+            <div className="flex justify-between items-center">
+              <h3 className="text-lg font-medium text-gray-900">Recent Settlements</h3>
+            </div>
+            <div className="space-y-3">
+              {settlements.length === 0 ? (
+                <p className="text-gray-500 text-center py-4">No settlements yet</p>
+              ) : (
+                settlements.map(settlement => (
+                  <div key={settlement.id} className="bg-white rounded-lg shadow p-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="font-medium text-gray-900">
+                          {settlement.payer_profile?.name} → {settlement.payee_profile?.name}
+                        </p>
+                        <p className="text-sm text-gray-500">
+                          {new Date(settlement.created_at).toLocaleDateString()}
+                          {settlement.description && ` • ${settlement.description}`}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-medium text-green-600">${settlement.amount.toFixed(2)}</p>
                       </div>
                     </div>
                   </div>
@@ -845,6 +1094,7 @@ const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = (
 
       {showAddExpense && <AddExpenseModal />}
       {showAddTask && <AddTaskModal />}
+      {showSettleUp && <SettleUpModal />}
       {showInviteMember && (
         <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-lg p-6 max-w-md w-full">
