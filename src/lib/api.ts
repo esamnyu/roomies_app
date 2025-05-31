@@ -76,6 +76,21 @@ export interface Settlement {
   payee_profile?: Profile
 }
 
+export interface RecurringExpense {
+  id: string
+  household_id: string
+  description: string
+  amount: number
+  frequency: 'weekly' | 'biweekly' | 'monthly' | 'quarterly' | 'yearly'
+  day_of_month?: number
+  day_of_week?: number
+  next_due_date: string
+  is_active: boolean
+  created_by: string
+  created_at: string
+  updated_at: string
+}
+
 // Auth functions
 export const signUp = async (email: string, password: string, name: string) => {
   const { data, error } = await supabase.auth.signUp({
@@ -113,7 +128,7 @@ export const getProfile = async (userId: string) => {
     .select('*')
     .eq('id', userId)
     .single()
-  
+
   return { data, error }
 }
 
@@ -124,7 +139,7 @@ export const updateProfile = async (userId: string, updates: Partial<Profile>) =
     .eq('id', userId)
     .select()
     .single()
-  
+
   return { data, error }
 }
 
@@ -250,7 +265,7 @@ export const getHouseholdExpenses = async (householdId: string) => {
 export const markExpenseSettled = async (expenseId: string, userId: string) => {
   const { data, error } = await supabase
     .from('expense_splits')
-    .update({ 
+    .update({
       settled: true,
       settled_at: new Date().toISOString()
     })
@@ -272,7 +287,7 @@ export const createTask = async (
     title,
     completed: false
   }
-  
+
   if (assignedTo) {
     taskData.assigned_to = assignedTo
   }
@@ -333,7 +348,7 @@ export const updateTask = async (taskId: string, updates: Partial<Task>) => {
 }
 
 export const completeTask = async (taskId: string) => {
-  return updateTask(taskId, { 
+  return updateTask(taskId, {
     completed: true,
     completed_at: new Date().toISOString()
   })
@@ -417,11 +432,167 @@ export const inviteToHousehold = async (householdId: string, email: string) => {
     .single()
 
   if (error) throw error
-  
+
   // TODO: Send invitation email using Supabase Edge Functions or external service
-  
+
   return data
 }
+
+// Recurring Expense functions
+// Create a recurring expense
+export const createRecurringExpense = async (
+  householdId: string,
+  description: string,
+  amount: number,
+  frequency: RecurringExpense['frequency'],
+  startDate: Date,
+  dayOfMonth?: number,
+  dayOfWeek?: number
+) => {
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) throw new Error('Not authenticated')
+
+  const nextDueDate = calculateNextDueDate(startDate, frequency, dayOfMonth, dayOfWeek)
+
+  const { data, error } = await supabase
+    .from('recurring_expenses')
+    .insert({
+      household_id: householdId,
+      description,
+      amount,
+      frequency,
+      day_of_month: dayOfMonth,
+      day_of_week: dayOfWeek,
+      next_due_date: nextDueDate,
+      created_by: user.id,
+      is_active: true // Assuming new recurring expenses are active by default
+    })
+    .select()
+    .single()
+
+  if (error) throw error
+  return data
+}
+
+// Get household recurring expenses
+export const getHouseholdRecurringExpenses = async (householdId: string) => {
+  const { data, error } = await supabase
+    .from('recurring_expenses')
+    .select('*')
+    .eq('household_id', householdId)
+    .eq('is_active', true)
+    .order('next_due_date', { ascending: true })
+
+  if (error) throw error
+  return data || []
+}
+
+// Process due recurring expenses
+export const processDueRecurringExpenses = async (householdId: string) => {
+  const today = new Date().toISOString().split('T')[0]
+
+  const { data: dueExpenses, error: fetchError } = await supabase
+    .from('recurring_expenses')
+    .select('*')
+    .eq('household_id', householdId)
+    .eq('is_active', true)
+    .lte('next_due_date', today)
+
+  if (fetchError) {
+    console.error('Error fetching due recurring expenses:', fetchError)
+    throw fetchError
+  }
+
+  if (!dueExpenses) {
+    console.log('No due recurring expenses to process.');
+    return;
+  }
+
+  for (const recurring of dueExpenses) {
+    try {
+      // Create the expense
+      await createExpense(
+        recurring.household_id,
+        recurring.description,
+        recurring.amount,
+        recurring.next_due_date
+      )
+
+      // Update next due date
+      const nextDate = calculateNextDueDate(
+        new Date(recurring.next_due_date),
+        recurring.frequency,
+        recurring.day_of_month,
+        recurring.day_of_week
+      )
+
+      const { error: updateError } = await supabase
+        .from('recurring_expenses')
+        .update({ next_due_date: nextDate })
+        .eq('id', recurring.id)
+
+      if (updateError) {
+        console.error(`Error updating next due date for recurring expense ${recurring.id}:`, updateError)
+        // Decide if you want to throw here or continue processing others
+      }
+    } catch (processError) {
+        console.error(`Error processing recurring expense ${recurring.id}:`, processError)
+        // Decide if you want to throw here or continue processing others
+    }
+  }
+}
+
+// Helper function to calculate next due date
+const calculateNextDueDate = (
+  currentDate: Date,
+  frequency: RecurringExpense['frequency'],
+  dayOfMonth?: number,
+  dayOfWeek?: number // Note: dayOfWeek is not currently used in this logic but is kept for potential future use
+): string => {
+  const date = new Date(currentDate)
+
+  switch (frequency) {
+    case 'weekly':
+      date.setDate(date.getDate() + 7)
+      break
+    case 'biweekly':
+      date.setDate(date.getDate() + 14)
+      break
+    case 'monthly':
+      // Move to the next month
+      date.setMonth(date.getMonth() + 1)
+      if (dayOfMonth) {
+        // If dayOfMonth is specified, try to set it.
+        // Cap at the actual number of days in the new month.
+        const lastDayOfNewMonth = new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
+        date.setDate(Math.min(dayOfMonth, lastDayOfNewMonth));
+      } else {
+        // If dayOfMonth is not specified, it will keep the current day of the month,
+        // or roll over if the next month is shorter (e.g. Jan 31 -> Feb 28/29)
+        // This behavior might need adjustment based on desired logic if dayOfMonth is often omitted.
+      }
+      break
+    case 'quarterly':
+      date.setMonth(date.getMonth() + 3)
+      // Similar logic for dayOfMonth could be applied here if needed
+      if (dayOfMonth) {
+        const lastDayOfNewMonth = new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
+        date.setDate(Math.min(dayOfMonth, lastDayOfNewMonth));
+      }
+      break
+    case 'yearly':
+      date.setFullYear(date.getFullYear() + 1)
+      // Similar logic for dayOfMonth could be applied here if needed
+      if (dayOfMonth) {
+         const lastDayOfNewMonth = new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
+        date.setDate(Math.min(dayOfMonth, lastDayOfNewMonth));
+      }
+      break
+  }
+
+  return date.toISOString().split('T')[0]
+}
+
 
 // Balance calculation helper - now includes settlements
 export const calculateBalances = (
@@ -430,7 +601,7 @@ export const calculateBalances = (
   settlements?: Settlement[]
 ): { userId: string; balance: number; profile: Profile }[] => {
   const balanceMap = new Map<string, number>()
-  
+
   // Initialize all members with 0 balance
   members.forEach(member => {
     balanceMap.set(member.user_id, 0)
@@ -467,12 +638,20 @@ export const calculateBalances = (
   // Convert to array with profile information
   return Array.from(balanceMap.entries()).map(([userId, balance]) => {
     const member = members.find(m => m.user_id === userId)
+    // Ensure profile exists before trying to access it, provide a fallback or handle error
+    if (!member?.profiles) {
+        console.warn(`Profile not found for user ID: ${userId} in calculateBalances. This might indicate an issue with data consistency or household membership.`);
+        // Depending on requirements, you might return a default profile, skip this user, or throw an error.
+        // For now, returning a partial object or skipping might be safer than a runtime error.
+        // This example will skip users without profiles to prevent errors, adjust as needed.
+        return null;
+    }
     return {
       userId,
       balance: Math.round(balance * 100) / 100, // Round to 2 decimal places
-      profile: member?.profiles!
+      profile: member.profiles
     }
-  })
+  }).filter(Boolean) as { userId: string; balance: number; profile: Profile }[]; // Filter out nulls and assert type
 }
 
 // Smart settlement suggestions
@@ -480,23 +659,31 @@ export const getSettlementSuggestions = (
   balances: ReturnType<typeof calculateBalances>
 ): { from: string; to: string; amount: number; fromProfile: Profile; toProfile: Profile }[] => {
   const suggestions: { from: string; to: string; amount: number; fromProfile: Profile; toProfile: Profile }[] = []
-  
+
   // Create separate arrays for those who owe and those who are owed
   const debtors = balances.filter(b => b.balance < -0.01).sort((a, b) => a.balance - b.balance)
   const creditors = balances.filter(b => b.balance > 0.01).sort((a, b) => b.balance - a.balance)
-  
+
   // Create settlement suggestions to minimize transactions
   const tempDebtors = [...debtors]
   const tempCreditors = [...creditors]
-  
+
   while (tempDebtors.length > 0 && tempCreditors.length > 0) {
     const debtor = tempDebtors[0]
     const creditor = tempCreditors[0]
-    
+
+    // Ensure profiles exist before trying to create a suggestion
+    if (!debtor.profile || !creditor.profile) {
+        console.warn('Skipping settlement suggestion due to missing profile information.');
+        if (!debtor.profile) tempDebtors.shift(); // Remove debtor if profile is missing
+        if (!creditor.profile) tempCreditors.shift(); // Remove creditor if profile is missing
+        continue;
+    }
+
     const debtAmount = Math.abs(debtor.balance)
     const creditAmount = creditor.balance
     const settlementAmount = Math.min(debtAmount, creditAmount)
-    
+
     suggestions.push({
       from: debtor.userId,
       to: creditor.userId,
@@ -504,15 +691,15 @@ export const getSettlementSuggestions = (
       fromProfile: debtor.profile,
       toProfile: creditor.profile
     })
-    
+
     // Update balances
     debtor.balance += settlementAmount
     creditor.balance -= settlementAmount
-    
+
     // Remove settled parties
     if (Math.abs(debtor.balance) < 0.01) tempDebtors.shift()
     if (creditor.balance < 0.01) tempCreditors.shift()
   }
-  
+
   return suggestions
 }
