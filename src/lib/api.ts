@@ -510,8 +510,13 @@ export const processDueRecurringExpenses = async (householdId: string) => {
 
   for (const recurring of dueExpenses) {
     try {
+<<<<<<< Updated upstream
       // Create the expense
       await createExpense(
+=======
+      // Create the expense, flagging it as recurring
+      await createExpense( // This might need to be createExpenseV2 or createExpenseWithCustomSplits if default is not equal split
+>>>>>>> Stashed changes
         recurring.household_id,
         recurring.description,
         recurring.amount,
@@ -703,3 +708,126 @@ export const getSettlementSuggestions = (
 
   return suggestions
 }
+<<<<<<< Updated upstream
+=======
+
+// Add this function to your src/lib/api.ts file
+
+export const createExpenseWithCustomSplits = async (
+  householdId: string,
+  description: string,
+  amount: number,
+  splits: Array<{ user_id: string; amount: number }>,
+  date?: string,
+  isRecurring: boolean = false
+) => {
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) throw new Error('Not authenticated')
+
+  // Validate splits sum to total amount
+  const totalSplits = splits.reduce((sum, split) => sum + split.amount, 0)
+  if (Math.abs(totalSplits - amount) > 0.01) {
+    throw new Error('Split amounts must equal total expense amount')
+  }
+
+  // Start a transaction by creating the expense first
+  const finalDescription = isRecurring ? `${description} (Recurring)` : description
+
+  // Create the expense
+  const { data: expense, error: expenseError } = await supabase
+    .from('expenses')
+    .insert({
+      household_id: householdId,
+      description: finalDescription,
+      amount,
+      paid_by: user.id,
+      date: date || new Date().toISOString().split('T')[0]
+    })
+    .select()
+    .single()
+
+  if (expenseError) throw expenseError
+
+  // Create custom splits
+  const splitRecords = splits.map(split => ({
+    expense_id: expense.id,
+    user_id: split.user_id,
+    amount: split.amount,
+    settled: split.user_id === user.id // Auto-settle for the payer
+  }))
+
+  const { error: splitsError } = await supabase
+    .from('expense_splits')
+    .insert(splitRecords)
+
+  if (splitsError) {
+    // If splits fail, we should ideally delete the expense
+    // But for now, we'll just throw the error
+    throw splitsError
+  }
+
+  // Create notifications for other members
+  const otherMembers = splits.filter(split => split.user_id !== user.id)
+  if (otherMembers.length > 0) {
+    const { data: payerProfile } = await getProfile(user.id)
+    
+    if (payerProfile) {
+      const notifications = otherMembers.map(split => ({
+        user_id: split.user_id,
+        household_id: householdId,
+        type: 'expense_added' as const,
+        title: 'New Expense Added',
+        message: `${payerProfile.name} added "${description}" - You owe $${split.amount.toFixed(2)}`,
+        data: {
+          expense_id: expense.id,
+          amount: split.amount,
+          payer_id: user.id
+        },
+        is_read: false
+      }))
+
+      // Insert notifications (don't fail the expense if this fails)
+      try {
+        await supabase.from('notifications').insert(notifications)
+      } catch (notifError) {
+        console.error('Failed to create notifications:', notifError)
+      }
+    }
+  }
+
+  return expense
+}
+
+// Optional: Update the existing createExpense to use the new function
+export const createExpenseV2 = async (
+  householdId: string,
+  description: string,
+  amount: number,
+  date?: string,
+  isRecurring: boolean = false
+) => {
+  // Get all household members for equal split
+  const members = await getHouseholdMembers(householdId)
+  const splitAmount = amount / members.length
+  
+  const splits = members.map(member => ({
+    user_id: member.user_id,
+    amount: Math.round(splitAmount * 100) / 100 // Round to 2 decimal places
+  }))
+
+  // Adjust last split for any rounding differences
+  const totalSplits = splits.reduce((sum, split) => sum + split.amount, 0)
+  if (totalSplits !== amount) {
+    splits[splits.length - 1].amount += (amount - totalSplits)
+  }
+
+  return createExpenseWithCustomSplits(
+    householdId,
+    description,
+    amount,
+    splits,
+    date,
+    isRecurring
+  )
+}
+>>>>>>> Stashed changes

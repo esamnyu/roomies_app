@@ -574,12 +574,45 @@ const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = (
     );
   };
 
+// START Enhanced AddExpenseModal
+const AddExpenseModal = () => {
+  const [description, setDescription] = useState('');
+  const [amount, setAmount] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  
+  // New states for enhanced splitting
+  const [splitType, setSplitType] = useState<'equal' | 'custom' | 'percentage'>('equal');
+  const [includedMembers, setIncludedMembers] = useState<Set<string>>(new Set(members.map(m => m.user_id)));
+  const [customSplits, setCustomSplits] = useState<Record<string, number>>({});
+  const [percentageSplits, setPercentageSplits] = useState<Record<string, number>>({});
+  
+  // Initialize custom splits when amount changes
+  useEffect(() => {
+    if (splitType === 'equal' && amount) {
+      const included = Array.from(includedMembers);
+      const splitAmount = parseFloat(amount) / included.length;
+      const newSplits: Record<string, number> = {};
+      included.forEach(userId => {
+        newSplits[userId] = Math.round(splitAmount * 100) / 100;
+      });
+      setCustomSplits(newSplits);
+    }
+  }, [amount, includedMembers, splitType]);
 
-  const AddExpenseModal = () => {
-    const [description, setDescription] = useState('');
-    const [amount, setAmount] = useState('');
-    const [submitting, setSubmitting] = useState(false);
+  // Initialize percentage splits
+  useEffect(() => {
+    if (splitType === 'percentage') {
+      const included = Array.from(includedMembers);
+      const equalPercentage = 100 / included.length;
+      const newPercentages: Record<string, number> = {};
+      included.forEach(userId => {
+        newPercentages[userId] = Math.round(equalPercentage * 100) / 100;
+      });
+      setPercentageSplits(newPercentages);
+    }
+  }, [includedMembers, splitType]);
 
+<<<<<<< Updated upstream
     const handleSubmit = async () => {
       if (!description || !amount) return;
 
@@ -593,34 +626,174 @@ const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = (
         alert('Failed to create expense');
       } finally {
         setSubmitting(false);
+=======
+  const toggleMemberInclusion = (userId: string) => {
+    const newIncluded = new Set(includedMembers);
+    if (newIncluded.has(userId)) {
+      if (newIncluded.size > 1) { // Keep at least one member
+        newIncluded.delete(userId);
+>>>>>>> Stashed changes
       }
-    };
+    } else {
+      newIncluded.add(userId);
+    }
+    setIncludedMembers(newIncluded);
+  };
 
-    return (
-      <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center p-4 z-50">
-        <div className="bg-white rounded-lg p-6 max-w-md w-full">
-          <h3 className="text-lg font-medium text-gray-900 mb-4">Add Expense</h3>
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Description</label>
-              <input
-                type="text"
-                className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Amount</label>
+  const updateCustomSplit = (userId: string, value: string) => {
+    const numValue = parseFloat(value) || 0;
+    setCustomSplits(prev => ({
+      ...prev,
+      [userId]: Math.round(numValue * 100) / 100
+    }));
+  };
+
+  const updatePercentageSplit = (userId: string, value: string) => {
+    const numValue = parseFloat(value) || 0;
+    setPercentageSplits(prev => ({
+      ...prev,
+      [userId]: Math.min(100, Math.max(0, numValue))
+    }));
+  };
+
+  const calculateSplitsFromPercentages = () => {
+    const total = parseFloat(amount) || 0;
+    const splits: Record<string, number> = {};
+    
+    Array.from(includedMembers).forEach(userId => {
+      const percentage = percentageSplits[userId] || 0;
+      splits[userId] = Math.round((total * percentage / 100) * 100) / 100;
+    });
+    
+    return splits;
+  };
+
+  const getTotalSplit = () => {
+    if (splitType === 'custom') {
+      return Object.values(customSplits).reduce((sum, val) => sum + val, 0);
+    } else if (splitType === 'percentage') {
+      const splits = calculateSplitsFromPercentages();
+      return Object.values(splits).reduce((sum, val) => sum + val, 0);
+    }
+    return parseFloat(amount) || 0;
+  };
+
+  const getTotalPercentage = () => {
+    return Array.from(includedMembers).reduce((sum, userId) => {
+      return sum + (percentageSplits[userId] || 0);
+    }, 0);
+  };
+
+  const isValidSplit = () => {
+    const total = parseFloat(amount) || 0;
+    
+    if (splitType === 'custom') {
+      const splitTotal = getTotalSplit();
+      return Math.abs(splitTotal - total) < 0.01; // Allow for rounding errors
+    } else if (splitType === 'percentage') {
+      const percentageTotal = getTotalPercentage();
+      return Math.abs(percentageTotal - 100) < 0.01;
+    }
+    
+    return true; // Equal split is always valid
+  };
+
+  const handleSubmit = async () => {
+    if (!description || !amount || !isValidSplit()) return;
+
+    setSubmitting(true);
+    try {
+      let splits: Array<{ user_id: string; amount: number }>;
+      
+      if (splitType === 'equal') {
+        const included = Array.from(includedMembers);
+        const splitAmount = parseFloat(amount) / included.length;
+        splits = included.map(userId => ({
+          user_id: userId,
+          amount: Math.round(splitAmount * 100) / 100
+        }));
+      } else if (splitType === 'custom') {
+        splits = Array.from(includedMembers).map(userId => ({
+          user_id: userId,
+          amount: customSplits[userId] || 0
+        }));
+      } else { // percentage
+        const calculatedSplits = calculateSplitsFromPercentages();
+        splits = Array.from(includedMembers).map(userId => ({
+          user_id: userId,
+          amount: calculatedSplits[userId] || 0
+        }));
+      }
+
+      // Call the enhanced API function
+      await api.createExpenseWithCustomSplits(
+        householdId,
+        description,
+        parseFloat(amount),
+        splits
+      );
+      
+      await (typeof api.getHouseholdData === 'function' ? loadHouseholdDataOptimized() : loadHouseholdData());
+      setShowAddExpense(false);
+      toast.success('Expense added with custom splits!');
+    } catch (error) {
+      console.error('Error creating expense:', error);
+      toast.error('Failed to create expense');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const autoBalance = () => {
+    const total = parseFloat(amount) || 0;
+    const included = Array.from(includedMembers);
+    const currentTotal = getTotalSplit();
+    const difference = total - currentTotal;
+    const adjustment = difference / included.length;
+    
+    const newSplits = { ...customSplits };
+    included.forEach(userId => {
+      newSplits[userId] = (newSplits[userId] || 0) + adjustment;
+      newSplits[userId] = Math.round(newSplits[userId] * 100) / 100;
+    });
+    
+    setCustomSplits(newSplits);
+  };
+
+  return (
+    <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center p-4 z-50 overflow-y-auto">
+      <div className="bg-white rounded-lg p-6 max-w-2xl w-full my-8">
+        <h3 className="text-lg font-medium text-gray-900 mb-4">Add Expense</h3>
+        
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Description</label>
+            <input
+              type="text"
+              className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="What's this expense for?"
+            />
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Total Amount</label>
+            <div className="mt-1 relative rounded-md shadow-sm">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <span className="text-gray-500 sm:text-sm">$</span>
+              </div>
               <input
                 type="number"
                 step="0.01"
-                className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                className="w-full pl-7 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
+                placeholder="0.00"
               />
             </div>
           </div>
+<<<<<<< Updated upstream
           <div className="mt-6 flex justify-end space-x-3">
             <button
               onClick={() => setShowAddExpense(false)}
@@ -636,11 +809,171 @@ const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = (
             >
               {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Add Expense'}
             </button>
+=======
+
+          {/* Split Type Selection */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">How to split?</label>
+            <div className="grid grid-cols-3 gap-2">
+              <button
+                type="button"
+                onClick={() => setSplitType('equal')}
+                className={`px-3 py-2 text-sm font-medium rounded-md ${
+                  splitType === 'equal'
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                Equal Split
+              </button>
+              <button
+                type="button"
+                onClick={() => setSplitType('custom')}
+                className={`px-3 py-2 text-sm font-medium rounded-md ${
+                  splitType === 'custom'
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                Custom Amounts
+              </button>
+              <button
+                type="button"
+                onClick={() => setSplitType('percentage')}
+                className={`px-3 py-2 text-sm font-medium rounded-md ${
+                  splitType === 'percentage'
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                By Percentage
+              </button>
+            </div>
+          </div>
+
+          {/* Member Selection and Split Configuration */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Split between ({includedMembers.size} {includedMembers.size === 1 ? 'person' : 'people'})
+            </label>
+            
+            <div className="space-y-2 max-h-64 overflow-y-auto border border-gray-200 rounded-md p-3">
+              {members.map(member => {
+                const isIncluded = includedMembers.has(member.user_id);
+                const splitAmount = splitType === 'custom' 
+                  ? customSplits[member.user_id] || 0
+                  : splitType === 'percentage'
+                  ? calculateSplitsFromPercentages()[member.user_id] || 0
+                  : isIncluded 
+                  ? (parseFloat(amount) || 0) / includedMembers.size 
+                  : 0;
+
+                return (
+                  <div key={member.user_id} className="flex items-center justify-between p-2 hover:bg-gray-50 rounded">
+                    <div className="flex items-center flex-1">
+                      <input
+                        type="checkbox"
+                        checked={isIncluded}
+                        onChange={() => toggleMemberInclusion(member.user_id)}
+                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                      />
+                      <label className="ml-2 text-sm font-medium text-gray-700">
+                        {member.profiles?.name}
+                        {member.user_id === user?.id && ' (You)'}
+                      </label>
+                    </div>
+                    
+                    <div className="flex items-center space-x-2">
+                      {splitType === 'custom' && isIncluded && (
+                        <div className="flex items-center">
+                          <span className="text-gray-500 mr-1">$</span>
+                          <input
+                            type="number"
+                            step="0.01"
+                            className="w-20 px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm"
+                            value={customSplits[member.user_id] || ''}
+                            onChange={(e) => updateCustomSplit(member.user_id, e.target.value)}
+                            disabled={!isIncluded}
+                          />
+                        </div>
+                      )}
+                      
+                      {splitType === 'percentage' && isIncluded && (
+                        <div className="flex items-center">
+                          <input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            max="100"
+                            className="w-16 px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm"
+                            value={percentageSplits[member.user_id] || ''}
+                            onChange={(e) => updatePercentageSplit(member.user_id, e.target.value)}
+                            disabled={!isIncluded}
+                          />
+                          <span className="text-gray-500 ml-1">%</span>
+                        </div>
+                      )}
+                      
+                      <span className={`text-sm font-medium ${isIncluded ? 'text-gray-900' : 'text-gray-400'}`}>
+                        ${splitAmount.toFixed(2)}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Validation Messages */}
+            {splitType === 'custom' && (
+              <div className="mt-2 flex items-center justify-between">
+                <span className={`text-sm ${Math.abs(getTotalSplit() - (parseFloat(amount) || 0)) < 0.01 ? 'text-green-600' : 'text-red-600'}`}>
+                  Total: ${getTotalSplit().toFixed(2)} / ${parseFloat(amount || '0').toFixed(2)}
+                </span>
+                {Math.abs(getTotalSplit() - (parseFloat(amount) || 0)) >= 0.01 && (
+                  <button
+                    type="button"
+                    onClick={autoBalance}
+                    className="text-sm text-blue-600 hover:text-blue-500"
+                  >
+                    Auto-balance
+                  </button>
+                )}
+              </div>
+            )}
+            
+            {splitType === 'percentage' && (
+              <div className="mt-2">
+                <span className={`text-sm ${Math.abs(getTotalPercentage() - 100) < 0.01 ? 'text-green-600' : 'text-red-600'}`}>
+                  Total: {getTotalPercentage().toFixed(2)}%
+                </span>
+              </div>
+            )}
+>>>>>>> Stashed changes
           </div>
         </div>
+
+        <div className="mt-6 flex justify-end space-x-3">
+          <button
+            onClick={() => setShowAddExpense(false)}
+            className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-500"
+            disabled={submitting}
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleSubmit}
+            disabled={submitting || !description || !amount || !isValidSplit()}
+            className="px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Add Expense'}
+          </button>
+        </div>
       </div>
-    );
-  };
+    </div>
+  );
+};
+// END Enhanced AddExpenseModal
+
 
   const AddTaskModal = () => {
     const [title, setTitle] = useState('');
