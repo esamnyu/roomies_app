@@ -531,7 +531,7 @@ export const processDueRecurringExpenses = async (householdId: string) => {
   for (const recurring of dueExpenses) {
     try {
       // Create the expense, flagging it as recurring
-      await createExpense( // This might need to be createExpenseV2 or createExpenseWithCustomSplits if default is not equal split
+      await createExpense(
         recurring.household_id,
         recurring.description,
         recurring.amount,
