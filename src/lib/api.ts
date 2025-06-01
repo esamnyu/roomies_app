@@ -1,4 +1,5 @@
-import { ReactNode } from 'react'
+// Add these types to your existing api.ts file
+import { ReactNode } from 'react' // Assuming ReactNode might be used elsewhere or was part of your original setup
 import { supabase } from './supabase'
 
 // Types
@@ -11,7 +12,7 @@ export interface Profile {
 }
 
 export interface Household {
-  memberCount: ReactNode
+  memberCount: ReactNode // Keep if used, otherwise can be removed if not part of Household actual data model
   id: string
   name: string
   created_by: string
@@ -87,6 +88,20 @@ export interface RecurringExpense {
   next_due_date: string
   is_active: boolean
   created_by: string
+  created_at: string
+  updated_at: string
+}
+
+export interface Notification {
+  id: string
+  user_id: string
+  household_id: string | null
+  type: 'expense_added' | 'payment_reminder' | 'task_assigned' | 'task_completed' | 'settlement_recorded' | 'recurring_expense_added' | 'member_joined' | 'member_left'
+  title: string
+  message: string
+  data: any
+  is_read: boolean
+  read_at: string | null
   created_at: string
   updated_at: string
 }
@@ -212,20 +227,25 @@ export const getHouseholdMembers = async (householdId: string) => {
 }
 
 // Expense functions
+// Updated createExpense function to include isRecurring flag
 export const createExpense = async (
   householdId: string,
   description: string,
   amount: number,
-  date?: string
+  date?: string,
+  isRecurring: boolean = false // Added isRecurring flag
 ) => {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) throw new Error('Not authenticated')
+
+  // Add (Recurring) to description if it's from a recurring expense
+  const finalDescription = isRecurring ? `${description} (Recurring)` : description
 
   // Use the database function to create expense with splits
   const { data, error } = await supabase
     .rpc('create_expense_with_splits', {
       p_household_id: householdId,
-      p_description: description,
+      p_description: finalDescription, // Use finalDescription
       p_amount: amount,
       p_paid_by: user.id,
       p_date: date || new Date().toISOString().split('T')[0]
@@ -510,17 +530,13 @@ export const processDueRecurringExpenses = async (householdId: string) => {
 
   for (const recurring of dueExpenses) {
     try {
-<<<<<<< Updated upstream
-      // Create the expense
-      await createExpense(
-=======
       // Create the expense, flagging it as recurring
       await createExpense( // This might need to be createExpenseV2 or createExpenseWithCustomSplits if default is not equal split
->>>>>>> Stashed changes
         recurring.household_id,
         recurring.description,
         recurring.amount,
-        recurring.next_due_date
+        recurring.next_due_date,
+        true // Mark as recurring
       )
 
       // Update next due date
@@ -546,6 +562,149 @@ export const processDueRecurringExpenses = async (householdId: string) => {
     }
   }
 }
+
+// Notification functions
+// Get user's notifications
+export const getNotifications = async (limit = 50, onlyUnread = false) => {
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) throw new Error('Not authenticated')
+
+  let query = supabase
+    .from('notifications')
+    .select('*')
+    .eq('user_id', user.id)
+    .order('created_at', { ascending: false })
+    .limit(limit)
+
+  if (onlyUnread) {
+    query = query.eq('is_read', false)
+  }
+
+  const { data, error } = await query
+
+  if (error) throw error
+  return data || []
+}
+
+// Get unread notification count
+export const getUnreadNotificationCount = async () => {
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) throw new Error('Not authenticated')
+
+  const { data, error } = await supabase
+    .rpc('get_unread_notification_count', {
+      p_user_id: user.id
+    })
+
+  if (error) throw error
+  return data || 0
+}
+
+// Mark notifications as read
+export const markNotificationsRead = async (notificationIds: string[]) => {
+  const { error } = await supabase
+    .rpc('mark_notifications_read', {
+      p_notification_ids: notificationIds
+    })
+
+  if (error) throw error
+}
+
+// Mark all notifications as read
+export const markAllNotificationsRead = async () => {
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) throw new Error('Not authenticated')
+
+  const { error } = await supabase
+    .from('notifications')
+    .update({
+      is_read: true,
+      read_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    })
+    .eq('user_id', user.id)
+    .eq('is_read', false)
+
+  if (error) throw error
+}
+
+// Create a manual notification (for custom notifications)
+export const createNotification = async (
+  userId: string,
+  type: Notification['type'],
+  title: string,
+  message: string,
+  householdId?: string,
+  data?: any
+) => {
+  const { data: notification, error } = await supabase
+    .from('notifications')
+    .insert({
+      user_id: userId,
+      household_id: householdId,
+      type,
+      title,
+      message,
+      data: data || {}
+    })
+    .select()
+    .single()
+
+  if (error) throw error
+  return notification
+}
+
+// Subscribe to real-time notifications
+export const subscribeToNotifications = (
+  userId: string,
+  onNotification: (notification: Notification) => void
+) => {
+  const subscription = supabase
+    .channel(`notifications:${userId}`)
+    .on(
+      'postgres_changes',
+      {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'notifications',
+        filter: `user_id=eq.${userId}`
+      },
+      (payload) => {
+        onNotification(payload.new as Notification)
+      }
+    )
+    .subscribe()
+
+  return subscription
+}
+
+// Send a payment reminder to specific user
+export const sendPaymentReminder = async (
+  householdId: string,
+  debtorId: string,
+  amount: number
+) => {
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) throw new Error('Not authenticated')
+
+  const { data: creditorProfile } = await getProfile(user.id) // Make sure getProfile returns { data, error }
+
+  if (!creditorProfile) throw new Error('Creditor profile not found') // Add error handling
+
+  return createNotification(
+    debtorId,
+    'payment_reminder',
+    'Payment Reminder',
+    `${creditorProfile.name} has sent you a reminder: You owe $${amount.toFixed(2)}`,
+    householdId,
+    {
+      amount,
+      creditor_id: user.id,
+      manual_reminder: true
+    }
+  )
+}
+
 
 // Helper function to calculate next due date
 const calculateNextDueDate = (
@@ -666,8 +825,8 @@ export const getSettlementSuggestions = (
   const suggestions: { from: string; to: string; amount: number; fromProfile: Profile; toProfile: Profile }[] = []
 
   // Create separate arrays for those who owe and those who are owed
-  const debtors = balances.filter(b => b.balance < -0.01).sort((a, b) => a.balance - b.balance)
-  const creditors = balances.filter(b => b.balance > 0.01).sort((a, b) => b.balance - a.balance)
+  const debtors = balances.filter(b => b.balance < -0.01).sort((a, b) => a.balance - b.balance) // Sort by most negative
+  const creditors = balances.filter(b => b.balance > 0.01).sort((a, b) => b.balance - a.balance) // Sort by most positive
 
   // Create settlement suggestions to minimize transactions
   const tempDebtors = [...debtors]
@@ -701,15 +860,13 @@ export const getSettlementSuggestions = (
     debtor.balance += settlementAmount
     creditor.balance -= settlementAmount
 
-    // Remove settled parties
+    // Remove settled parties or parties with negligible balance
     if (Math.abs(debtor.balance) < 0.01) tempDebtors.shift()
     if (creditor.balance < 0.01) tempCreditors.shift()
   }
 
   return suggestions
 }
-<<<<<<< Updated upstream
-=======
 
 // Add this function to your src/lib/api.ts file
 
@@ -830,4 +987,3 @@ export const createExpenseV2 = async (
     isRecurring
   )
 }
->>>>>>> Stashed changes
