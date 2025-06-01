@@ -1,14 +1,17 @@
 "use client";
 import React, { useState, useContext, createContext, useEffect } from 'react';
-import { ChevronRight, Home, Users, DollarSign, CheckSquare, Plus, UserPlus, LogOut, Menu, X, ArrowLeft, Check, User, Loader2, CreditCard, ArrowRightLeft } from 'lucide-react';
+import { ChevronRight, Home, Users, DollarSign, CheckSquare, Plus, UserPlus, LogOut, Menu, X, ArrowLeft, Check, User, Loader2, CreditCard, ArrowRightLeft, Bell } from 'lucide-react'; // Added Bell
 import { supabase } from '@/lib/supabase';
 import { User as SupabaseUser } from '@supabase/supabase-js';
 import * as api from '@/lib/api';
-import type { Profile, Household, HouseholdMember, Expense, Task, Settlement, RecurringExpense } from '@/lib/api'; // Added RecurringExpense
+import type { Profile, Household, HouseholdMember, Expense, Task, Settlement, RecurringExpense } from '@/lib/api';
 import { AuthProvider, useAuth } from './AuthProvider';
 
+// 1. Import NotificationBell and Toaster
+import { NotificationBell } from './NotificationsPanel'; // Assuming this file exists
+import { Toaster, toast } from 'react-hot-toast'; // Added Toaster and toast
 
-// Layout Component (assuming it's defined elsewhere as in your original code)
+// Layout Component
 const Layout: React.FC<{ children: React.ReactNode; title?: string; showBack?: boolean; onBack?: () => void }> = ({
   children,
   title = 'Roomies',
@@ -19,72 +22,82 @@ const Layout: React.FC<{ children: React.ReactNode; title?: string; showBack?: b
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-white shadow-sm border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center">
-              {showBack && (
+    <> {/* Added React.Fragment to include Toaster as a sibling */}
+      <div className="min-h-screen bg-gray-50">
+        <header className="bg-white shadow-sm border-b border-gray-200">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex justify-between items-center h-16">
+              <div className="flex items-center">
+                {showBack && (
+                  <button
+                    onClick={onBack}
+                    className="mr-3 p-2 rounded-md hover:bg-gray-100"
+                  >
+                    <ArrowLeft className="h-5 w-5" />
+                  </button>
+                )}
+                <h1 className="text-xl font-semibold text-gray-900">{title}</h1>
+              </div>
+
+              <div className="hidden md:flex items-center space-x-4">
+                <NotificationBell /> {/* Add this line */}
+                <span className="text-sm text-gray-600">{profile?.name}</span>
                 <button
-                  onClick={onBack}
-                  className="mr-3 p-2 rounded-md hover:bg-gray-100"
+                  onClick={signOut}
+                  className="text-sm text-gray-500 hover:text-gray-700 flex items-center"
                 >
-                  <ArrowLeft className="h-5 w-5" />
+                  <LogOut className="h-4 w-4 mr-1" />
+                  Logout
                 </button>
-              )}
-              <h1 className="text-xl font-semibold text-gray-900">{title}</h1>
-            </div>
+              </div>
 
-            <div className="hidden md:flex items-center space-x-4">
-              <span className="text-sm text-gray-600">{profile?.name}</span>
-              <button
-                onClick={signOut}
-                className="text-sm text-gray-500 hover:text-gray-700 flex items-center"
-              >
-                <LogOut className="h-4 w-4 mr-1" />
-                Logout
-              </button>
-            </div>
-
-            <button
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="md:hidden p-2 rounded-md hover:bg-gray-100"
-            >
-              {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-            </button>
-          </div>
-        </div>
-
-        {mobileMenuOpen && (
-          <div className="md:hidden border-t border-gray-200">
-            <div className="px-4 py-3 space-y-2">
-              <div className="text-sm text-gray-600">{profile?.name}</div>
-              <button
-                onClick={signOut}
-                className="text-sm text-gray-500 hover:text-gray-700 flex items-center"
-              >
-                <LogOut className="h-4 w-4 mr-1" />
-                Logout
-              </button>
+              <div className="flex items-center md:hidden">
+                <NotificationBell /> {/* Add this line for mobile */}
+                <button
+                  onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                  className="ml-2 p-2 rounded-md hover:bg-gray-100"
+                >
+                  {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+                </button>
+              </div>
             </div>
           </div>
-        )}
-      </header>
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {children}
-      </main>
-    </div>
+
+          {mobileMenuOpen && (
+            <div className="md:hidden border-t border-gray-200">
+              <div className="px-4 py-3 space-y-2">
+                <div className="flex items-center justify-between"> {/* Added for better mobile layout with bell */}
+                    <span className="text-sm text-gray-600">{profile?.name}</span>
+                    {/* NotificationBell is already above, outside this block for mobile visibility */}
+                </div>
+                <button
+                  onClick={signOut}
+                  className="w-full text-left text-sm text-gray-500 hover:text-gray-700 flex items-center"
+                >
+                  <LogOut className="h-4 w-4 mr-1" />
+                  Logout
+                </button>
+              </div>
+            </div>
+          )}
+        </header>
+        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          {children}
+        </main>
+      </div>
+      <Toaster position="top-right" /> {/* Add Toaster here */}
+    </>
   );
 };
 
-// Loading Component (assuming it's defined elsewhere as in your original code)
+// Loading Component
 const LoadingSpinner = () => (
   <div className="flex items-center justify-center p-4">
     <Loader2 className="h-6 w-6 animate-spin text-gray-500" />
   </div>
 );
 
-// Auth Pages (assuming LoginPage is defined elsewhere as in your original code)
+// Auth Pages
 const LoginPage: React.FC = () => {
   const { signIn, signUp } = useAuth();
   const [email, setEmail] = useState('');
@@ -108,6 +121,7 @@ const LoginPage: React.FC = () => {
       }
     } catch (err) {
       setError('An unexpected error occurred');
+      // Consider using toast here as well if desired: toast.error('An unexpected error occurred');
     } finally {
       setIsLoading(false);
     }
@@ -203,7 +217,7 @@ const LoginPage: React.FC = () => {
 };
 
 
-// Dashboard (assuming it's defined elsewhere as in your original code)
+// Dashboard
 const Dashboard: React.FC = () => {
   const { user } = useAuth();
   const [households, setHouseholds] = useState<Household[]>([]);
@@ -224,6 +238,7 @@ const Dashboard: React.FC = () => {
       setHouseholds(data);
     } catch (error) {
       console.error('Error loading households:', error);
+      toast.error('Failed to load households.');
     } finally {
       setLoading(false);
     }
@@ -238,9 +253,10 @@ const Dashboard: React.FC = () => {
       await loadHouseholds();
       setNewHouseholdName('');
       setShowCreateHousehold(false);
+      toast.success('Household created!');
     } catch (error) {
       console.error('Error creating household:', error);
-      alert('Failed to create household');
+      toast.error('Failed to create household');
     } finally {
       setCreating(false);
     }
@@ -304,7 +320,7 @@ const Dashboard: React.FC = () => {
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                 value={newHouseholdName}
                 onChange={(e) => setNewHouseholdName(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && createHousehold()}
+                onKeyPress={(e) => e.key === 'Enter' && !creating && createHousehold()}
               />
               <div className="mt-4 flex justify-end space-x-3">
                 <button
@@ -342,7 +358,6 @@ const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = (
   const [settlements, setSettlements] = useState<Settlement[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // 1. Add state for recurring expenses
   const [recurringExpenses, setRecurringExpenses] = useState<RecurringExpense[]>([]);
   const [showAddRecurring, setShowAddRecurring] = useState(false);
 
@@ -351,65 +366,73 @@ const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = (
   const [showInviteMember, setShowInviteMember] = useState(false);
   const [showSettleUp, setShowSettleUp] = useState(false);
 
-  // 2. Add to your loadHouseholdData function (helper for recurring expenses)
   const loadRecurringExpenses = async () => {
     try {
       const data = await api.getHouseholdRecurringExpenses(householdId);
       setRecurringExpenses(data);
     } catch (error) {
       console.error('Error loading recurring expenses:', error);
+      toast.error('Failed to load recurring expenses.');
     }
   };
 
   useEffect(() => {
     const fetchData = async () => {
-      // Check if getHouseholdData exists and try to use it
+      setLoading(true);
       let useOptimized = false;
       try {
         if (typeof api.getHouseholdData === 'function') {
-            const testData = await api.getHouseholdData(householdId);
-            if (testData) { // Or some other check to confirm it returned expected structure
+            const testData = await api.getHouseholdData(householdId); // Call to check if it works
+            if (testData && testData.household) { // Basic check for expected structure
                 useOptimized = true;
             }
         }
       } catch (e) {
-        // If it throws or doesn't exist, optimized method is not available or failed
         console.warn("Optimized getHouseholdData not available or failed, falling back.", e)
       }
       
       if (useOptimized) {
-        loadHouseholdDataOptimized();
+        await loadHouseholdDataOptimized();
       } else {
-        loadHouseholdData();
+        await loadHouseholdData();
       }
+      setLoading(false);
     };
     fetchData();
   }, [householdId]);
   
-  // 6. Add useEffect to process due recurring expenses on component mount
   useEffect(() => {
     const processRecurring = async () => {
       try {
         await api.processDueRecurringExpenses(householdId);
         // Reload data after processing to reflect any new expenses created
-        // Choose the appropriate loading function based on availability
-        if (typeof api.getHouseholdData === 'function') {
-            loadHouseholdDataOptimized();
+        if (typeof api.getHouseholdData === 'function') { // Check again as state might not be updated if optimized failed initially
+            try {
+                const testData = await api.getHouseholdData(householdId);
+                if (testData && testData.household) {
+                    loadHouseholdDataOptimized();
+                } else {
+                    loadHouseholdData();
+                }
+            } catch {
+                loadHouseholdData();
+            }
         } else {
             loadHouseholdData();
         }
       } catch (error) {
         console.error('Error processing recurring expenses:', error);
+        toast.error('Error processing recurring expenses.');
       }
     };
   
-    processRecurring();
+    if(householdId) processRecurring(); // Ensure householdId is available
   }, [householdId]);
 
 
   const loadHouseholdDataOptimized = async () => {
+    // setLoading(true) is handled by fetchData
     try {
-      setLoading(true);
       const data = await api.getHouseholdData(householdId);
 
       if (data) {
@@ -419,47 +442,58 @@ const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = (
         setTasks(data.tasks || []);
         setSettlements(data.recent_settlements || []);
       }
-      await loadRecurringExpenses(); // Load recurring expenses as well
+      await loadRecurringExpenses();
     } catch (error) {
       console.error('Error loading household data (optimized):', error);
+      toast.error('Failed to load household data.');
       // Fallback to original method if optimized fails for any reason
-      loadHouseholdData();
-    } finally {
-      setLoading(false);
-    }
+      await loadHouseholdData(); // Ensure this is awaited if it's async
+    } 
+    // setLoading(false) is handled by fetchData
   };
 
   const loadHouseholdData = async () => {
+    // setLoading(true) is handled by fetchData
     try {
-      setLoading(true);
       const [membersData, expensesData, tasksData, settlementsData, recurringData] = await Promise.all([
         api.getHouseholdMembers(householdId),
         api.getHouseholdExpenses(householdId),
         api.getHouseholdTasks(householdId),
         api.getHouseholdSettlements ? api.getHouseholdSettlements(householdId) : Promise.resolve([]),
-        api.getHouseholdRecurringExpenses(householdId) // Load recurring expenses
+        api.getHouseholdRecurringExpenses(householdId)
       ]);
 
       setMembers(membersData);
       setExpenses(expensesData);
       setTasks(tasksData);
       setSettlements(settlementsData);
-      setRecurringExpenses(recurringData); // Set recurring expenses state
+      setRecurringExpenses(recurringData);
 
       if (membersData.length > 0 && membersData[0].households) {
         setHousehold(membersData[0].households);
       }
+
     } catch (error) {
       console.error('Error loading household data (standard):', error);
-    } finally {
-      setLoading(false);
+      toast.error('Failed to load household data.');
+    }
+    // setLoading(false) is handled by fetchData
+  };
+
+  // 3. Add the sendReminder function to HouseholdDetail:
+  const sendReminder = async (debtorId: string, amount: number) => {
+    try {
+      await api.sendPaymentReminder(householdId, debtorId, amount);
+      toast.success('Reminder sent!');
+    } catch (error) {
+      console.error('Error sending reminder:', error);
+      toast.error('Failed to send reminder');
     }
   };
 
   const balances = api.calculateBalances(expenses, members, settlements);
   const settlementSuggestions = api.getSettlementSuggestions ? api.getSettlementSuggestions(balances) : [];
 
-  // 3. Add the AddRecurringExpenseModal component
   const AddRecurringExpenseModal = () => {
     const [description, setDescription] = useState('');
     const [amount, setAmount] = useState('');
@@ -472,7 +506,7 @@ const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = (
 
       setSubmitting(true);
       try {
-        const startDate = new Date(); // Use current date as start date for simplicity
+        const startDate = new Date(); 
         await api.createRecurringExpense(
           householdId,
           description,
@@ -481,16 +515,16 @@ const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = (
           startDate,
           frequency === 'monthly' || frequency === 'quarterly' || frequency === 'yearly' ? parseInt(dayOfMonth) : undefined
         );
-        await loadRecurringExpenses(); // Reload only recurring expenses or all data
+        await loadRecurringExpenses(); 
         setShowAddRecurring(false);
-        // Reset form
+        toast.success('Recurring expense added!');
         setDescription('');
         setAmount('');
         setFrequency('monthly');
         setDayOfMonth('1');
       } catch (error) {
         console.error('Error creating recurring expense:', error);
-        alert('Failed to create recurring expense');
+        toast.error('Failed to create recurring expense');
       } finally {
         setSubmitting(false);
       }
@@ -588,9 +622,10 @@ const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = (
         await api.createExpense(householdId, description, parseFloat(amount));
         await (typeof api.getHouseholdData === 'function' ? loadHouseholdDataOptimized() : loadHouseholdData());
         setShowAddExpense(false);
+        toast.success('Expense added!');
       } catch (error) {
         console.error('Error creating expense:', error);
-        alert('Failed to create expense');
+        toast.error('Failed to create expense');
       } finally {
         setSubmitting(false);
       }
@@ -631,7 +666,7 @@ const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = (
             </button>
             <button
               onClick={handleSubmit}
-              disabled={submitting}
+              disabled={submitting || !description || !amount}
               className="px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50"
             >
               {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Add Expense'}
@@ -655,9 +690,10 @@ const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = (
         await api.createTask(householdId, title, assignedTo || undefined);
         await (typeof api.getHouseholdData === 'function' ? loadHouseholdDataOptimized() : loadHouseholdData());
         setShowAddTask(false);
+        toast.success('Task added!');
       } catch (error) {
         console.error('Error creating task:', error);
-        alert('Failed to create task');
+        toast.error('Failed to create task');
       } finally {
         setSubmitting(false);
       }
@@ -703,7 +739,7 @@ const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = (
             </button>
             <button
               onClick={handleSubmit}
-              disabled={submitting}
+              disabled={submitting || !title}
               className="px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50"
             >
               {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Add Task'}
@@ -725,9 +761,10 @@ const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = (
       if (selectedSuggestion) {
         setPayeeId(selectedSuggestion.to);
         setCustomAmount(selectedSuggestion.amount.toString());
-        setDescription(`Payment to ${selectedSuggestion.toProfile.name}`);
+        const toProfile = members.find(m => m.user_id === selectedSuggestion.to)?.profiles;
+        setDescription(`Payment to ${toProfile?.name || 'member'}`);
       }
-    }, [selectedSuggestion]);
+    }, [selectedSuggestion, members]);
 
     const handleSubmit = async () => {
       if (!payeeId || !customAmount) return;
@@ -742,13 +779,20 @@ const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = (
         );
         await (typeof api.getHouseholdData === 'function' ? loadHouseholdDataOptimized() : loadHouseholdData());
         setShowSettleUp(false);
+        toast.success('Settlement recorded!');
       } catch (error) {
         console.error('Error creating settlement:', error);
-        alert('Failed to record settlement');
+        toast.error('Failed to record settlement');
       } finally {
         setSubmitting(false);
       }
     };
+    
+    const getProfileForSuggestion = (suggestion: typeof settlementSuggestions[0], type: 'from' | 'to') => {
+        const userId = type === 'from' ? suggestion.from : suggestion.to;
+        return members.find(m => m.user_id === userId)?.profiles;
+    };
+
 
     const myDebts = settlementSuggestions.filter(s => s.from === user?.id);
     const owedToMe = settlementSuggestions.filter(s => s.to === user?.id);
@@ -766,23 +810,26 @@ const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = (
                 <div className="mb-4">
                   <p className="text-xs text-gray-500 mb-2">You owe:</p>
                   <div className="space-y-2">
-                    {myDebts.map((suggestion, idx) => (
-                      <button
-                        key={idx}
-                        onClick={() => setSelectedSuggestion(suggestion)}
-                        className={`w-full text-left p-3 rounded-lg border ${selectedSuggestion === suggestion
-                            ? 'border-blue-500 bg-blue-50'
-                            : 'border-gray-200 hover:border-gray-300'
-                          }`}
-                      >
-                        <div className="flex justify-between items-center">
-                          <span className="text-sm">
-                            Pay <strong>{suggestion.toProfile.name}</strong>
-                          </span>
-                          <span className="font-medium">${suggestion.amount.toFixed(2)}</span>
-                        </div>
-                      </button>
-                    ))}
+                    {myDebts.map((suggestion, idx) => {
+                      const toProfile = getProfileForSuggestion(suggestion, 'to');
+                      return (
+                        <button
+                          key={`debt-${idx}`}
+                          onClick={() => setSelectedSuggestion(suggestion)}
+                          className={`w-full text-left p-3 rounded-lg border ${selectedSuggestion === suggestion
+                              ? 'border-blue-500 bg-blue-50'
+                              : 'border-gray-200 hover:border-gray-300'
+                            }`}
+                        >
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm">
+                              Pay <strong>{toProfile?.name || 'Unknown User'}</strong>
+                            </span>
+                            <span className="font-medium">${suggestion.amount.toFixed(2)}</span>
+                          </div>
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
               )}
@@ -791,19 +838,22 @@ const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = (
                 <div>
                   <p className="text-xs text-gray-500 mb-2">Owed to you:</p>
                   <div className="space-y-2">
-                    {owedToMe.map((suggestion, idx) => (
-                      <div
-                        key={idx}
-                        className="w-full text-left p-3 rounded-lg border border-gray-200 bg-gray-50"
-                      >
-                        <div className="flex justify-between items-center">
-                          <span className="text-sm text-gray-600">
-                            <strong>{suggestion.fromProfile.name}</strong> owes you
-                          </span>
-                          <span className="font-medium text-gray-600">${suggestion.amount.toFixed(2)}</span>
+                    {owedToMe.map((suggestion, idx) => {
+                       const fromProfile = getProfileForSuggestion(suggestion, 'from');
+                       return (
+                        <div
+                          key={`owed-${idx}`}
+                          className="w-full text-left p-3 rounded-lg border border-gray-200 bg-gray-50"
+                        >
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm text-gray-600">
+                              <strong>{fromProfile?.name || 'Unknown User'}</strong> owes you
+                            </span>
+                            <span className="font-medium text-gray-600">${suggestion.amount.toFixed(2)}</span>
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                       );
+                    })}
                   </div>
                 </div>
               )}
@@ -863,7 +913,7 @@ const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = (
             </button>
             <button
               onClick={handleSubmit}
-              disabled={submitting || !payeeId || !customAmount}
+              disabled={submitting || !payeeId || !customAmount || parseFloat(customAmount) <=0}
               className="px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50"
             >
               {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Record Payment'}
@@ -875,12 +925,14 @@ const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = (
   };
 
 
-  const markExpenseSettled = async (expenseId: string, userId: string) => {
+  const markExpenseSettled = async (expenseId: string, userIdToSettle: string) => {
     try {
-      await api.markExpenseSettled(expenseId, userId);
+      await api.markExpenseSettled(expenseId, userIdToSettle); // Ensure this API takes userId to settle for
       await (typeof api.getHouseholdData === 'function' ? loadHouseholdDataOptimized() : loadHouseholdData());
+      toast.success('Expense part marked settled!');
     } catch (error) {
       console.error('Error marking expense as settled:', error);
+      toast.error('Failed to mark expense settled.');
     }
   };
 
@@ -888,8 +940,10 @@ const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = (
     try {
       await api.completeTask(taskId);
       await (typeof api.getHouseholdData === 'function' ? loadHouseholdDataOptimized() : loadHouseholdData());
+      toast.success('Task completed!');
     } catch (error) {
       console.error('Error completing task:', error);
+      toast.error('Failed to complete task.');
     }
   };
 
@@ -919,11 +973,23 @@ const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = (
             {balances.map(balance => (
               <div key={balance.userId} className="flex justify-between items-center">
                 <span className="text-sm text-gray-600">{balance.profile?.name}</span>
-                <span className={`text-sm font-medium ${balance.balance > 0 ? 'text-green-600' : balance.balance < 0 ? 'text-red-600' : 'text-gray-600'
-                  }`}>
-                  {balance.balance > 0 ? '+' : ''}${Math.abs(balance.balance).toFixed(2)}
-                  {balance.balance < 0 && ' owed'}
-                </span>
+                <div className="flex items-center space-x-2"> {/* Wrapper for amount and button */}
+                  <span className={`text-sm font-medium ${balance.balance > 0 ? 'text-green-600' : balance.balance < 0 ? 'text-red-600' : 'text-gray-600'
+                    }`}>
+                    {balance.balance > 0 ? '+' : ''}${Math.abs(balance.balance).toFixed(2)}
+                    {balance.balance < 0 && ' owed'}
+                  </span>
+                  {/* Add reminder button for people who owe money */}
+                  {balance.balance < -5 && balance.userId !== user?.id && (
+                    <button
+                      onClick={() => sendReminder(balance.userId, Math.abs(balance.balance))}
+                      className="text-xs text-blue-600 hover:text-blue-700"
+                      title="Send payment reminder"
+                    >
+                      <Bell className="h-3 w-3" />
+                    </button>
+                  )}
+                </div>
               </div>
             ))}
           </div>
@@ -974,10 +1040,8 @@ const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = (
           </nav>
         </div>
 
-        {/* 4. Add to the expenses tab content (showing recurring expenses) */}
         {activeTab === 'expenses' && (
           <div className="space-y-6">
-            {/* Recurring Expenses Section */}
             <div className="bg-gray-50 rounded-lg p-4">
               <div className="flex justify-between items-center mb-3">
                 <h4 className="text-sm font-medium text-gray-700">Recurring Expenses</h4>
@@ -1003,7 +1067,7 @@ const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = (
                         </span>
                       </div>
                       <div className="text-gray-500">
-                        Next: {new Date(recurring.next_due_date + 'T00:00:00').toLocaleDateString()} {/* Ensure date is parsed correctly for display */}
+                         Next: {new Date(recurring.next_due_date + (recurring.next_due_date.includes('T') ? '' : 'T00:00:00')).toLocaleDateString()}
                       </div>
                     </div>
                   ))}
@@ -1011,7 +1075,6 @@ const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = (
               )}
             </div>
 
-            {/* Regular Expenses Section */}
             <div className="space-y-4">
               <div className="flex justify-between items-center">
                 <h3 className="text-lg font-medium text-gray-900">Recent One-Time Expenses</h3>
@@ -1033,7 +1096,7 @@ const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = (
                         <div className="flex-1">
                           <h4 className="font-medium text-gray-900">{expense.description}</h4>
                           <p className="text-sm text-gray-500">
-                            Paid by {expense.profiles?.name} • {new Date(expense.date + 'T00:00:00').toLocaleDateString()}
+                            Paid by {expense.profiles?.name} • {new Date(expense.date + (expense.date.includes('T') ? '' : 'T00:00:00')).toLocaleDateString()}
                           </p>
 
                           <div className="mt-2 space-y-1">
@@ -1044,12 +1107,26 @@ const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = (
                                 <span className="text-gray-600">{split.profiles?.name} owes</span>
                                 <div className="flex items-center space-x-2">
                                   <span className="font-medium">${split.amount.toFixed(2)}</span>
-                                  <button
-                                    onClick={() => markExpenseSettled(expense.id, split.user_id)}
-                                    className="text-xs text-blue-600 hover:text-blue-500"
-                                  >
-                                    Mark paid
-                                  </button>
+                                  {user?.id === expense.paid_by && ( // Only payer can mark as settled
+                                    <button
+                                        onClick={() => markExpenseSettled(expense.id, split.user_id)}
+                                        className="text-xs text-blue-600 hover:text-blue-500"
+                                        title={`Mark ${split.profiles?.name}'s share as paid`}
+                                    >
+                                        Mark paid
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
+                            ))}
+                             {expense.expense_splits?.filter(split =>
+                              split.user_id !== expense.paid_by && split.settled
+                            ).map(split => (
+                              <div key={split.id} className="flex items-center justify-between text-sm">
+                                <span className="text-gray-400 line-through">{split.profiles?.name} paid</span>
+                                <div className="flex items-center space-x-2">
+                                  <span className="font-medium text-gray-400 line-through">${split.amount.toFixed(2)}</span>
+                                   <Check className="h-4 w-4 text-green-500" />
                                 </div>
                               </div>
                             ))}
@@ -1059,7 +1136,7 @@ const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = (
                           <p className="font-medium text-gray-900">${expense.amount.toFixed(2)}</p>
                           {members.length > 0 && (
                              <p className="text-xs text-gray-500">
-                               ${(expense.amount / members.length).toFixed(2)} each
+                               ${(expense.amount / (expense.expense_splits?.length || members.length || 1) ).toFixed(2)} each
                              </p>
                           )}
                         </div>
@@ -1122,12 +1199,13 @@ const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = (
                 <div key={member.id} className="bg-white rounded-lg shadow p-4">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center">
-                      <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center">
-                        <User className="h-5 w-5 text-gray-500" />
+                      <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center text-gray-500">
+                        {member.profiles?.name?.charAt(0).toUpperCase() || <User className="h-5 w-5" />}
                       </div>
                       <div className="ml-3">
                         <p className="font-medium text-gray-900">{member.profiles?.name}</p>
-                        <p className="text-sm text-gray-500">{member.role}</p>
+                        {/* <p className="text-sm text-gray-500">{member.profiles?.email}</p> */}
+                        <p className="text-xs text-gray-400">{member.role}</p>
                       </div>
                     </div>
                   </div>
@@ -1153,23 +1231,28 @@ const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = (
               {loading && tasks.filter(t => !t.completed).length === 0 && tasks.filter(t => t.completed).length === 0 ? (
                  <LoadingSpinner/>
               ): tasks.filter(t => !t.completed).length === 0 && tasks.filter(t => t.completed).length === 0 ? (
-                <p className="text-gray-500 text-center py-4">No tasks yet</p>
+                <p className="text-gray-500 text-center py-4">No tasks yet. Add some!</p>
               ) : (
                 <>
+                  {tasks.filter(t => !t.completed).length > 0 && <h4 className="text-sm font-medium text-gray-700">To Do</h4>}
                   {tasks.filter(t => !t.completed).map(task => (
                     <div key={task.id} className="bg-white rounded-lg shadow p-4">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center">
                           <button
                             onClick={() => completeTask(task.id)}
-                            className="flex-shrink-0"
+                            className="flex-shrink-0 p-1 rounded-full hover:bg-gray-100"
+                            title="Mark task as complete"
                           >
-                            <div className="h-5 w-5 rounded border-2 border-gray-300 hover:border-gray-400" />
+                            <div className="h-5 w-5 rounded-full border-2 border-gray-300 hover:border-green-500" />
                           </button>
                           <div className="ml-3">
                             <p className="font-medium text-gray-900">{task.title}</p>
                             {task.profiles && (
                               <p className="text-sm text-gray-500">Assigned to {task.profiles.name}</p>
+                            )}
+                             {!task.profiles && (
+                              <p className="text-sm text-gray-400">Unassigned</p>
                             )}
                           </div>
                         </div>
@@ -1179,12 +1262,17 @@ const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = (
 
                   {tasks.filter(t => t.completed).length > 0 && (
                     <>
-                      <h4 className="text-sm font-medium text-gray-500 mt-6">Completed</h4>
+                      <h4 className="text-sm font-medium text-gray-500 mt-6 pt-4 border-t">Completed</h4>
                       {tasks.filter(t => t.completed).map(task => (
-                        <div key={task.id} className="bg-gray-50 rounded-lg p-4">
+                        <div key={task.id} className="bg-gray-100 rounded-lg p-4 opacity-70">
                           <div className="flex items-center">
                             <Check className="h-5 w-5 text-green-500 flex-shrink-0" />
-                            <p className="ml-3 text-gray-500 line-through">{task.title}</p>
+                            <div className="ml-3">
+                                <p className="text-gray-500 line-through">{task.title}</p>
+                                {task.profiles && (
+                                  <p className="text-xs text-gray-400 line-through">Done by {task.profiles.name}</p>
+                                )}
+                            </div>
                           </div>
                         </div>
                       ))}
@@ -1200,14 +1288,16 @@ const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = (
       {showAddExpense && <AddExpenseModal />}
       {showAddTask && <AddTaskModal />}
       {showSettleUp && <SettleUpModal />}
-      {/* 5. Add to the modal rendering section */}
       {showAddRecurring && <AddRecurringExpenseModal />}
       {showInviteMember && (
         <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-lg p-6 max-w-md w-full">
             <h3 className="text-lg font-medium text-gray-900 mb-4">Invite Member</h3>
-            <p className="text-sm text-gray-500 mb-4">
-              Invitation functionality coming soon! For now, share the household name with your roommates.
+            <p className="text-sm text-gray-500 mb-2">
+              To invite a new member, ask them to sign up and then you can add them to this household from the Members tab once they have an account.
+            </p>
+             <p className="text-sm text-gray-500 mb-4">
+              (Direct email invitation functionality coming soon!)
             </p>
             <div className="mt-6 flex justify-end">
               <button
@@ -1244,6 +1334,7 @@ export default function RoomiesApp() {
   return (
     <AuthProvider>
       <App />
+      {/* Toaster can also be placed here if preferred, but Layout is often better for positioning relative to content */}
     </AuthProvider>
   );
 }
