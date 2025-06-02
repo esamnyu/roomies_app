@@ -1282,13 +1282,26 @@ const AddExpenseModal = () => {
 
       setSubmitting(true);
       try {
-        await api.createTask(householdId, title, assignedTo || undefined);
+        const result = await api.createTask(householdId, title, assignedTo || undefined);
+        console.log('Task created successfully:', result);
         await (typeof api.getHouseholdData === 'function' ? loadHouseholdDataOptimized() : loadHouseholdData());
         setShowAddTask(false);
+        setTitle(''); // Reset form
+        setAssignedTo(''); // Reset form
         toast.success('Task added!');
       } catch (error) {
         console.error('Error creating task:', error);
-        toast.error('Failed to create task');
+        // Better error logging for Supabase errors
+        if (error && typeof error === 'object') {
+          console.error('Error details:', {
+            message: (error as any).message,
+            details: (error as any).details,
+            hint: (error as any).hint,
+            code: (error as any).code,
+            fullError: JSON.stringify(error, null, 2)
+          });
+        }
+        toast.error((error as any)?.message || 'Failed to create task');
       } finally {
         setSubmitting(false);
       }

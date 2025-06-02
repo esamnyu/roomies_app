@@ -319,6 +319,38 @@ export const createTask = async (
   title: string,
   assignedTo?: string
 ) => {
+  // First, verify the user is authenticated
+  const { data: { user }, error: authError } = await supabase.auth.getUser()
+  if (authError || !user) {
+    throw new Error('Not authenticated')
+  }
+
+  // Verify the user is a member of the household
+  const { data: membership, error: memberError } = await supabase
+    .from('household_members')
+    .select('id')
+    .eq('household_id', householdId)
+    .eq('user_id', user.id)
+    .single()
+
+  if (memberError || !membership) {
+    throw new Error('You are not a member of this household')
+  }
+
+  // If assignedTo is provided, verify they are also a member
+  if (assignedTo) {
+    const { data: assigneeMember, error: assigneeError } = await supabase
+      .from('household_members')
+      .select('id')
+      .eq('household_id', householdId)
+      .eq('user_id', assignedTo)
+      .single()
+
+    if (assigneeError || !assigneeMember) {
+      throw new Error('Assigned user is not a member of this household')
+    }
+  }
+
   const taskData: any = {
     household_id: householdId,
     title,
@@ -329,22 +361,50 @@ export const createTask = async (
     taskData.assigned_to = assignedTo
   }
 
-  const { data, error } = await supabase
+  // First insert the task
+  const { data: insertedTask, error: insertError } = await supabase
     .from('tasks')
     .insert(taskData)
-    .select(`
-      *,
-      profiles:assigned_to (
-        id,
-        name,
-        avatar_url
-      )
-    `)
+    .select('*')
     .single()
 
-  if (error) throw error
-  return data
-}
+  if (insertError) {
+    console.error('Supabase error creating task:', {
+      code: insertError.code,
+      message: insertError.message,
+      details: insertError.details,
+      hint: insertError.hint
+    })
+    throw insertError
+  }
+
+  // If task has assigned_to, fetch with profile join
+  if (insertedTask.assigned_to) {
+    const { data: taskWithProfile, error: fetchError } = await supabase
+      .from('tasks')
+      .select(`
+        *,
+        profiles:assigned_to (
+          id,
+          name,
+          avatar_url
+        )
+      `)
+      .eq('id', insertedTask.id)
+      .single()
+
+    if (fetchError) {
+      console.error('Error fetching task with profile:', fetchError)
+      // Return the task without profile if fetch fails
+      return insertedTask
+    }
+    
+    return taskWithProfile
+  }
+  
+    // Return task without profile for unassigned tasks
+    return insertedTask
+  }
 
 export const getHouseholdTasks = async (householdId: string) => {
   const { data, error } = await supabase
@@ -366,22 +426,45 @@ export const getHouseholdTasks = async (householdId: string) => {
 }
 
 export const updateTask = async (taskId: string, updates: Partial<Task>) => {
-  const { data, error } = await supabase
+  // First update the task
+  const { data: updatedTask, error: updateError } = await supabase
     .from('tasks')
     .update(updates)
     .eq('id', taskId)
-    .select(`
-      *,
-      profiles:assigned_to (
-        id,
-        name,
-        avatar_url
-      )
-    `)
+    .select('*')
     .single()
 
-  if (error) throw error
-  return data
+  if (updateError) {
+    console.error('Error updating task:', updateError)
+    throw updateError
+  }
+
+  // If task has assigned_to, fetch with profile join
+  if (updatedTask.assigned_to) {
+    const { data: taskWithProfile, error: fetchError } = await supabase
+      .from('tasks')
+      .select(`
+        *,
+        profiles:assigned_to (
+          id,
+          name,
+          avatar_url
+        )
+      `)
+      .eq('id', taskId)
+      .single()
+
+    if (fetchError) {
+      console.error('Error fetching task with profile:', fetchError)
+      // Return the task without profile if fetch fails
+      return updatedTask
+    }
+    
+    return taskWithProfile
+  }
+  
+  // Return task without profile for unassigned tasks
+  return updatedTask
 }
 
 export const completeTask = async (taskId: string) => {
