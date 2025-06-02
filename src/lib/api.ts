@@ -11,6 +11,12 @@ export interface Profile {
   updated_at: string
 }
 
+// Update the Profile interface to include email
+// Add this to the existing Profile interface or update it
+export interface ProfileWithEmail extends Profile {  // Added
+  email?: string
+}
+
 export interface Household {
   memberCount: ReactNode // Keep if used, otherwise can be removed if not part of Household actual data model
   id: string
@@ -96,7 +102,7 @@ export interface Notification {
   id: string
   user_id: string
   household_id: string | null
-  type: 'expense_added' | 'payment_reminder' | 'task_assigned' | 'task_completed' | 'settlement_recorded' | 'recurring_expense_added' | 'member_joined' | 'member_left'
+  type: 'expense_added' | 'payment_reminder' | 'task_assigned' | 'task_completed' | 'settlement_recorded' | 'recurring_expense_added' | 'member_joined' | 'member_left' | 'household_invitation' // Added 'household_invitation'
   title: string
   message: string
   data: any
@@ -157,6 +163,17 @@ export const updateProfile = async (userId: string, updates: Partial<Profile>) =
 
   return { data, error }
 }
+
+// Helper function to get profile with email // Added
+export const getProfileWithEmail = async (userId: string) => {
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('*, email') // Ensure email is selected
+    .eq('id', userId)
+    .single()
+  return { data, error }
+}
+
 
 // Household functions
 export const createHousehold = async (name: string) => {
@@ -302,6 +319,38 @@ export const createTask = async (
   title: string,
   assignedTo?: string
 ) => {
+  // First, verify the user is authenticated
+  const { data: { user }, error: authError } = await supabase.auth.getUser()
+  if (authError || !user) {
+    throw new Error('Not authenticated')
+  }
+
+  // Verify the user is a member of the household
+  const { data: membership, error: memberError } = await supabase
+    .from('household_members')
+    .select('id')
+    .eq('household_id', householdId)
+    .eq('user_id', user.id)
+    .single()
+
+  if (memberError || !membership) {
+    throw new Error('You are not a member of this household')
+  }
+
+  // If assignedTo is provided, verify they are also a member
+  if (assignedTo) {
+    const { data: assigneeMember, error: assigneeError } = await supabase
+      .from('household_members')
+      .select('id')
+      .eq('household_id', householdId)
+      .eq('user_id', assignedTo)
+      .single()
+
+    if (assigneeError || !assigneeMember) {
+      throw new Error('Assigned user is not a member of this household')
+    }
+  }
+
   const taskData: any = {
     household_id: householdId,
     title,
@@ -312,22 +361,50 @@ export const createTask = async (
     taskData.assigned_to = assignedTo
   }
 
-  const { data, error } = await supabase
+  // First insert the task
+  const { data: insertedTask, error: insertError } = await supabase
     .from('tasks')
     .insert(taskData)
-    .select(`
-      *,
-      profiles:assigned_to (
-        id,
-        name,
-        avatar_url
-      )
-    `)
+    .select('*')
     .single()
 
-  if (error) throw error
-  return data
-}
+  if (insertError) {
+    console.error('Supabase error creating task:', {
+      code: insertError.code,
+      message: insertError.message,
+      details: insertError.details,
+      hint: insertError.hint
+    })
+    throw insertError
+  }
+
+  // If task has assigned_to, fetch with profile join
+  if (insertedTask.assigned_to) {
+    const { data: taskWithProfile, error: fetchError } = await supabase
+      .from('tasks')
+      .select(`
+        *,
+        profiles:assigned_to (
+          id,
+          name,
+          avatar_url
+        )
+      `)
+      .eq('id', insertedTask.id)
+      .single()
+
+    if (fetchError) {
+      console.error('Error fetching task with profile:', fetchError)
+      // Return the task without profile if fetch fails
+      return insertedTask
+    }
+    
+    return taskWithProfile
+  }
+  
+    // Return task without profile for unassigned tasks
+    return insertedTask
+  }
 
 export const getHouseholdTasks = async (householdId: string) => {
   const { data, error } = await supabase
@@ -349,22 +426,45 @@ export const getHouseholdTasks = async (householdId: string) => {
 }
 
 export const updateTask = async (taskId: string, updates: Partial<Task>) => {
-  const { data, error } = await supabase
+  // First update the task
+  const { data: updatedTask, error: updateError } = await supabase
     .from('tasks')
     .update(updates)
     .eq('id', taskId)
-    .select(`
-      *,
-      profiles:assigned_to (
-        id,
-        name,
-        avatar_url
-      )
-    `)
+    .select('*')
     .single()
 
-  if (error) throw error
-  return data
+  if (updateError) {
+    console.error('Error updating task:', updateError)
+    throw updateError
+  }
+
+  // If task has assigned_to, fetch with profile join
+  if (updatedTask.assigned_to) {
+    const { data: taskWithProfile, error: fetchError } = await supabase
+      .from('tasks')
+      .select(`
+        *,
+        profiles:assigned_to (
+          id,
+          name,
+          avatar_url
+        )
+      `)
+      .eq('id', taskId)
+      .single()
+
+    if (fetchError) {
+      console.error('Error fetching task with profile:', fetchError)
+      // Return the task without profile if fetch fails
+      return updatedTask
+    }
+    
+    return taskWithProfile
+  }
+  
+  // Return task without profile for unassigned tasks
+  return updatedTask
 }
 
 export const completeTask = async (taskId: string) => {
@@ -436,27 +536,185 @@ export const getHouseholdSettlements = async (householdId: string) => {
   return data || []
 }
 
-// Invitation functions
+// Invitation functions (Original - kept for reference or if needed)
 export const inviteToHousehold = async (householdId: string, email: string) => {
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) throw new Error('Not authenticated')
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('Not authenticated');
 
   const { data, error } = await supabase
     .from('invitations')
     .insert({
       household_id: householdId,
       invited_by: user.id,
-      email
+      email,
+      // Ensure status is part of your table schema if you use it like this
+      // status: 'pending' // Example if you have a status column
     })
     .select()
-    .single()
+    .single();
 
-  if (error) throw error
+  if (error) throw error;
 
   // TODO: Send invitation email using Supabase Edge Functions or external service
 
+  return data;
+};
+
+
+// --- FIXED INVITATION FUNCTIONS ---
+// Replace these functions in your api.ts file
+
+// Get pending invitations for current user (FIXED):
+export const getMyPendingInvitations = async () => {
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) throw new Error('Not authenticated')
+  
+  // Use the user's email to filter invitations
+  const userEmail = user.email
+  if (!userEmail) throw new Error('User email not found')
+
+  const { data, error } = await supabase
+    .from('invitations')
+    .select(`
+      *,
+      households!invitations_household_id_fkey (
+        id,
+        name
+      ),
+      inviter:profiles!invitations_invited_by_fkey (
+        id,
+        name
+      )
+    `)
+    .eq('email', userEmail)
+    .eq('status', 'pending')
+    .order('created_at', { ascending: false })
+
+  if (error) throw error
+  return data || []
+}
+
+// Create invitation (FIXED with better error handling):
+export const createInvitation = async (householdId: string, inviteeEmail: string) => {
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) throw new Error('Not authenticated')
+
+  // First check if the user is a member of the household
+  const { data: membership, error: memberError } = await supabase
+    .from('household_members')
+    .select('role')
+    .eq('household_id', householdId)
+    .eq('user_id', user.id)
+    .single()
+
+  if (memberError || !membership) {
+    throw new Error('You are not a member of this household')
+  }
+
+  // Call the RPC function
+  const { data, error } = await supabase
+    .rpc('send_invitation', {
+      p_household_id: householdId,
+      p_email: inviteeEmail
+    })
+
+  if (error) {
+    // Parse common errors
+    if (error.message.includes('already a member')) {
+      throw new Error('This user is already a member of the household')
+    } else if (error.message.includes('invitation already exists')) {
+      throw new Error('An invitation has already been sent to this email')
+    } else if (error.message.includes('User not found')) {
+      throw new Error('No user found with this email address. They need to create an account first.')
+    }
+    throw error
+  }
+  
   return data
 }
+
+// Accept invitation (FIXED):
+export const acceptInvitation = async (invitationId: string) => {
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) throw new Error('Not authenticated')
+
+  const { data, error } = await supabase
+    .rpc('accept_invitation', {
+      p_invitation_id: invitationId
+    })
+
+  if (error) {
+    if (error.message.includes('expired')) {
+      throw new Error('This invitation has expired')
+    } else if (error.message.includes('already accepted')) {
+      throw new Error('This invitation has already been accepted')
+    } else if (error.message.includes('not found')) {
+      throw new Error('Invitation not found or not for your email')
+    }
+    throw error
+  }
+  
+  return data
+}
+
+// Decline invitation (FIXED):
+export const declineInvitation = async (invitationId: string) => {
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) throw new Error('Not authenticated')
+
+  const userEmail = user.email
+  if (!userEmail) throw new Error("User email not found")
+
+  // First fetch the invitation with proper join
+  const { data: invitation, error: fetchError } = await supabase
+    .from('invitations')
+    .select(`
+      *,
+      households!invitations_household_id_fkey (
+        id,
+        name
+      )
+    `)
+    .eq('id', invitationId)
+    .eq('email', userEmail)
+    .eq('status', 'pending')
+    .single()
+
+  if (fetchError || !invitation) {
+    throw new Error('Invitation not found or already processed')
+  }
+
+  // Update invitation status
+  const { error: updateError } = await supabase
+    .from('invitations')
+    .update({
+      status: 'declined',
+      updated_at: new Date().toISOString()
+    })
+    .eq('id', invitationId)
+
+  if (updateError) throw updateError
+
+  // Notify the inviter
+  const { data: declinerProfile } = await getProfile(user.id)
+  if (declinerProfile && invitation.invited_by) {
+    await createNotification(
+      invitation.invited_by,
+      'member_left',
+      'Invitation Declined',
+      `${declinerProfile.name} has declined your invitation to join ${invitation.households?.name || 'your household'}.`,
+      invitation.household_id,
+      { declined_user_id: user.id }
+    )
+  }
+
+  return invitation
+}
+// --- END: NEW INVITATION FUNCTIONS ---
+
+// Alias functions for compatibility with UI components
+export const inviteUserToHousehold = createInvitation;
+export const getPendingInvitations = getMyPendingInvitations;
 
 // Recurring Expense functions
 // Create a recurring expense
