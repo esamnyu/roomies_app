@@ -560,6 +560,9 @@ export const declineInvitation = async (invitationId: string) => {
 }
 // --- END: NEW INVITATION FUNCTIONS ---
 
+// Alias functions for compatibility with UI components
+export const inviteUserToHousehold = createInvitation;
+export const getPendingInvitations = getMyPendingInvitations;
 
 // Recurring Expense functions
 // Create a recurring expense
@@ -1090,11 +1093,3 @@ export const createExpenseV2 = async (
     isRecurring
   )
 }
-
-export function inviteUserToHousehold(householdId: string, arg1: string) {
-  throw new Error('Function not implemented.')
-}
-export function getPendingInvitations() {
-  throw new Error('Function not implemented.')
-}
-
