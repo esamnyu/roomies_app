@@ -478,62 +478,130 @@ export const inviteToHousehold = async (householdId: string, email: string) => {
 };
 
 
-// --- START: NEW INVITATION FUNCTIONS ---
-// Replace the existing createInvitation function with:
-export const createInvitation = async (householdId: string, email: string) => {
-  const { data, error } = await supabase
-    .rpc('send_invitation', {
-      p_household_id: householdId,
-      p_email: email
-    })
+// --- FIXED INVITATION FUNCTIONS ---
+// Replace these functions in your api.ts file
 
-  if (error) throw error
-  return data
-}
-
-// Get pending invitations for current user:
+// Get pending invitations for current user (FIXED):
 export const getMyPendingInvitations = async () => {
-  const { data, error } = await supabase
-    .from('pending_invitations')
-    .select('*')
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) throw new Error('Not authenticated')
+  
+  // Use the user's email to filter invitations
+  const userEmail = user.email
+  if (!userEmail) throw new Error('User email not found')
 
-  if (error) throw error
-  return data || []
+  const { data, error } = await supabase
+    .from('invitations')
+    .select(`
+      *,
+      households!invitations_household_id_fkey (
+        id,
+        name
+      ),
+      inviter:profiles!invitations_invited_by_fkey (
+        id,
+        name
+      )
+    `)
+    .eq('email', userEmail)
+    .eq('status', 'pending')
+    .order('created_at', { ascending: false })
+
+  if (error) throw error
+  return data || []
 }
 
-// Update acceptInvitation to use the new function:
+// Create invitation (FIXED with better error handling):
+export const createInvitation = async (householdId: string, inviteeEmail: string) => {
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) throw new Error('Not authenticated')
+
+  // First check if the user is a member of the household
+  const { data: membership, error: memberError } = await supabase
+    .from('household_members')
+    .select('role')
+    .eq('household_id', householdId)
+    .eq('user_id', user.id)
+    .single()
+
+  if (memberError || !membership) {
+    throw new Error('You are not a member of this household')
+  }
+
+  // Call the RPC function
+  const { data, error } = await supabase
+    .rpc('send_invitation', {
+      p_household_id: householdId,
+      p_email: inviteeEmail
+    })
+
+  if (error) {
+    // Parse common errors
+    if (error.message.includes('already a member')) {
+      throw new Error('This user is already a member of the household')
+    } else if (error.message.includes('invitation already exists')) {
+      throw new Error('An invitation has already been sent to this email')
+    } else if (error.message.includes('User not found')) {
+      throw new Error('No user found with this email address. They need to create an account first.')
+    }
+    throw error
+  }
+  
+  return data
+}
+
+// Accept invitation (FIXED):
 export const acceptInvitation = async (invitationId: string) => {
-  const { data, error } = await supabase
-    .rpc('accept_invitation', {
-      p_invitation_id: invitationId
-    })
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) throw new Error('Not authenticated')
 
-  if (error) throw error
-  return data
+  const { data, error } = await supabase
+    .rpc('accept_invitation', {
+      p_invitation_id: invitationId
+    })
+
+  if (error) {
+    if (error.message.includes('expired')) {
+      throw new Error('This invitation has expired')
+    } else if (error.message.includes('already accepted')) {
+      throw new Error('This invitation has already been accepted')
+    } else if (error.message.includes('not found')) {
+      throw new Error('Invitation not found or not for your email')
+    }
+    throw error
+  }
+  
+  return data
 }
 
+// Decline invitation (FIXED):
 export const declineInvitation = async (invitationId: string) => {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) throw new Error('Not authenticated')
 
-  const userEmail = user.email;
-  if (!userEmail) throw new Error("Authenticated user's email not found.");
+  const userEmail = user.email
+  if (!userEmail) throw new Error("User email not found")
 
-
-  // Step 1: Fetch and verify the invitation
+  // First fetch the invitation with proper join
   const { data: invitation, error: fetchError } = await supabase
     .from('invitations')
-    .select('*, households(name)') // Fetch household name for notification
+    .select(`
+      *,
+      households!invitations_household_id_fkey (
+        id,
+        name
+      )
+    `)
     .eq('id', invitationId)
-    .eq('email', userEmail) // Verify invitation is for this user
+    .eq('email', userEmail)
     .eq('status', 'pending')
     .single()
 
   if (fetchError || !invitation) {
-    throw new Error('Invalid invitation, not found for your email, or already processed')
+    throw new Error('Invitation not found or already processed')
   }
 
-  // Step 2: Update invitation status
+  // Update invitation status
   const { error: updateError } = await supabase
     .from('invitations')
     .update({
@@ -544,18 +612,19 @@ export const declineInvitation = async (invitationId: string) => {
 
   if (updateError) throw updateError
 
-  // Step 3: Notify the inviter (optional)
-  const { data: declinerProfileData } = await getProfile(user.id)
-  if (declinerProfileData) {
+  // Notify the inviter
+  const { data: declinerProfile } = await getProfile(user.id)
+  if (declinerProfile && invitation.invited_by) {
     await createNotification(
       invitation.invited_by,
-      'member_left', // Using existing type, could add 'invitation_declined'
+      'member_left',
       'Invitation Declined',
-      `${declinerProfileData.name} has declined your invitation to join ${invitation.households?.name || 'your household'}.`,
+      `${declinerProfile.name} has declined your invitation to join ${invitation.households?.name || 'your household'}.`,
       invitation.household_id,
       { declined_user_id: user.id }
     )
   }
+
   return invitation
 }
 // --- END: NEW INVITATION FUNCTIONS ---
