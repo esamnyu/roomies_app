@@ -11,6 +11,12 @@ export interface Profile {
   updated_at: string
 }
 
+// Update the Profile interface to include email
+// Add this to the existing Profile interface or update it
+export interface ProfileWithEmail extends Profile {  // Added
+  email?: string
+}
+
 export interface Household {
   memberCount: ReactNode // Keep if used, otherwise can be removed if not part of Household actual data model
   id: string
@@ -96,7 +102,7 @@ export interface Notification {
   id: string
   user_id: string
   household_id: string | null
-  type: 'expense_added' | 'payment_reminder' | 'task_assigned' | 'task_completed' | 'settlement_recorded' | 'recurring_expense_added' | 'member_joined' | 'member_left'
+  type: 'expense_added' | 'payment_reminder' | 'task_assigned' | 'task_completed' | 'settlement_recorded' | 'recurring_expense_added' | 'member_joined' | 'member_left' | 'household_invitation' // Added 'household_invitation'
   title: string
   message: string
   data: any
@@ -157,6 +163,17 @@ export const updateProfile = async (userId: string, updates: Partial<Profile>) =
 
   return { data, error }
 }
+
+// Helper function to get profile with email // Added
+export const getProfileWithEmail = async (userId: string) => {
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('*, email') // Ensure email is selected
+    .eq('id', userId)
+    .single()
+  return { data, error }
+}
+
 
 // Household functions
 export const createHousehold = async (name: string) => {
@@ -436,27 +453,113 @@ export const getHouseholdSettlements = async (householdId: string) => {
   return data || []
 }
 
-// Invitation functions
+// Invitation functions (Original - kept for reference or if needed)
 export const inviteToHousehold = async (householdId: string, email: string) => {
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) throw new Error('Not authenticated')
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('Not authenticated');
 
   const { data, error } = await supabase
     .from('invitations')
     .insert({
       household_id: householdId,
       invited_by: user.id,
-      email
+      email,
+      // Ensure status is part of your table schema if you use it like this
+      // status: 'pending' // Example if you have a status column
     })
     .select()
-    .single()
+    .single();
 
-  if (error) throw error
+  if (error) throw error;
 
   // TODO: Send invitation email using Supabase Edge Functions or external service
 
-  return data
+  return data;
+};
+
+
+// --- START: NEW INVITATION FUNCTIONS ---
+// Replace the existing createInvitation function with:
+export const createInvitation = async (householdId: string, email: string) => {
+  const { data, error } = await supabase
+    .rpc('send_invitation', {
+      p_household_id: householdId,
+      p_email: email
+    })
+
+  if (error) throw error
+  return data
 }
+
+// Get pending invitations for current user:
+export const getMyPendingInvitations = async () => {
+  const { data, error } = await supabase
+    .from('pending_invitations')
+    .select('*')
+
+  if (error) throw error
+  return data || []
+}
+
+// Update acceptInvitation to use the new function:
+export const acceptInvitation = async (invitationId: string) => {
+  const { data, error } = await supabase
+    .rpc('accept_invitation', {
+      p_invitation_id: invitationId
+    })
+
+  if (error) throw error
+  return data
+}
+
+export const declineInvitation = async (invitationId: string) => {
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) throw new Error('Not authenticated')
+
+  const userEmail = user.email;
+  if (!userEmail) throw new Error("Authenticated user's email not found.");
+
+
+  // Step 1: Fetch and verify the invitation
+  const { data: invitation, error: fetchError } = await supabase
+    .from('invitations')
+    .select('*, households(name)') // Fetch household name for notification
+    .eq('id', invitationId)
+    .eq('email', userEmail) // Verify invitation is for this user
+    .eq('status', 'pending')
+    .single()
+
+  if (fetchError || !invitation) {
+    throw new Error('Invalid invitation, not found for your email, or already processed')
+  }
+
+  // Step 2: Update invitation status
+  const { error: updateError } = await supabase
+    .from('invitations')
+    .update({
+      status: 'declined',
+      updated_at: new Date().toISOString()
+    })
+    .eq('id', invitationId)
+
+  if (updateError) throw updateError
+
+  // Step 3: Notify the inviter (optional)
+  const { data: declinerProfileData } = await getProfile(user.id)
+  if (declinerProfileData) {
+    await createNotification(
+      invitation.invited_by,
+      'member_left', // Using existing type, could add 'invitation_declined'
+      'Invitation Declined',
+      `${declinerProfileData.name} has declined your invitation to join ${invitation.households?.name || 'your household'}.`,
+      invitation.household_id,
+      { declined_user_id: user.id }
+    )
+  }
+  return invitation
+}
+// --- END: NEW INVITATION FUNCTIONS ---
+
 
 // Recurring Expense functions
 // Create a recurring expense
@@ -987,3 +1090,11 @@ export const createExpenseV2 = async (
     isRecurring
   )
 }
+
+export function inviteUserToHousehold(householdId: string, arg1: string) {
+  throw new Error('Function not implemented.')
+}
+export function getPendingInvitations() {
+  throw new Error('Function not implemented.')
+}
+

@@ -216,20 +216,278 @@ const LoginPage: React.FC = () => {
   );
 };
 
+const InviteMemberModal = ({ 
+  show, 
+  onClose, 
+  householdId, 
+  onSuccess 
+}: { 
+  show: boolean; 
+  onClose: () => void; 
+  householdId: string;
+  onSuccess: () => void;
+}) => {
+  const [inviteeEmail, setInviteeEmail] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState('');
 
-// Dashboard
-const Dashboard: React.FC = () => {
+  const handleSubmit = async () => {
+    if (!inviteeEmail.trim()) {
+      setError('Please enter an email address');
+      return;
+    }
+
+    setSubmitting(true);
+    setError('');
+
+    try {
+      await api.inviteUserToHousehold(householdId, inviteeEmail.trim());
+      toast.success('Invitation sent!');
+      setInviteeEmail('');
+      onClose();
+      onSuccess();
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to send invitation';
+      setError(errorMessage);
+      toast.error(errorMessage);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  if (!show) return null;
+
+  return (
+    <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center p-4 z-50">
+      <div className="bg-white rounded-lg p-6 max-w-md w-full">
+        <h3 className="text-lg font-medium text-gray-900 mb-4">Invite Member</h3>
+        
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Email Address
+            </label>
+            <input
+              type="email"
+              placeholder="Enter member's email"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+              value={inviteeEmail}
+              onChange={(e) => setInviteeEmail(e.target.value)}
+              onKeyPress={(e) => e.key === 'Enter' && !submitting && handleSubmit()}
+            />
+            <p className="mt-1 text-xs text-gray-500">
+              The user must have a registered account to receive invitations
+            </p>
+          </div>
+
+          {error && (
+            <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-md p-2">
+              {error}
+            </div>
+          )}
+        </div>
+
+        <div className="mt-6 flex justify-end space-x-3">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-500"
+            disabled={submitting}
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleSubmit}
+            disabled={submitting || !inviteeEmail.trim()}
+            className="px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50"
+          >
+            {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Send Invite'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Updated MyInvitations Component
+const MyInvitations: React.FC = () => {
   const { user } = useAuth();
-  const [households, setHouseholds] = useState<Household[]>([]);
+  const [invitations, setInvitations] = useState<any[]>([]); // Consider defining a specific type for Invitation
   const [loading, setLoading] = useState(true);
-  const [showCreateHousehold, setShowCreateHousehold] = useState(false);
-  const [newHouseholdName, setNewHouseholdName] = useState('');
-  const [creating, setCreating] = useState(false);
-  const [selectedHousehold, setSelectedHousehold] = useState<string | null>(null);
+  const [processingId, setProcessingId] = useState<string | null>(null);
 
   useEffect(() => {
-    loadHouseholds();
+    if (user) {
+      loadInvitations();
+    }
   }, [user]);
+
+  const loadInvitations = async () => {
+    try {
+      setLoading(true);
+      const data = await api.getPendingInvitations();
+      // Ensure data is an array, defaulting to empty if undefined/null
+      setInvitations(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error('Error loading invitations:', error);
+      toast.error('Failed to load invitations');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAccept = async (invitationId: string) => {
+    setProcessingId(invitationId);
+    try {
+      // Assuming api.acceptInvitation might return a result object or throw an error
+      const result = await api.acceptInvitation(invitationId);
+
+      // Check if the API returns a specific success structure
+      // Adjust this condition based on your actual API response
+      let successful = true;
+      let message = 'Invitation accepted!';
+
+      if (typeof result === 'object' && result !== null && 'success' in result) {
+        successful = result.success; // Explicitly casting to boolean if needed: !!result.success
+        if (result.message) message = String(result.message); // Ensure message is a string
+        else if (!successful) message = 'Failed to accept invitation.';
+      }
+      // If api.acceptInvitation throws an error for failures, this 'if' block might simplify or change.
+
+      if (successful) {
+        toast.success(message);
+        await loadInvitations(); // Reload invitations list, preferred over window.location.reload()
+      } else {
+        toast.error(message);
+      }
+    } catch (error: any) {
+      console.error('Error accepting invitation:', error);
+      toast.error(error.message || 'Failed to accept invitation');
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
+  const handleDecline = async (invitationId: string) => {
+    setProcessingId(invitationId);
+    try {
+      await api.declineInvitation(invitationId);
+      toast.success('Invitation declined');
+      await loadInvitations(); // Reload invitations list
+    } catch (error: any) { // Added type for error
+      console.error('Error declining invitation:', error);
+      toast.error(error.message || 'Failed to decline invitation'); // Use error.message if available
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
+  const formatExpiryTime = (expiresAt: string) => {
+    const expiry = new Date(expiresAt);
+    const now = new Date();
+    const timeLeftMs = expiry.getTime() - now.getTime();
+
+    if (timeLeftMs <= 0) {
+      return { text: 'Expired', isExpired: true };
+    }
+
+    const hoursLeft = Math.floor(timeLeftMs / (1000 * 60 * 60));
+    const minutesLeft = Math.floor(timeLeftMs / (1000 * 60));
+
+    if (hoursLeft < 1) {
+      if (minutesLeft <= 0) return { text: 'Expired', isExpired: true }; // Should be caught by timeLeftMs, but for safety
+      return { text: `Expires in ${minutesLeft} ${minutesLeft === 1 ? 'minute' : 'minutes'}`, isExpired: false };
+    } else if (hoursLeft < 24) {
+      return { text: `Expires in ${hoursLeft} ${hoursLeft === 1 ? 'hour' : 'hours'}`, isExpired: false };
+    } else {
+      const daysLeft = Math.floor(hoursLeft / 24);
+      return { text: `Expires in ${daysLeft} ${daysLeft === 1 ? 'day' : 'days'}`, isExpired: false };
+    }
+  };
+
+  if (loading) {
+    return <LoadingSpinner />;
+  }
+
+  if (invitations.length === 0) {
+    return (
+      <div className="text-center py-8 text-gray-500">
+        <UserPlus className="mx-auto h-12 w-12 text-gray-400 mb-3" />
+        <p>No pending invitations</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <h3 className="text-lg font-medium text-gray-900 mb-4">Pending Invitations</h3>
+      {invitations.map((invitation) => {
+        const expiryInfo = formatExpiryTime(invitation.expires_at);
+        return (
+          <div key={invitation.id} className={`bg-white rounded-lg shadow p-4 ${expiryInfo.isExpired ? 'opacity-60' : ''}`}>
+            <div className="flex items-center justify-between">
+              <div>
+                <h4 className="font-medium text-gray-900">
+                  {invitation.households?.name || 'Unknown Household'}
+                </h4>
+                <p className="text-sm text-gray-500 mt-1">
+                  Invited by {invitation.inviter?.name || 'Unknown User'}
+                </p>
+                <div className="flex items-center space-x-3 mt-1">
+                  <p className="text-xs text-gray-400">
+                    {new Date(invitation.created_at).toLocaleDateString()}
+                  </p>
+                  <span className={`text-xs ${expiryInfo.isExpired ? 'text-red-500' : 'text-orange-500'}`}>
+                    {expiryInfo.text}
+                  </span>
+                </div>
+              </div>
+              <div className="flex space-x-2">
+                <button
+                  onClick={() => handleAccept(invitation.id)}
+                  disabled={processingId === invitation.id || expiryInfo.isExpired}
+                  className="px-3 py-1.5 text-sm font-medium text-white bg-green-600 hover:bg-green-700 rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {processingId === invitation.id ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    'Accept'
+                  )}
+                </button>
+                <button
+                  onClick={() => handleDecline(invitation.id)}
+                  disabled={processingId === invitation.id || expiryInfo.isExpired}
+                  className="px-3 py-1.5 text-sm font-medium text-gray-700 bg-gray-200 hover:bg-gray-300 rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {processingId === invitation.id ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    'Decline'
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+};
+
+
+const Dashboard: React.FC = () => {
+  const { user } = useAuth(); // From new Dashboard
+  const [households, setHouseholds] = useState<Household[]>([]); // From new Dashboard (and old)
+  const [loading, setLoading] = useState(true); // From new Dashboard (and old)
+  const [showCreateHousehold, setShowCreateHousehold] = useState(false); // From new Dashboard (and old)
+  const [newHouseholdName, setNewHouseholdName] = useState(''); // From new Dashboard (and old)
+  const [creating, setCreating] = useState(false); // From new Dashboard (and old)
+  const [selectedHousehold, setSelectedHousehold] = useState<string | null>(null); // From new Dashboard (and old)
+  const [activeTab, setActiveTab] = useState<'households' | 'invitations'>('households'); // From new Dashboard
+
+  // Logic from your OLD Dashboard component:
+  useEffect(() => {
+    loadHouseholds();
+  }, [user]); // Make sure user dependency is there if loadHouseholds uses it. Your original didn't show it for this useEffect.
 
   const loadHouseholds = async () => {
     try {
@@ -261,6 +519,7 @@ const Dashboard: React.FC = () => {
       setCreating(false);
     }
   };
+  // End of logic from your OLD Dashboard component
 
   if (selectedHousehold) {
     return <HouseholdDetail householdId={selectedHousehold} onBack={() => setSelectedHousehold(null)} />;
@@ -269,47 +528,85 @@ const Dashboard: React.FC = () => {
   return (
     <Layout>
       <div className="space-y-6">
-        <div className="flex justify-between items-center">
-          <h2 className="text-2xl font-bold text-gray-900">Your Households</h2>
-          <button
-            onClick={() => setShowCreateHousehold(true)}
-            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700"
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            New Household
-          </button>
+        {/* Tab Navigation from new Dashboard */}
+        <div className="border-b border-gray-200">
+          <nav className="-mb-px flex space-x-8">
+            <button
+              onClick={() => setActiveTab('households')}
+              className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                activeTab === 'households'
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              <Home className="inline h-4 w-4 mr-1" />
+              My Households
+            </button>
+            <button
+              onClick={() => setActiveTab('invitations')}
+              className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                activeTab === 'invitations'
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              <UserPlus className="inline h-4 w-4 mr-1" />
+              Invitations
+            </button>
+          </nav>
         </div>
 
-        {loading ? (
-          <LoadingSpinner />
-        ) : households.length === 0 ? (
-          <div className="text-center py-12">
-            <Home className="mx-auto h-12 w-12 text-gray-400" />
-            <h3 className="mt-2 text-sm font-medium text-gray-900">No households</h3>
-            <p className="mt-1 text-sm text-gray-500">Get started by creating a new household.</p>
-          </div>
-        ) : (
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {households.map((household) => (
+        {/* Content based on active tab from new Dashboard */}
+        {activeTab === 'households' ? (
+          <>
+            {/* "Your Households" title and "New Household" button from OLD Dashboard */}
+            <div className="flex justify-between items-center">
+              <h2 className="text-2xl font-bold text-gray-900">Your Households</h2>
               <button
-                key={household.id}
-                onClick={() => setSelectedHousehold(household.id)}
-                className="bg-white p-6 rounded-lg shadow hover:shadow-md transition-shadow text-left"
+                onClick={() => setShowCreateHousehold(true)}
+                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700"
               >
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="text-lg font-medium text-gray-900">{household.name}</h3>
-                    <p className="mt-1 text-sm text-gray-500">
-                      {household.memberCount} {household.memberCount === 1 ? 'member' : 'members'}
-                    </p>
-                  </div>
-                  <ChevronRight className="h-5 w-5 text-gray-400" />
-                </div>
+                <Plus className="h-4 w-4 mr-2" />
+                New Household
               </button>
-            ))}
-          </div>
+            </div>
+
+            {/* Households grid display logic from OLD Dashboard */}
+            {loading ? (
+              <LoadingSpinner />
+            ) : households.length === 0 ? (
+              <div className="text-center py-12">
+                <Home className="mx-auto h-12 w-12 text-gray-400" />
+                <h3 className="mt-2 text-sm font-medium text-gray-900">No households</h3>
+                <p className="mt-1 text-sm text-gray-500">Get started by creating a new household.</p>
+              </div>
+            ) : (
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {households.map((household) => (
+                  <button
+                    key={household.id}
+                    onClick={() => setSelectedHousehold(household.id)}
+                    className="bg-white p-6 rounded-lg shadow hover:shadow-md transition-shadow text-left"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h3 className="text-lg font-medium text-gray-900">{household.name}</h3>
+                        <p className="mt-1 text-sm text-gray-500">
+                          {household.memberCount} {household.memberCount === 1 ? 'member' : 'members'}
+                        </p>
+                      </div>
+                      <ChevronRight className="h-5 w-5 text-gray-400" />
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+          </>
+        ) : (
+          <MyInvitations /> // Display MyInvitations component when 'invitations' tab is active
         )}
 
+        {/* Create Household Modal from OLD Dashboard */}
         {showCreateHousehold && (
           <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center p-4 z-50">
             <div className="bg-white rounded-lg p-6 max-w-md w-full">
@@ -332,7 +629,7 @@ const Dashboard: React.FC = () => {
                 </button>
                 <button
                   onClick={createHousehold}
-                  disabled={creating}
+                  disabled={creating || !newHouseholdName.trim()} // Added trim check for button disable
                   className="px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50"
                 >
                   {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Create'}
@@ -838,17 +1135,17 @@ const AddExpenseModal = () => {
               >
                 Custom Amounts
               </button>
-              <button
+                <button
                 type="button"
                 onClick={() => setSplitType('percentage')}
                 className={`px-3 py-2 text-sm font-medium rounded-md ${
                   splitType === 'percentage'
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                 }`}
-              >
+                >
                 By Percentage
-              </button>
+                </button>
             </div>
           </div>
 
@@ -1588,28 +1885,20 @@ const AddExpenseModal = () => {
       {showSettleUp && <SettleUpModal />}
       {showAddRecurring && <AddRecurringExpenseModal />}
       {showInviteMember && (
-        <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full">
-            <h3 className="text-lg font-medium text-gray-900 mb-4">Invite Member</h3>
-            <p className="text-sm text-gray-500 mb-2">
-              To invite a new member, ask them to sign up and then you can add them to this household from the Members tab once they have an account.
-            </p>
-             <p className="text-sm text-gray-500 mb-4">
-              (Direct email invitation functionality coming soon!)
-            </p>
-            <div className="mt-6 flex justify-end">
-              <button
-                onClick={() => setShowInviteMember(false)}
-                className="px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
-              >
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </Layout>
-  );
+      <InviteMemberModal
+        show={showInviteMember}
+        onClose={() => setShowInviteMember(false)}
+        householdId={householdId} // Ensure householdId is correctly passed from HouseholdDetail's props
+        onSuccess={() => {
+          // Reload data. Choose the appropriate function available in HouseholdDetail.
+          // This uses the check from your existing HouseholdDetail logic.
+          (typeof api.getHouseholdData === 'function' ? loadHouseholdDataOptimized() : loadHouseholdData());
+          toast('Household data refreshed after invitation.'); // Optional: notify user
+        }}
+      />
+    )}
+  </Layout> // Closing tag of Layout in HouseholdDetail
+);
 };
 
 // Main App Component
