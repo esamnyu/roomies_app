@@ -335,37 +335,27 @@ const MyInvitations: React.FC = () => {
     }
   };
 
-  const handleAccept = async (invitationId: string) => {
-    setProcessingId(invitationId);
-    try {
-      // Assuming api.acceptInvitation might return a result object or throw an error
-      const result = await api.acceptInvitation(invitationId);
 
-      // Check if the API returns a specific success structure
-      // Adjust this condition based on your actual API response
-      let successful = true;
-      let message = 'Invitation accepted!';
-
-      if (typeof result === 'object' && result !== null && 'success' in result) {
-        successful = result.success; // Explicitly casting to boolean if needed: !!result.success
-        if (result.message) message = String(result.message); // Ensure message is a string
-        else if (!successful) message = 'Failed to accept invitation.';
-      }
-      // If api.acceptInvitation throws an error for failures, this 'if' block might simplify or change.
-
-      if (successful) {
-        toast.success(message);
-        await loadInvitations(); // Reload invitations list, preferred over window.location.reload()
-      } else {
-        toast.error(message);
-      }
-    } catch (error: any) {
-      console.error('Error accepting invitation:', error);
-      toast.error(error.message || 'Failed to accept invitation');
-    } finally {
-      setProcessingId(null);
+const handleAccept = async (invitationId: string) => {
+  setProcessingId(invitationId);
+  try {
+    const result = await api.acceptInvitation(invitationId);
+    
+    // The API returns { success: true, household: invitation.households } on success
+    if (result && result.success) {
+      toast.success('Invitation accepted!');
+      // Reload the entire page to refresh both invitations and household list
+      window.location.reload();
+    } else {
+      toast.error('Failed to accept invitation');
     }
-  };
+  } catch (error: any) {
+    console.error('Error accepting invitation:', error);
+    toast.error(error.message || 'Failed to accept invitation');
+  } finally {
+    setProcessingId(null);
+  }
+};
 
   const handleDecline = async (invitationId: string) => {
     setProcessingId(invitationId);
