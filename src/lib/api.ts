@@ -1,46 +1,40 @@
 // esamnyu/roomies_app/roomies_app-feat-landing-and-onboarding/src/lib/api.ts
 // Add these types to your existing api.ts file
-import { ReactNode } from 'react' // Assuming ReactNode might be used elsewhere or was part of your original setup
-import { supabase } from './supabase'
+import { ReactNode } from 'react'; // Assuming ReactNode might be used elsewhere
+import { supabase } from './supabase';
 
 // Types
 export interface Profile {
-  id: string
-  name: string
-  avatar_url?: string
-  created_at: string
-  updated_at: string
-  email?: string // Added email here
-}
-
-// Update the Profile interface to include email
-// Add this to the existing Profile interface or update it
-export interface ProfileWithEmail extends Profile {  // This can be removed if email is directly in Profile
-  // email?: string // Already added to Profile
+  id: string;
+  name: string;
+  avatar_url?: string;
+  created_at: string;
+  updated_at: string;
+  email?: string;
 }
 
 export interface Household {
-  memberCount: ReactNode // Keep if used, otherwise can be removed if not part of Household actual data model
-  id: string
-  name: string
-  created_by: string
-  created_at: string
-  updated_at: string
-  // Add new fields based on schema update
-  member_count?: number
-  core_chores?: string[]
-  chore_frequency?: string
-  chore_framework?: string
+  memberCount: ReactNode; // Keep if used, otherwise can be removed
+  id: string;
+  name: string;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+  member_count?: number; // Target member count
+  core_chores?: string[];
+  chore_frequency?: string;
+  chore_framework?: string;
+  join_code?: string | null; // <-- NEW FIELD FOR JOIN CODE
 }
 
 export interface HouseholdMember {
-  id: string
-  household_id: string
-  user_id: string
-  role: 'admin' | 'member'
-  joined_at: string
-  profiles?: Profile
-  households?: Household
+  id: string;
+  household_id: string;
+  user_id: string;
+  role: 'admin' | 'member';
+  joined_at: string;
+  profiles?: Profile;
+  households?: Household;
 }
 
 export interface Expense {
@@ -119,67 +113,45 @@ export interface Notification {
   updated_at: string
 }
 
-// Auth functions
+// Auth functions (signUp, signIn, signOut, getSession) - unchanged
 export const signUp = async (email: string, password: string, name: string) => {
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
-    options: {
-      data: { name }
-    }
-  })
-  return { data, error }
-}
+    options: { data: { name } }
+  });
+  return { data, error };
+};
 
 export const signIn = async (email: string, password: string) => {
-  const { data, error } = await supabase.auth.signInWithPassword({
-    email,
-    password
-  })
-  return { data, error }
-}
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+  return { data, error };
+};
 
 export const signOut = async () => {
-  const { error } = await supabase.auth.signOut()
-  return { error }
-}
+  const { error } = await supabase.auth.signOut();
+  return { error };
+};
 
 export const getSession = async () => {
-  const { data: { session }, error } = await supabase.auth.getSession()
-  return { session, error }
-}
+  const { data: { session }, error } = await supabase.auth.getSession();
+  return { session, error };
+};
 
-// Profile functions
+// Profile functions (getProfile, updateProfile, getProfileWithEmail) - unchanged
 export const getProfile = async (userId: string) => {
-  const { data, error } = await supabase
-    .from('profiles')
-    .select('*')
-    .eq('id', userId)
-    .single()
-
-  return { data, error }
-}
-
+  const { data, error } = await supabase.from('profiles').select('*').eq('id', userId).single();
+  return { data, error };
+};
 export const updateProfile = async (userId: string, updates: Partial<Profile>) => {
-  const { data, error } = await supabase
-    .from('profiles')
-    .update(updates)
-    .eq('id', userId)
-    .select()
-    .single()
-
-  return { data, error }
-}
-
-// Helper function to get profile with email
+  const { data, error } = await supabase.from('profiles').update(updates).eq('id', userId).select().single();
+  return { data, error };
+};
 export const getProfileWithEmail = async (userId: string) => {
-  const { data, error } = await supabase
-    .from('profiles')
-    .select('*, email') // Ensure email is selected
-    .eq('id', userId)
-    .single()
-  return { data, error }
-}
+  const { data, error } = await supabase.from('profiles').select('*, email').eq('id', userId).single();
+  return { data, error };
+};
+
 
 
 // Interface for the new household creation parameters
@@ -191,12 +163,10 @@ export interface CreateHouseholdParams {
   chore_framework?: string;
 }
 
-// Household functions
+// Household functions (createHousehold, getUserHouseholds, getHouseholdData, getHouseholdDetails) - unchanged
 export const createHousehold = async (params: CreateHouseholdParams) => {
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) throw new Error('Not authenticated')
-
-  // Create household with all new details
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('Not authenticated');
   const { data: household, error: householdError } = await supabase
     .from('households')
     .insert({
@@ -208,27 +178,17 @@ export const createHousehold = async (params: CreateHouseholdParams) => {
       chore_framework: params.chore_framework,
     })
     .select()
-    .single()
-
-  if (householdError) throw householdError
-
-  // Add creator as admin member
+    .single();
+  if (householdError) throw householdError;
   const { error: memberError } = await supabase
     .from('household_members')
-    .insert({
-      household_id: household.id,
-      user_id: user.id,
-      role: 'admin'
-    })
-
+    .insert({ household_id: household.id, user_id: user.id, role: 'admin' });
   if (memberError) {
-    // If adding member fails, consider deleting the household to avoid orphaned records
     await supabase.from('households').delete().eq('id', household.id);
     throw memberError;
   }
-
-  return household
-}
+  return household;
+};
 
 // OPTIMIZED: Single query with proper joins
 export const getUserHouseholds = async () => {
@@ -285,6 +245,158 @@ export const getHouseholdMembers = async (householdId: string) => {
   if (error) throw error
   return data || []
 }
+
+
+// --- NEW JOIN CODE FUNCTIONS ---
+
+// Function to generate a random 4-character alphanumeric code
+const generateRandomCode = (length = 4): string => {
+  const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  let result = '';
+  for (let i = 0; i < length; i++) {
+    result += characters.charAt(Math.floor(Math.random() * characters.length));
+  }
+  return result;
+};
+
+export const generateAndGetHouseholdJoinCode = async (householdId: string): Promise<string> => {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('Not authenticated');
+
+  // Optional: Check if user is admin/member of the household
+  const { data: memberData, error: memberCheckError } = await supabase
+    .from('household_members')
+    .select('role')
+    .eq('household_id', householdId)
+    .eq('user_id', user.id)
+    .single();
+
+  if (memberCheckError || !memberData) {
+    throw new Error('You are not authorized to manage this household.');
+  }
+  // For simplicity, allowing any member to generate/view code. Adjust role if needed.
+  // if (memberData.role !== 'admin') {
+  //   throw new Error('Only admins can generate join codes.');
+  // }
+
+  const newCode = generateRandomCode(4);
+
+  const { data: updatedHousehold, error: updateError } = await supabase
+    .from('households')
+    .update({ join_code: newCode })
+    .eq('id', householdId)
+    .select('join_code')
+    .single();
+
+  if (updateError || !updatedHousehold?.join_code) {
+    console.error('Error generating or updating join code:', updateError);
+    throw new Error('Could not generate or update join code.');
+  }
+  return updatedHousehold.join_code;
+};
+
+export const getActiveHouseholdJoinCode = async (householdId: string): Promise<string | null> => {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('Not authenticated');
+  
+  // Ensure user is part of the household to view the code
+  const { count, error: memberCheckError } = await supabase
+    .from('household_members')
+    .select('*', { count: 'exact', head: true })
+    .eq('household_id', householdId)
+    .eq('user_id', user.id);
+
+  if (memberCheckError || count === 0) {
+    throw new Error('You are not authorized to view this household\'s join code.');
+  }
+
+  const { data: household, error } = await supabase
+    .from('households')
+    .select('join_code')
+    .eq('id', householdId)
+    .single();
+
+  if (error) {
+    console.error('Error fetching join code:', error);
+    return null;
+  }
+  return household?.join_code || null;
+};
+
+export const joinHouseholdWithCode = async (joinCode: string): Promise<Household> => {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('Not authenticated. Please log in to join a household.');
+
+  const normalizedCode = joinCode.toUpperCase().trim();
+  if (normalizedCode.length !== 4) {
+    throw new Error('Invalid join code format. Code must be 4 characters.');
+  }
+
+  const { data: household, error: householdError } = await supabase
+    .from('households')
+    .select('id, name, member_count, join_code') // Select member_count for capacity check
+    .eq('join_code', normalizedCode)
+    .single();
+
+  if (householdError || !household) {
+    console.error('Error finding household by code:', householdError);
+    throw new Error('Invalid or expired join code.');
+  }
+
+  // Check if user is already a member
+  const { data: existingMember, error: existingMemberError } = await supabase
+    .from('household_members')
+    .select('id')
+    .eq('household_id', household.id)
+    .eq('user_id', user.id)
+    .single();
+
+  if (existingMember) {
+    throw new Error('You are already a member of this household.');
+  }
+  // PGRST116 means no rows found, which is good here
+  if (existingMemberError && existingMemberError.code !== 'PGRST116') { 
+    throw existingMemberError;
+  }
+
+  // Check household capacity
+  const { data: members, error: membersError } = await supabase
+    .from('household_members')
+    .select('user_id')
+    .eq('household_id', household.id);
+
+  if (membersError) {
+    console.error('Error fetching current members:', membersError);
+    throw new Error('Could not verify household capacity.');
+  }
+
+  const currentMemberCount = members?.length || 0;
+  if (household.member_count && currentMemberCount >= household.member_count) {
+    throw new Error('This household is currently full.');
+  }
+
+  // Add user to household
+  const { error: addMemberError } = await supabase
+    .from('household_members')
+    .insert({
+      household_id: household.id,
+      user_id: user.id,
+      role: 'member' // Default role
+    });
+
+  if (addMemberError) {
+    console.error('Error adding member to household:', addMemberError);
+    throw new Error('Failed to join household. Please try again.');
+  }
+
+  // Optional: Clear join code after successful use if it's single-use or to prevent reuse until regenerated.
+  // For now, we'll leave it, admin can regenerate.
+  // await supabase.from('households').update({ join_code: null }).eq('id', household.id);
+
+  return household as Household; // Cast as full Household, though we only selected a few fields. Caller might need more.
+};
+
+
 
 // Expense functions
 // Updated createExpense function to include isRecurring flag
@@ -582,247 +694,268 @@ export const getHouseholdSettlements = async (householdId: string) => {
 // --- CORRECTED INVITATION FUNCTIONS ---
 
 // Get pending invitations for current user:
-export const getMyPendingInvitations = async () => {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error('Not authenticated');
+// export const getMyPendingInvitations = async () => {
+//   const { data: { user } } = await supabase.auth.getUser();
+//   if (!user) throw new Error('Not authenticated');
 
-  const userEmail = user.email;
-  if (!userEmail) throw new Error('User email not found');
+//   const userEmail = user.email;
+//   if (!userEmail) throw new Error('User email not found');
 
-  // Simpler query first, then enrich with inviter profile
-  const { data: invitations, error } = await supabase
-    .from('invitations')
-    .select(`
-      *,
-      households (id, name)
-    `)
-    .eq('email', userEmail.toLowerCase()) // Ensure lowercase for consistency
-    .eq('status', 'pending')
-    .order('created_at', { ascending: false });
+//   // Simpler query first, then enrich with inviter profile
+//   const { data: invitations, error } = await supabase
+//     .from('invitations')
+//     .select(`
+//       *,
+//       households (id, name)
+//     `)
+//     .eq('email', userEmail.toLowerCase()) // Ensure lowercase for consistency
+//     .eq('status', 'pending')
+//     .order('created_at', { ascending: false });
 
-  if (error) {
-    console.error('Error fetching invitations:', error);
-    throw error;
-  }
+//   if (error) {
+//     console.error('Error fetching invitations:', error);
+//     throw error;
+//   }
 
-  if (invitations && invitations.length > 0) {
-    const inviterIds = [...new Set(invitations.map(inv => inv.invited_by).filter(Boolean))];
+//   if (invitations && invitations.length > 0) {
+//     const inviterIds = [...new Set(invitations.map(inv => inv.invited_by).filter(Boolean))];
     
-    if (inviterIds.length > 0) {
-        const { data: inviterProfiles, error: profileError } = await supabase
-          .from('profiles')
-          .select('id, name')
-          .in('id', inviterIds);
+//     if (inviterIds.length > 0) {
+//         const { data: inviterProfiles, error: profileError } = await supabase
+//           .from('profiles')
+//           .select('id, name')
+//           .in('id', inviterIds);
 
-        if (profileError) {
-            console.error('Error fetching inviter profiles:', profileError);
-            // Proceed without inviter profiles if fetch fails
-             return invitations.map(invitation => ({
-                ...invitation,
-                inviter: null // Set inviter to null if profiles couldn't be fetched
-            }));
-        }
+//         if (profileError) {
+//             console.error('Error fetching inviter profiles:', profileError);
+//             // Proceed without inviter profiles if fetch fails
+//              return invitations.map(invitation => ({
+//                 ...invitation,
+//                 inviter: null // Set inviter to null if profiles couldn't be fetched
+//             }));
+//         }
         
-        return invitations.map(invitation => ({
-          ...invitation,
-          inviter: inviterProfiles?.find(p => p.id === invitation.invited_by) || null
-        }));
-    }
-  }
-  return invitations || [];
-};
+//         return invitations.map(invitation => ({
+//           ...invitation,
+//           inviter: inviterProfiles?.find(p => p.id === invitation.invited_by) || null
+//         }));
+//     }
+//   }
+//   return invitations || [];
+// };
 
-// Create invitation with better error handling:
-export const createInvitation = async (householdId: string, inviteeEmail: string) => {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error('Not authenticated');
+// // Create invitation with better error handling:
+// export const createInvitation = async (householdId: string, inviteeEmail: string) => {
+//   const { data: { user } } = await supabase.auth.getUser();
+//   if (!user) throw new Error('Not authenticated');
   
-  const normalizedEmail = inviteeEmail.toLowerCase().trim();
+//   const normalizedEmail = inviteeEmail.toLowerCase().trim();
 
-  // Check if the inviter is a member of the household
-  const { data: inviterMembership, error: inviterMemberError } = await supabase
-    .from('household_members')
-    .select('role')
-    .eq('household_id', householdId)
-    .eq('user_id', user.id)
-    .single();
+//   // Check if the inviter is a member of the household
+//   const { data: inviterMembership, error: inviterMemberError } = await supabase
+//     .from('household_members')
+//     .select('role')
+//     .eq('household_id', householdId)
+//     .eq('user_id', user.id)
+//     .single();
 
-  if (inviterMemberError || !inviterMembership) {
-    throw new Error('You are not a member of this household or cannot send invitations.');
-  }
+//   if (inviterMemberError || !inviterMembership) {
+//     throw new Error('You are not a member of this household or cannot send invitations.');
+//   }
 
-  // Check if the target user exists
-  const { data: targetUser, error: targetUserError } = await supabase
-    .from('profiles')
-    .select('id, email') // Select email to ensure it matches normalizedEmail
-    .eq('email', normalizedEmail)
-    .single();
+//   // Check if the target user exists
+//   const { data: targetUser, error: targetUserError } = await supabase
+//     .from('profiles')
+//     .select('id, email') // Select email to ensure it matches normalizedEmail
+//     .eq('email', normalizedEmail)
+//     .single();
 
-  if (targetUserError || !targetUser) {
-    throw new Error('No user found with this email address. They need to create an account first.');
-  }
+//   if (targetUserError || !targetUser) {
+//     throw new Error('No user found with this email address. They need to create an account first.');
+//   }
   
-  // Check if the target user is already a member of the household
-  const { data: existingMember, error: existingMemberError } = await supabase
-    .from('household_members')
-    .select('id')
-    .eq('household_id', householdId)
-    .eq('user_id', targetUser.id)
-    .single();
+//   // Check if the target user is already a member of the household
+//   const { data: existingMember, error: existingMemberError } = await supabase
+//     .from('household_members')
+//     .select('id')
+//     .eq('household_id', householdId)
+//     .eq('user_id', targetUser.id)
+//     .single();
 
-  if (existingMember) {
-    throw new Error('This user is already a member of the household.');
-  }
-  if (existingMemberError && existingMemberError.code !== 'PGRST116') { // PGRST116 means no rows found, which is good here
-    throw existingMemberError;
-  }
+//   if (existingMember) {
+//     throw new Error('This user is already a member of the household.');
+//   }
+//   if (existingMemberError && existingMemberError.code !== 'PGRST116') { // PGRST116 means no rows found, which is good here
+//     throw existingMemberError;
+//   }
 
-  // Check for existing pending invitation
-  const { data: existingInvitation, error: existingInviteError } = await supabase
-    .from('invitations')
-    .select('id, created_at')
-    .eq('household_id', householdId)
-    .eq('email', normalizedEmail)
-    .eq('status', 'pending')
-    .single();
+//   // Check for existing pending invitation
+//   const { data: existingInvitation, error: existingInviteError } = await supabase
+//     .from('invitations')
+//     .select('id, created_at')
+//     .eq('household_id', householdId)
+//     .eq('email', normalizedEmail)
+//     .eq('status', 'pending')
+//     .single();
     
-  if (existingInvitation) {
-    throw new Error('An invitation has already been sent to this email for this household.');
-  }
-   if (existingInviteError && existingInviteError.code !== 'PGRST116') {
-    throw existingInviteError;
-  }
+//   if (existingInvitation) {
+//     throw new Error('An invitation has already been sent to this email for this household.');
+//   }
+//    if (existingInviteError && existingInviteError.code !== 'PGRST116') {
+//     throw existingInviteError;
+//   }
 
 
-  // Use the RPC function
-  const { data, error: rpcError } = await supabase
-    .rpc('send_invitation', {
-      p_household_id: householdId,
-      p_email: normalizedEmail,
-      p_inviter_id: user.id // Make sure your RPC function accepts and uses this
-    });
+//   // Use the RPC function
+//   const { data, error: rpcError } = await supabase
+//     .rpc('send_invitation', {
+//       p_household_id: householdId,
+//       p_email: normalizedEmail,
+//       p_inviter_id: user.id // Make sure your RPC function accepts and uses this
+//     });
 
-  if (rpcError) {
-    console.error('Error creating invitation via RPC:', rpcError);
-    // Provide more specific error messages based on common Supabase errors
-    if (rpcError.message.includes('User not found')) {
-        throw new Error('No user found with this email address. They need to create an account first.');
-    } else if (rpcError.message.includes('already a member')) {
-        throw new Error('This user is already a member of the household.');
-    } else if (rpcError.message.includes('invitation already exists')) {
-        throw new Error('An invitation has already been sent to this email for this household.');
-    }
-    throw new Error(rpcError.message || 'Failed to send invitation.');
-  }
+//   if (rpcError) {
+//     console.error('Error creating invitation via RPC:', rpcError);
+//     // Provide more specific error messages based on common Supabase errors
+//     if (rpcError.message.includes('User not found')) {
+//         throw new Error('No user found with this email address. They need to create an account first.');
+//     } else if (rpcError.message.includes('already a member')) {
+//         throw new Error('This user is already a member of the household.');
+//     } else if (rpcError.message.includes('invitation already exists')) {
+//         throw new Error('An invitation has already been sent to this email for this household.');
+//     }
+//     throw new Error(rpcError.message || 'Failed to send invitation.');
+//   }
   
-  return data; // Assuming RPC returns some data on success
+//   return data; // Assuming RPC returns some data on success
+// };
+
+
+// // Accept invitation with better error handling:
+// export const acceptInvitation = async (invitationId: string) => {
+//   const { data: { user } } = await supabase.auth.getUser();
+//   if (!user || !user.email) throw new Error('Not authenticated or user email missing');
+
+//   // Verify the invitation exists, is for this user, and is pending
+//   const { data: invitation, error: fetchError } = await supabase
+//     .from('invitations')
+//     .select('*, households(*)') // Fetch household details too
+//     .eq('id', invitationId)
+//     .eq('email', user.email.toLowerCase())
+//     .eq('status', 'pending')
+//     .single();
+
+//   if (fetchError || !invitation) {
+//     console.error('Error fetching invitation or invitation not found/valid:', fetchError);
+//     throw new Error('Invitation not found, not for you, or already processed.');
+//   }
+
+//   // Check if invitation is expired
+//   if (new Date(invitation.expires_at) < new Date()) {
+//     // Optionally, update status to 'expired'
+//     await supabase.from('invitations').update({ status: 'expired' }).eq('id', invitationId);
+//     throw new Error('This invitation has expired.');
+//   }
+
+//   // Call the RPC function to accept the invitation
+//   const { data: rpcData, error: rpcError } = await supabase
+//     .rpc('accept_invitation', {
+//       p_invitation_id: invitationId,
+//       p_user_id: user.id // Pass user_id to RPC
+//     });
+
+//   if (rpcError) {
+//     console.error('Error accepting invitation via RPC:', rpcError);
+//      if (rpcError.message.includes('already a member')) { // Check for specific error message from RPC
+//         throw new Error('You are already a member of this household.');
+//     }
+//     throw new Error(rpcError.message || 'Failed to accept invitation.');
+//   }
+
+//   // Return success and household data for UI update
+//   return { success: true, household: invitation.households, rpcData };
+// };
+
+// // Decline invitation (FIXED):
+// export const declineInvitation = async (invitationId: string) => {
+//   const { data: { user } } = await supabase.auth.getUser();
+//   if (!user || !user.email) throw new Error('Not authenticated or user email missing');
+
+//   // Fetch the invitation to ensure it's valid for this user
+//   const { data: invitation, error: fetchError } = await supabase
+//     .from('invitations')
+//     .select('*, households(id, name), profiles!invitations_invited_by_fkey(id, name)') // Join with households and inviter profile
+//     .eq('id', invitationId)
+//     .eq('email', user.email.toLowerCase())
+//     .eq('status', 'pending')
+//     .single();
+
+//   if (fetchError || !invitation) {
+//     console.error('Error fetching invitation or invitation not found/valid for decline:', fetchError);
+//     throw new Error('Invitation not found or already processed.');
+//   }
+
+//   // Update invitation status to 'declined'
+//   const { error: updateError } = await supabase
+//     .from('invitations')
+//     .update({
+//       status: 'declined',
+//       updated_at: new Date().toISOString()
+//     })
+//     .eq('id', invitationId);
+
+//   if (updateError) {
+//     console.error('Error updating invitation status to declined:', updateError);
+//     throw updateError;
+//   }
+
+//   // Notify the inviter (optional, but good practice)
+//   const { data: currentUserProfile } = await getProfile(user.id); // Re-fetch current user's profile for name
+//   if (currentUserProfile && invitation.invited_by && invitation.households) {
+//     try {
+//       await createNotification(
+//         invitation.invited_by,
+//         'member_left', // Or a more specific type like 'invitation_declined'
+//         'Invitation Declined',
+//         `${currentUserProfile.name || 'A user'} has declined your invitation to join ${invitation.households.name}.`,
+//         invitation.household_id,
+//         { declined_user_id: user.id, household_name: invitation.households.name }
+//       );
+//     } catch (notifError) {
+//       console.error("Failed to send decline notification:", notifError);
+//     }
+//   }
+
+//   return { success: true, declinedInvitationId: invitation.id };
+// };
+
+// // --- END: CORRECTED INVITATION FUNCTIONS ---
+
+
+// // Alias functions for compatibility with UI components
+// export const inviteUserToHousehold = createInvitation;
+// export const getPendingInvitations = getMyPendingInvitations; // Changed from getMyPendingInvitations to match UI
+// Keep stubs if they are widely called and you want to phase them out gradually
+export const getMyPendingInvitations = async () => { 
+  console.warn("getMyPendingInvitations is deprecated. Use code-based join."); return []; 
 };
-
-
-// Accept invitation with better error handling:
-export const acceptInvitation = async (invitationId: string) => {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user || !user.email) throw new Error('Not authenticated or user email missing');
-
-  // Verify the invitation exists, is for this user, and is pending
-  const { data: invitation, error: fetchError } = await supabase
-    .from('invitations')
-    .select('*, households(*)') // Fetch household details too
-    .eq('id', invitationId)
-    .eq('email', user.email.toLowerCase())
-    .eq('status', 'pending')
-    .single();
-
-  if (fetchError || !invitation) {
-    console.error('Error fetching invitation or invitation not found/valid:', fetchError);
-    throw new Error('Invitation not found, not for you, or already processed.');
-  }
-
-  // Check if invitation is expired
-  if (new Date(invitation.expires_at) < new Date()) {
-    // Optionally, update status to 'expired'
-    await supabase.from('invitations').update({ status: 'expired' }).eq('id', invitationId);
-    throw new Error('This invitation has expired.');
-  }
-
-  // Call the RPC function to accept the invitation
-  const { data: rpcData, error: rpcError } = await supabase
-    .rpc('accept_invitation', {
-      p_invitation_id: invitationId,
-      p_user_id: user.id // Pass user_id to RPC
-    });
-
-  if (rpcError) {
-    console.error('Error accepting invitation via RPC:', rpcError);
-     if (rpcError.message.includes('already a member')) { // Check for specific error message from RPC
-        throw new Error('You are already a member of this household.');
-    }
-    throw new Error(rpcError.message || 'Failed to accept invitation.');
-  }
-
-  // Return success and household data for UI update
-  return { success: true, household: invitation.households, rpcData };
+export const createInvitation = async () => { 
+  console.warn("createInvitation is deprecated. Use code-based join."); throw new Error("Email invitations are no longer supported."); 
 };
-
-// Decline invitation (FIXED):
-export const declineInvitation = async (invitationId: string) => {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user || !user.email) throw new Error('Not authenticated or user email missing');
-
-  // Fetch the invitation to ensure it's valid for this user
-  const { data: invitation, error: fetchError } = await supabase
-    .from('invitations')
-    .select('*, households(id, name), profiles!invitations_invited_by_fkey(id, name)') // Join with households and inviter profile
-    .eq('id', invitationId)
-    .eq('email', user.email.toLowerCase())
-    .eq('status', 'pending')
-    .single();
-
-  if (fetchError || !invitation) {
-    console.error('Error fetching invitation or invitation not found/valid for decline:', fetchError);
-    throw new Error('Invitation not found or already processed.');
-  }
-
-  // Update invitation status to 'declined'
-  const { error: updateError } = await supabase
-    .from('invitations')
-    .update({
-      status: 'declined',
-      updated_at: new Date().toISOString()
-    })
-    .eq('id', invitationId);
-
-  if (updateError) {
-    console.error('Error updating invitation status to declined:', updateError);
-    throw updateError;
-  }
-
-  // Notify the inviter (optional, but good practice)
-  const { data: currentUserProfile } = await getProfile(user.id); // Re-fetch current user's profile for name
-  if (currentUserProfile && invitation.invited_by && invitation.households) {
-    try {
-      await createNotification(
-        invitation.invited_by,
-        'member_left', // Or a more specific type like 'invitation_declined'
-        'Invitation Declined',
-        `${currentUserProfile.name || 'A user'} has declined your invitation to join ${invitation.households.name}.`,
-        invitation.household_id,
-        { declined_user_id: user.id, household_name: invitation.households.name }
-      );
-    } catch (notifError) {
-      console.error("Failed to send decline notification:", notifError);
-    }
-  }
-
-  return { success: true, declinedInvitationId: invitation.id };
+export const acceptInvitation = async () => { 
+  console.warn("acceptInvitation is deprecated. Use code-based join."); throw new Error("Email invitations are no longer supported."); 
 };
-
-// --- END: CORRECTED INVITATION FUNCTIONS ---
-
-
-// Alias functions for compatibility with UI components
+export const declineInvitation = async () => {
+  console.warn("declineInvitation is deprecated. Use code-based join."); throw new Error("Email invitations are no longer supported.");
+};
 export const inviteUserToHousehold = createInvitation;
-export const getPendingInvitations = getMyPendingInvitations; // Changed from getMyPendingInvitations to match UI
+export const getPendingInvitations = getMyPendingInvitations;
+export const debugInvitationSystem = async () => {
+  console.warn("debugInvitationSystem relates to deprecated email invitations."); return { note: "Email invitations are deprecated."};
+};
+// --- END: REMOVE/COMMENT OUT ---
+
+
 
 // Recurring Expense functions
 // Create a recurring expense
@@ -1354,52 +1487,52 @@ export const createExpenseV2 = async (
   )
 }
 
-// Debug function to check invitation system
-export const debugInvitationSystem = async () => {
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) throw new Error('Not authenticated')
+// // Debug function to check invitation system
+// export const debugInvitationSystem = async () => {
+//   const { data: { user } } = await supabase.auth.getUser()
+//   if (!user) throw new Error('Not authenticated')
 
-  console.log('Current user:', user.email)
+//   console.log('Current user:', user.email)
 
-  // Check invitations table structure
-  const { data: invitations, error: invError } = await supabase
-    .from('invitations')
-    .select('*')
-    .eq('email', user.email?.toLowerCase() || '')
-    .limit(5)
+//   // Check invitations table structure
+//   const { data: invitations, error: invError } = await supabase
+//     .from('invitations')
+//     .select('*')
+//     .eq('email', user.email?.toLowerCase() || '')
+//     .limit(5)
 
-  console.log('My invitations:', invitations)
-  console.log('Invitation error:', invError)
+//   console.log('My invitations:', invitations)
+//   console.log('Invitation error:', invError)
 
-  // Check if user's email exists in profiles
-  const { data: profile, error: profileError } = await supabase
-    .from('profiles')
-    .select('*')
-    .eq('id', user.id)
-    .single()
+//   // Check if user's email exists in profiles
+//   const { data: profile, error: profileError } = await supabase
+//     .from('profiles')
+//     .select('*')
+//     .eq('id', user.id)
+//     .single()
 
-  console.log('User profile:', profile)
-  console.log('Profile error:', profileError)
+//   console.log('User profile:', profile)
+//   console.log('Profile error:', profileError)
 
-  // Check RLS status
-  let rlsCheck, rlsError;
-  try {
-    const result = await supabase
-      .rpc('check_rls_status', {
-        table_name: 'invitations'
-      })
-      .single();
-    rlsCheck = result.data;
-    rlsError = result.error;
-  } catch (e) {
-    rlsCheck = null;
-    rlsError = 'RPC not available';
-  }
+//   // Check RLS status
+//   let rlsCheck, rlsError;
+//   try {
+//     const result = await supabase
+//       .rpc('check_rls_status', {
+//         table_name: 'invitations'
+//       })
+//       .single();
+//     rlsCheck = result.data;
+//     rlsError = result.error;
+//   } catch (e) {
+//     rlsCheck = null;
+//     rlsError = 'RPC not available';
+//   }
 
-  return {
-    user,
-    profile,
-    invitations,
-    rlsStatus: rlsCheck || 'Unable to check RLS status'
-  }
-}
+//   return {
+//     user,
+//     profile,
+//     invitations,
+//     rlsStatus: rlsCheck || 'Unable to check RLS status'
+//   }
+// }
