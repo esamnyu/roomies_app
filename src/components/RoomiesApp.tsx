@@ -1,17 +1,22 @@
+// src/components/RoomiesApp.tsx
 "use client";
-import React, { useState, useContext, createContext, useEffect } from 'react';
-import { ChevronRight, Home, Users, DollarSign, CheckSquare, Plus, UserPlus, LogOut, Menu, X, ArrowLeft, Check, User, Loader2, CreditCard, ArrowRightLeft, Bell } from 'lucide-react'; // Added Bell
-import { supabase } from '@/lib/supabase';
-import { User as SupabaseUser } from '@supabase/supabase-js';
+import React, { useState, useEffect } from 'react'; // Removed useContext, createContext as AuthProvider handles that
+import { ChevronRight, Home, Users, DollarSign, CheckSquare, Plus, UserPlus, LogOut, Menu, X, ArrowLeft, Check, User, Loader2, CreditCard, ArrowRightLeft, Bell } from 'lucide-react';
+// import { supabase } from '@/lib/supabase'; // Not directly needed here
+// import { User as SupabaseUser } from '@supabase/supabase-js'; // Not directly needed here
 import * as api from '@/lib/api';
 import type { Profile, Household, HouseholdMember, Expense, Task, Settlement, RecurringExpense } from '@/lib/api';
-import { AuthProvider, useAuth } from './AuthProvider';
+import { AuthProvider, useAuth } from './AuthProvider'; // AuthProvider is now imported here
+import { NotificationBell } from './NotificationsPanel';
+import { Toaster, toast } from 'react-hot-toast';
 
-// 1. Import NotificationBell and Toaster
-import { NotificationBell } from './NotificationsPanel'; // Assuming this file exists
-import { Toaster, toast } from 'react-hot-toast'; // Added Toaster and toast
+// Import new components
+import { LandingPageContent } from './LandingPageContent';
+import { HouseholdSetupForm } from './HouseholdSetupForm';
+import { OnboardingChoice } from './OnboardingChoice';
 
-// Layout Component
+
+// Layout Component (remains largely the same)
 const Layout: React.FC<{ children: React.ReactNode; title?: string; showBack?: boolean; onBack?: () => void }> = ({
   children,
   title = 'Roomies',
@@ -22,7 +27,7 @@ const Layout: React.FC<{ children: React.ReactNode; title?: string; showBack?: b
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   return (
-    <> {/* Added React.Fragment to include Toaster as a sibling */}
+    <>
       <div className="min-h-screen bg-gray-50">
         <header className="bg-white shadow-sm border-b border-gray-200">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -40,7 +45,7 @@ const Layout: React.FC<{ children: React.ReactNode; title?: string; showBack?: b
               </div>
 
               <div className="hidden md:flex items-center space-x-4">
-                <NotificationBell /> {/* Add this line */}
+                <NotificationBell />
                 <span className="text-sm text-gray-600">{profile?.name}</span>
                 <button
                   onClick={signOut}
@@ -52,7 +57,7 @@ const Layout: React.FC<{ children: React.ReactNode; title?: string; showBack?: b
               </div>
 
               <div className="flex items-center md:hidden">
-                <NotificationBell /> {/* Add this line for mobile */}
+                <NotificationBell />
                 <button
                   onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
                   className="ml-2 p-2 rounded-md hover:bg-gray-100"
@@ -66,9 +71,8 @@ const Layout: React.FC<{ children: React.ReactNode; title?: string; showBack?: b
           {mobileMenuOpen && (
             <div className="md:hidden border-t border-gray-200">
               <div className="px-4 py-3 space-y-2">
-                <div className="flex items-center justify-between"> {/* Added for better mobile layout with bell */}
+                <div className="flex items-center justify-between">
                     <span className="text-sm text-gray-600">{profile?.name}</span>
-                    {/* NotificationBell is already above, outside this block for mobile visibility */}
                 </div>
                 <button
                   onClick={signOut}
@@ -85,20 +89,20 @@ const Layout: React.FC<{ children: React.ReactNode; title?: string; showBack?: b
           {children}
         </main>
       </div>
-      <Toaster position="top-right" /> {/* Add Toaster here */}
+      <Toaster position="top-right" />
     </>
   );
 };
 
 // Loading Component
 const LoadingSpinner = () => (
-  <div className="flex items-center justify-center p-4">
-    <Loader2 className="h-6 w-6 animate-spin text-gray-500" />
+  <div className="flex items-center justify-center p-4 min-h-screen">
+    <Loader2 className="h-8 w-8 animate-spin text-gray-500" />
   </div>
 );
 
-// Auth Pages
-const LoginPage: React.FC = () => {
+// Auth Pages (Login)
+const LoginPageContentWrapper: React.FC = () => { // Renamed to avoid conflict if you make a separate LoginPage
   const { signIn, signUp } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -110,18 +114,16 @@ const LoginPage: React.FC = () => {
   const handleSubmit = async () => {
     setError('');
     setIsLoading(true);
-
     try {
-      const { error } = isRegistering
+      const { error: authError } = isRegistering
         ? await signUp(email, password, name)
         : await signIn(email, password);
-
-      if (error) {
-        setError(error.message);
+      if (authError) {
+        setError(authError.message);
       }
+      // On success, AuthProvider will update user state and RoomiesApp will re-render
     } catch (err) {
       setError('An unexpected error occurred');
-      // Consider using toast here as well if desired: toast.error('An unexpected error occurred');
     } finally {
       setIsLoading(false);
     }
@@ -134,88 +136,148 @@ const LoginPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full space-y-8">
-        <div>
-          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-            Welcome to Roomies
-          </h2>
-          <p className="mt-2 text-center text-sm text-gray-600">
-            {isRegistering ? 'Create your account' : 'Sign in to manage your shared living expenses'}
-          </p>
-        </div>
-        <div className="mt-8 space-y-6">
-          <div className="rounded-md shadow-sm -space-y-px">
-            {isRegistering && (
-              <div>
-                <input
-                  type="text"
-                  required
-                  className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
-                  placeholder="Name"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  onKeyPress={handleKeyPress}
-                />
-              </div>
-            )}
-            <div>
-              <input
-                type="email"
-                required
-                className={`appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 ${!isRegistering ? 'rounded-t-md' : ''} focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm`}
-                placeholder="Email address"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                onKeyPress={handleKeyPress}
-              />
-            </div>
-            <div>
-              <input
-                type="password"
-                required
-                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
-                placeholder="Password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                onKeyPress={handleKeyPress}
-              />
-            </div>
-          </div>
-
-          {error && (
-            <div className="text-red-600 text-sm text-center">{error}</div>
-          )}
-
-          <div>
-            <button
-              onClick={handleSubmit}
-              disabled={isLoading}
-              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
-            >
-              {isLoading ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                isRegistering ? 'Create Account' : 'Sign in'
-              )}
-            </button>
-          </div>
-
-          <div className="text-center">
-            <button
-              onClick={() => setIsRegistering(!isRegistering)}
-              className="text-sm text-blue-600 hover:text-blue-500"
-              disabled={isLoading}
-            >
-              {isRegistering ? 'Already have an account? Sign in' : "Don't have an account? Sign up"}
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
+     <LandingPageContent
+        onSignIn={() => {
+            // This function would ideally trigger a modal or navigate to a dedicated login view
+            // For now, we assume the LandingPageContent has its own login/signup forms or triggers them
+            // For simplicity, this example does not implement the actual modal trigger
+            // but you'd connect this to `isRegistering = false` and show the form.
+             setIsRegistering(false); // Example: Toggling a state to show login form directly if integrated
+             console.log("Sign In clicked on landing page");
+             // If your LoginPage is modal, trigger it here.
+             // If it's a separate page, use router.push('/login') after setting up such a page.
+             // For MVP, we can reuse RoomiesApp's internal auth form for demo
+             // by having LandingPageContent be replaced by the actual auth form.
+        }}
+        onSignUp={() => {
+            setIsRegistering(true); // Example: Toggling a state to show signup form
+            console.log("Sign Up clicked on landing page");
+        }}
+    />
+    // The actual login form can be part of LandingPageContent or a modal shown by it.
+    // For this integration, we'll show the form if isRegistering changes after onSignUp/onSignIn click
+    // This is a simplified approach. A modal system would be cleaner.
   );
 };
 
+const AuthForm: React.FC<{isRegisteringInitially: boolean}> = ({isRegisteringInitially}) => {
+  const { signIn, signUp } = useAuth();
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [name, setName] = useState('');
+  const [error, setError] = useState('');
+  const [isRegistering, setIsRegistering] = useState(isRegisteringInitially);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleSubmit = async () => {
+    setError('');
+    setIsLoading(true);
+    try {
+      const { error: authError } = isRegistering
+        ? await signUp(email, password, name)
+        : await signIn(email, password);
+      if (authError) {
+        setError(authError.message);
+      }
+      // On success, AuthProvider will update user state and RoomiesApp will re-render
+    } catch (err) {
+      setError('An unexpected error occurred');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+    const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !isLoading) {
+      handleSubmit();
+    }
+  };
+
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+    <div className="max-w-md w-full space-y-8">
+      <div>
+        <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
+          Welcome to Roomies
+        </h2>
+        <p className="mt-2 text-center text-sm text-gray-600">
+          {isRegistering ? 'Create your account' : 'Sign in to manage your shared living expenses'}
+        </p>
+      </div>
+      <div className="mt-8 space-y-6">
+        <div className="rounded-md shadow-sm -space-y-px">
+          {isRegistering && (
+            <div>
+              <input
+                type="text"
+                required
+                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
+                placeholder="Name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                onKeyPress={handleKeyPress}
+              />
+            </div>
+          )}
+          <div>
+            <input
+              type="email"
+              required
+              className={`appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 ${!isRegistering ? 'rounded-t-md' : ''} focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm`}
+              placeholder="Email address"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              onKeyPress={handleKeyPress}
+            />
+          </div>
+          <div>
+            <input
+              type="password"
+              required
+              className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
+              placeholder="Password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              onKeyPress={handleKeyPress}
+            />
+          </div>
+        </div>
+
+        {error && (
+          <div className="text-red-600 text-sm text-center">{error}</div>
+        )}
+
+        <div>
+          <button
+            onClick={handleSubmit}
+            disabled={isLoading}
+            className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+          >
+            {isLoading ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              isRegistering ? 'Create Account' : 'Sign in'
+            )}
+          </button>
+        </div>
+
+        <div className="text-center">
+          <button
+            onClick={() => setIsRegistering(!isRegistering)}
+            className="text-sm text-blue-600 hover:text-blue-500"
+            disabled={isLoading}
+          >
+            {isRegistering ? 'Already have an account? Sign in' : "Don't have an account? Sign up"}
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+  )
+
+}
+
+
+// Invite Member Modal (remains the same)
 const InviteMemberModal = ({ 
   show, 
   onClose, 
@@ -308,10 +370,11 @@ const InviteMemberModal = ({
   );
 };
 
-// Updated MyInvitations Component
+
+// MyInvitations Component (remains largely the same)
 const MyInvitations: React.FC = () => {
   const { user } = useAuth();
-  const [invitations, setInvitations] = useState<any[]>([]); // Consider defining a specific type for Invitation
+  const [invitations, setInvitations] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [processingId, setProcessingId] = useState<string | null>(null);
 
@@ -325,7 +388,6 @@ const MyInvitations: React.FC = () => {
     try {
       setLoading(true);
       const data = await api.getPendingInvitations();
-      // Ensure data is an array, defaulting to empty if undefined/null
       setInvitations(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error('Error loading invitations:', error);
@@ -340,14 +402,14 @@ const handleAccept = async (invitationId: string) => {
   setProcessingId(invitationId);
   try {
     const result = await api.acceptInvitation(invitationId);
-    
-    // The API returns { success: true, household: invitation.households } on success
-    if (result && result.success) {
+    if (result && result.success && result.household) {
       toast.success('Invitation accepted!');
-      // Reload the entire page to refresh both invitations and household list
-      window.location.reload();
+      // Instead of full reload, navigate to a page that shows household info
+      // For MVP, we can still reload, but ideally we'd show HouseholdInfoDisplay
+      // router.push(`/household-welcome?householdId=${result.household.id}`);
+      window.location.reload(); // Or trigger state update to show dashboard
     } else {
-      toast.error('Failed to accept invitation');
+      toast.error(result.message || 'Failed to accept invitation');
     }
   } catch (error: any) {
     console.error('Error accepting invitation:', error);
@@ -362,10 +424,10 @@ const handleAccept = async (invitationId: string) => {
     try {
       await api.declineInvitation(invitationId);
       toast.success('Invitation declined');
-      await loadInvitations(); // Reload invitations list
-    } catch (error: any) { // Added type for error
+      await loadInvitations();
+    } catch (error: any) {
       console.error('Error declining invitation:', error);
-      toast.error(error.message || 'Failed to decline invitation'); // Use error.message if available
+      toast.error(error.message || 'Failed to decline invitation');
     } finally {
       setProcessingId(null);
     }
@@ -384,7 +446,7 @@ const handleAccept = async (invitationId: string) => {
     const minutesLeft = Math.floor(timeLeftMs / (1000 * 60));
 
     if (hoursLeft < 1) {
-      if (minutesLeft <= 0) return { text: 'Expired', isExpired: true }; // Should be caught by timeLeftMs, but for safety
+      if (minutesLeft <= 0) return { text: 'Expired', isExpired: true };
       return { text: `Expires in ${minutesLeft} ${minutesLeft === 1 ? 'minute' : 'minutes'}`, isExpired: false };
     } else if (hoursLeft < 24) {
       return { text: `Expires in ${hoursLeft} ${hoursLeft === 1 ? 'hour' : 'hours'}`, isExpired: false };
@@ -463,62 +525,105 @@ const handleAccept = async (invitationId: string) => {
   );
 };
 
+// Welcome page for users who accepted an invitation
+const HouseholdWelcomeDisplay: React.FC<{ householdId: string; onProceed: () => void }> = ({ householdId, onProceed }) => {
+  const [household, setHousehold] = useState<api.Household | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchDetails = async () => {
+      setLoading(true);
+      const details = await api.getHouseholdDetails(householdId);
+      setHousehold(details);
+      setLoading(false);
+    };
+    fetchDetails();
+  }, [householdId]);
+
+  if (loading) return <LoadingSpinner />;
+  if (!household) return <p className="text-red-500">Could not load household details.</p>;
+
+  return (
+    <div className="min-h-screen flex flex-col items-center justify-center bg-gray-100 p-4">
+      <div className="max-w-lg w-full bg-white p-8 rounded-xl shadow-2xl text-center">
+        <h1 className="text-3xl font-bold text-emerald-700 mb-4">Welcome to {household.name}!</h1>
+        <p className="text-gray-600 mb-6">
+          You've successfully joined your new household. Here are some details set up by your admin:
+        </p>
+        <div className="text-left space-y-3 bg-gray-50 p-6 rounded-lg border">
+          <p><strong>Household Name:</strong> {household.name}</p>
+          <p><strong>Target Members:</strong> {household.member_count || 'Not set'}</p>
+          <p><strong>Core Chores:</strong> {household.core_chores || 'Not set'}</p>
+          <p><strong>Chore Frequency:</strong> {household.chore_frequency || 'Not set'}</p>
+          <p><strong>Chore Framework:</strong> {household.chore_framework || 'Not set'}</p>
+        </div>
+        <button
+          onClick={onProceed}
+          className="mt-8 w-full bg-emerald-600 hover:bg-emerald-700 text-white py-3 px-6 rounded-md text-lg font-medium transition duration-150"
+        >
+          Continue to Dashboard
+        </button>
+      </div>
+    </div>
+  );
+};
+
 
 const Dashboard: React.FC = () => {
-  const { user } = useAuth(); // From new Dashboard
-  const [households, setHouseholds] = useState<Household[]>([]); // From new Dashboard (and old)
-  const [loading, setLoading] = useState(true); // From new Dashboard (and old)
-  const [showCreateHousehold, setShowCreateHousehold] = useState(false); // From new Dashboard (and old)
-  const [newHouseholdName, setNewHouseholdName] = useState(''); // From new Dashboard (and old)
-  const [creating, setCreating] = useState(false); // From new Dashboard (and old)
-  const [selectedHousehold, setSelectedHousehold] = useState<string | null>(null); // From new Dashboard (and old)
-  const [activeTab, setActiveTab] = useState<'households' | 'invitations'>('households'); // From new Dashboard
+  const { user } = useAuth();
+  const [households, setHouseholds] = useState<Household[]>([]);
+  const [loadingHouseholds, setLoadingHouseholds] = useState(true);
+  const [showCreateHouseholdModal, setShowCreateHouseholdModal] = useState(false);
+  const [newHouseholdName, setNewHouseholdName] = useState('');
+  const [creatingHousehold, setCreatingHousehold] = useState(false);
+  const [selectedHousehold, setSelectedHousehold] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'households' | 'invitations'>('households');
 
-  // Logic from your OLD Dashboard component:
   useEffect(() => {
     loadHouseholds();
-  }, [user]); // Make sure user dependency is there if loadHouseholds uses it. Your original didn't show it for this useEffect.
+  }, [user]);
 
   const loadHouseholds = async () => {
+    if (!user) return;
     try {
-      setLoading(true);
+      setLoadingHouseholds(true);
       const data = await api.getUserHouseholds();
       setHouseholds(data);
     } catch (error) {
       console.error('Error loading households:', error);
       toast.error('Failed to load households.');
     } finally {
-      setLoading(false);
+      setLoadingHouseholds(false);
     }
   };
 
-  const createHousehold = async () => {
-    if (!newHouseholdName.trim()) return;
+  const handleCreateHousehold = async () => {
+    if (!newHouseholdName.trim() || !user) return;
 
-    setCreating(true);
+    setCreatingHousehold(true);
     try {
-      await api.createHousehold(newHouseholdName);
+      // For MVP, using the simplified createHousehold (only name)
+      // This will be replaced by the HouseholdSetupForm flow
+      await api.createHousehold({ name: newHouseholdName, member_count: 2 }); // Default member_count for old flow
       await loadHouseholds();
       setNewHouseholdName('');
-      setShowCreateHousehold(false);
+      setShowCreateHouseholdModal(false);
       toast.success('Household created!');
     } catch (error) {
       console.error('Error creating household:', error);
       toast.error('Failed to create household');
     } finally {
-      setCreating(false);
+      setCreatingHousehold(false);
     }
   };
-  // End of logic from your OLD Dashboard component
-
+  
   if (selectedHousehold) {
     return <HouseholdDetail householdId={selectedHousehold} onBack={() => setSelectedHousehold(null)} />;
   }
 
   return (
-    <Layout>
+    <Layout title={user?.name || "Dashboard"}>
       <div className="space-y-6">
-        {/* Tab Navigation from new Dashboard */}
         <div className="border-b border-gray-200">
           <nav className="-mb-px flex space-x-8">
             <button
@@ -546,29 +651,28 @@ const Dashboard: React.FC = () => {
           </nav>
         </div>
 
-        {/* Content based on active tab from new Dashboard */}
         {activeTab === 'households' ? (
           <>
-            {/* "Your Households" title and "New Household" button from OLD Dashboard */}
             <div className="flex justify-between items-center">
               <h2 className="text-2xl font-bold text-gray-900">Your Households</h2>
+              {/* This button will be less prominent if HouseholdSetupForm is the primary creation path */}
               <button
-                onClick={() => setShowCreateHousehold(true)}
+                onClick={() => setShowCreateHouseholdModal(true)} // This could also navigate to the HouseholdSetupForm view
                 className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700"
               >
                 <Plus className="h-4 w-4 mr-2" />
-                New Household
+                New Household (Quick)
               </button>
             </div>
 
-            {/* Households grid display logic from OLD Dashboard */}
-            {loading ? (
+            {loadingHouseholds ? (
               <LoadingSpinner />
             ) : households.length === 0 ? (
               <div className="text-center py-12">
                 <Home className="mx-auto h-12 w-12 text-gray-400" />
-                <h3 className="mt-2 text-sm font-medium text-gray-900">No households</h3>
-                <p className="mt-1 text-sm text-gray-500">Get started by creating a new household.</p>
+                <h3 className="mt-2 text-sm font-medium text-gray-900">No households yet.</h3>
+                <p className="mt-1 text-sm text-gray-500">Get started by creating a new household or accepting an invitation.</p>
+                 {/* The actual OnboardingChoice or HouseholdSetupForm should be rendered by App component */}
               </div>
             ) : (
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -582,7 +686,7 @@ const Dashboard: React.FC = () => {
                       <div>
                         <h3 className="text-lg font-medium text-gray-900">{household.name}</h3>
                         <p className="mt-1 text-sm text-gray-500">
-                          {household.memberCount} {household.memberCount === 1 ? 'member' : 'members'}
+                          {household.memberCount || '?'} {Number(household.memberCount) === 1 ? 'member' : 'members'}
                         </p>
                       </div>
                       <ChevronRight className="h-5 w-5 text-gray-400" />
@@ -593,36 +697,35 @@ const Dashboard: React.FC = () => {
             )}
           </>
         ) : (
-          <MyInvitations /> // Display MyInvitations component when 'invitations' tab is active
+          <MyInvitations />
         )}
 
-        {/* Create Household Modal from OLD Dashboard */}
-        {showCreateHousehold && (
+        {showCreateHouseholdModal && (
           <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center p-4 z-50">
             <div className="bg-white rounded-lg p-6 max-w-md w-full">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">Create New Household</h3>
+              <h3 className="text-lg font-medium text-gray-900 mb-4">Create New Household (Quick)</h3>
               <input
                 type="text"
                 placeholder="Household name"
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                 value={newHouseholdName}
                 onChange={(e) => setNewHouseholdName(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && !creating && createHousehold()}
+                onKeyPress={(e) => e.key === 'Enter' && !creatingHousehold && handleCreateHousehold()}
               />
               <div className="mt-4 flex justify-end space-x-3">
                 <button
-                  onClick={() => setShowCreateHousehold(false)}
+                  onClick={() => setShowCreateHouseholdModal(false)}
                   className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-500"
-                  disabled={creating}
+                  disabled={creatingHousehold}
                 >
                   Cancel
                 </button>
                 <button
-                  onClick={createHousehold}
-                  disabled={creating || !newHouseholdName.trim()} // Added trim check for button disable
+                  onClick={handleCreateHousehold}
+                  disabled={creatingHousehold || !newHouseholdName.trim()}
                   className="px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50"
                 >
-                  {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Create'}
+                  {creatingHousehold ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Create'}
                 </button>
               </div>
             </div>
@@ -633,8 +736,7 @@ const Dashboard: React.FC = () => {
   );
 };
 
-
-// Household Detail Page
+// Household Detail Page (remains largely the same)
 const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = ({ householdId, onBack }) => {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<'expenses' | 'members' | 'tasks' | 'settlements'>('expenses');
@@ -643,7 +745,7 @@ const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = (
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [settlements, setSettlements] = useState<Settlement[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loadingData, setLoadingData] = useState(true); // Renamed to avoid conflict
 
   const [recurringExpenses, setRecurringExpenses] = useState<RecurringExpense[]>([]);
   const [showAddRecurring, setShowAddRecurring] = useState(false);
@@ -665,12 +767,13 @@ const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = (
 
   useEffect(() => {
     const fetchData = async () => {
-      setLoading(true);
+      setLoadingData(true);
       let useOptimized = false;
       try {
+        // Check if the optimized function exists and works
         if (typeof api.getHouseholdData === 'function') {
-            const testData = await api.getHouseholdData(householdId); // Call to check if it works
-            if (testData && testData.household) { // Basic check for expected structure
+            const testData = await api.getHouseholdData(householdId);
+            if (testData && testData.household) {
                 useOptimized = true;
             }
         }
@@ -683,17 +786,18 @@ const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = (
       } else {
         await loadHouseholdData();
       }
-      setLoading(false);
+      setLoadingData(false);
     };
-    fetchData();
+    if(householdId) fetchData();
   }, [householdId]);
   
   useEffect(() => {
     const processRecurring = async () => {
+      if (!householdId) return;
       try {
         await api.processDueRecurringExpenses(householdId);
         // Reload data after processing to reflect any new expenses created
-        if (typeof api.getHouseholdData === 'function') { // Check again as state might not be updated if optimized failed initially
+        if (typeof api.getHouseholdData === 'function') {
             try {
                 const testData = await api.getHouseholdData(householdId);
                 if (testData && testData.household) {
@@ -713,15 +817,13 @@ const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = (
       }
     };
   
-    if(householdId) processRecurring(); // Ensure householdId is available
-  }, [householdId]);
+    if(householdId) processRecurring();
+  }, [householdId]); // Re-run if householdId changes, e.g. navigating between households
 
 
   const loadHouseholdDataOptimized = async () => {
-    // setLoading(true) is handled by fetchData
     try {
       const data = await api.getHouseholdData(householdId);
-
       if (data) {
         setHousehold(data.household);
         setMembers(data.members || []);
@@ -733,16 +835,21 @@ const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = (
     } catch (error) {
       console.error('Error loading household data (optimized):', error);
       toast.error('Failed to load household data.');
-      // Fallback to original method if optimized fails for any reason
-      await loadHouseholdData(); // Ensure this is awaited if it's async
+      await loadHouseholdData(); 
     } 
-    // setLoading(false) is handled by fetchData
   };
 
   const loadHouseholdData = async () => {
-    // setLoading(true) is handled by fetchData
     try {
-      const [membersData, expensesData, tasksData, settlementsData, recurringData] = await Promise.all([
+      const [
+          fetchedHousehold, // Get household details separately
+          membersData, 
+          expensesData, 
+          tasksData, 
+          settlementsData, 
+          recurringData
+        ] = await Promise.all([
+        api.getHouseholdDetails(householdId), // Fetch household details
         api.getHouseholdMembers(householdId),
         api.getHouseholdExpenses(householdId),
         api.getHouseholdTasks(householdId),
@@ -750,25 +857,24 @@ const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = (
         api.getHouseholdRecurringExpenses(householdId)
       ]);
 
+      setHousehold(fetchedHousehold); // Set the fetched household data
       setMembers(membersData);
       setExpenses(expensesData);
       setTasks(tasksData);
       setSettlements(settlementsData);
       setRecurringExpenses(recurringData);
 
-      if (membersData.length > 0 && membersData[0].households) {
-        setHousehold(membersData[0].households);
-      }
-
     } catch (error) {
       console.error('Error loading household data (standard):', error);
       toast.error('Failed to load household data.');
     }
-    // setLoading(false) is handled by fetchData
   };
+  // ... (rest of HouseholdDetail component: sendReminder, AddRecurringExpenseModal, AddExpenseModal, AddTaskModal, SettleUpModal, markExpenseSettled, completeTask, JSX)
+  // The existing JSX for HouseholdDetail can remain largely the same.
+  // Make sure to replace `loading` with `loadingData` in the JSX for this component.
+  // For brevity, I'm not repeating the entire HouseholdDetail JSX here but ensure this change is made.
 
-  // 3. Add the sendReminder function to HouseholdDetail:
-  const sendReminder = async (debtorId: string, amount: number) => {
+    const sendReminder = async (debtorId: string, amount: number) => {
     try {
       await api.sendPaymentReminder(householdId, debtorId, amount);
       toast.success('Reminder sent!');
@@ -895,19 +1001,17 @@ const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = (
     );
   };
 
-// START Enhanced AddExpenseModal
+// START Enhanced AddExpenseModal (copied as is)
 const AddExpenseModal = () => {
   const [description, setDescription] = useState('');
   const [amount, setAmount] = useState('');
   const [submitting, setSubmitting] = useState(false);
   
-  // New states for enhanced splitting
   const [splitType, setSplitType] = useState<'equal' | 'custom' | 'percentage'>('equal');
   const [includedMembers, setIncludedMembers] = useState<Set<string>>(new Set(members.map(m => m.user_id)));
   const [customSplits, setCustomSplits] = useState<Record<string, number>>({});
   const [percentageSplits, setPercentageSplits] = useState<Record<string, number>>({});
   
-  // Initialize custom splits when amount changes
   useEffect(() => {
     if (splitType === 'equal' && amount) {
       const included = Array.from(includedMembers);
@@ -920,7 +1024,6 @@ const AddExpenseModal = () => {
     }
   }, [amount, includedMembers, splitType]);
 
-  // Initialize percentage splits
   useEffect(() => {
     if (splitType === 'percentage') {
       const included = Array.from(includedMembers);
@@ -936,7 +1039,7 @@ const AddExpenseModal = () => {
   const toggleMemberInclusion = (userId: string) => {
     const newIncluded = new Set(includedMembers);
     if (newIncluded.has(userId)) {
-      if (newIncluded.size > 1) { // Keep at least one member
+      if (newIncluded.size > 1) { 
         newIncluded.delete(userId);
       }
     } else {
@@ -994,13 +1097,13 @@ const AddExpenseModal = () => {
     
     if (splitType === 'custom') {
       const splitTotal = getTotalSplit();
-      return Math.abs(splitTotal - total) < 0.01; // Allow for rounding errors
+      return Math.abs(splitTotal - total) < 0.01; 
     } else if (splitType === 'percentage') {
       const percentageTotal = getTotalPercentage();
       return Math.abs(percentageTotal - 100) < 0.01;
     }
     
-    return true; // Equal split is always valid
+    return true; 
   };
 
   const handleSubmit = async () => {
@@ -1030,7 +1133,6 @@ const AddExpenseModal = () => {
         }));
       }
 
-      // Call the enhanced API function
       await api.createExpenseWithCustomSplits(
         householdId,
         description,
@@ -1099,7 +1201,6 @@ const AddExpenseModal = () => {
             </div>
           </div>
 
-          {/* Split Type Selection */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">How to split?</label>
             <div className="grid grid-cols-3 gap-2">
@@ -1139,7 +1240,6 @@ const AddExpenseModal = () => {
             </div>
           </div>
 
-          {/* Member Selection and Split Configuration */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Split between ({includedMembers.size} {includedMembers.size === 1 ? 'person' : 'people'})
@@ -1211,7 +1311,6 @@ const AddExpenseModal = () => {
               })}
             </div>
 
-            {/* Validation Messages */}
             {splitType === 'custom' && (
               <div className="mt-2 flex items-center justify-between">
                 <span className={`text-sm ${Math.abs(getTotalSplit() - (parseFloat(amount) || 0)) < 0.01 ? 'text-green-600' : 'text-red-600'}`}>
@@ -1276,12 +1375,11 @@ const AddExpenseModal = () => {
         console.log('Task created successfully:', result);
         await (typeof api.getHouseholdData === 'function' ? loadHouseholdDataOptimized() : loadHouseholdData());
         setShowAddTask(false);
-        setTitle(''); // Reset form
-        setAssignedTo(''); // Reset form
+        setTitle(''); 
+        setAssignedTo('');
         toast.success('Task added!');
       } catch (error) {
         console.error('Error creating task:', error);
-        // Better error logging for Supabase errors
         if (error && typeof error === 'object') {
           console.error('Error details:', {
             message: (error as any).message,
@@ -1525,7 +1623,7 @@ const AddExpenseModal = () => {
 
   const markExpenseSettled = async (expenseId: string, userIdToSettle: string) => {
     try {
-      await api.markExpenseSettled(expenseId, userIdToSettle); // Ensure this API takes userId to settle for
+      await api.markExpenseSettled(expenseId, userIdToSettle);
       await (typeof api.getHouseholdData === 'function' ? loadHouseholdDataOptimized() : loadHouseholdData());
       toast.success('Expense part marked settled!');
     } catch (error) {
@@ -1545,7 +1643,7 @@ const AddExpenseModal = () => {
     }
   };
 
-  if (loading) {
+  if (loadingData) {
     return (
       <Layout title="Loading..." showBack onBack={onBack}>
         <LoadingSpinner />
@@ -1571,13 +1669,12 @@ const AddExpenseModal = () => {
             {balances.map(balance => (
               <div key={balance.userId} className="flex justify-between items-center">
                 <span className="text-sm text-gray-600">{balance.profile?.name}</span>
-                <div className="flex items-center space-x-2"> {/* Wrapper for amount and button */}
+                <div className="flex items-center space-x-2">
                   <span className={`text-sm font-medium ${balance.balance > 0 ? 'text-green-600' : balance.balance < 0 ? 'text-red-600' : 'text-gray-600'
                     }`}>
                     {balance.balance > 0 ? '+' : ''}${Math.abs(balance.balance).toFixed(2)}
                     {balance.balance < 0 && ' owed'}
                   </span>
-                  {/* Add reminder button for people who owe money */}
                   {balance.balance < -5 && balance.userId !== user?.id && (
                     <button
                       onClick={() => sendReminder(balance.userId, Math.abs(balance.balance))}
@@ -1652,7 +1749,7 @@ const AddExpenseModal = () => {
                 </button>
               </div>
 
-              {loading && recurringExpenses.length === 0 ? <LoadingSpinner/> : recurringExpenses.length === 0 ? (
+              {loadingData && recurringExpenses.length === 0 ? <LoadingSpinner/> : recurringExpenses.length === 0 ? (
                 <p className="text-sm text-gray-500">No recurring expenses set up</p>
               ) : (
                 <div className="space-y-2">
@@ -1685,7 +1782,7 @@ const AddExpenseModal = () => {
                 </button>
               </div>
               <div className="space-y-3">
-                {loading && expenses.length === 0 ? <LoadingSpinner/> : expenses.length === 0 ? (
+                {loadingData && expenses.length === 0 ? <LoadingSpinner/> : expenses.length === 0 ? (
                   <p className="text-gray-500 text-center py-4">No one-time expenses yet</p>
                 ) : (
                   expenses.map(expense => (
@@ -1705,7 +1802,7 @@ const AddExpenseModal = () => {
                                 <span className="text-gray-600">{split.profiles?.name} owes</span>
                                 <div className="flex items-center space-x-2">
                                   <span className="font-medium">${split.amount.toFixed(2)}</span>
-                                  {user?.id === expense.paid_by && ( // Only payer can mark as settled
+                                  {user?.id === expense.paid_by && ( 
                                     <button
                                         onClick={() => markExpenseSettled(expense.id, split.user_id)}
                                         className="text-xs text-blue-600 hover:text-blue-500"
@@ -1754,7 +1851,7 @@ const AddExpenseModal = () => {
               <h3 className="text-lg font-medium text-gray-900">Recent Settlements</h3>
             </div>
             <div className="space-y-3">
-              {loading && settlements.length === 0 ? <LoadingSpinner/> : settlements.length === 0 ? (
+              {loadingData && settlements.length === 0 ? <LoadingSpinner/> : settlements.length === 0 ? (
                 <p className="text-gray-500 text-center py-4">No settlements yet</p>
               ) : (
                 settlements.map(settlement => (
@@ -1793,7 +1890,7 @@ const AddExpenseModal = () => {
               </button>
             </div>
             <div className="space-y-3">
-            {loading && members.length === 0 ? <LoadingSpinner/> : members.map(member => (
+            {loadingData && members.length === 0 ? <LoadingSpinner/> : members.map(member => (
                 <div key={member.id} className="bg-white rounded-lg shadow p-4">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center">
@@ -1802,7 +1899,6 @@ const AddExpenseModal = () => {
                       </div>
                       <div className="ml-3">
                         <p className="font-medium text-gray-900">{member.profiles?.name}</p>
-                        {/* <p className="text-sm text-gray-500">{member.profiles?.email}</p> */}
                         <p className="text-xs text-gray-400">{member.role}</p>
                       </div>
                     </div>
@@ -1826,7 +1922,7 @@ const AddExpenseModal = () => {
               </button>
             </div>
             <div className="space-y-3">
-              {loading && tasks.filter(t => !t.completed).length === 0 && tasks.filter(t => t.completed).length === 0 ? (
+              {loadingData && tasks.filter(t => !t.completed).length === 0 && tasks.filter(t => t.completed).length === 0 ? (
                  <LoadingSpinner/>
               ): tasks.filter(t => !t.completed).length === 0 && tasks.filter(t => t.completed).length === 0 ? (
                 <p className="text-gray-500 text-center py-4">No tasks yet. Add some!</p>
@@ -1891,40 +1987,148 @@ const AddExpenseModal = () => {
       <InviteMemberModal
         show={showInviteMember}
         onClose={() => setShowInviteMember(false)}
-        householdId={householdId} // Ensure householdId is correctly passed from HouseholdDetail's props
+        householdId={householdId} 
         onSuccess={() => {
-          // Reload data. Choose the appropriate function available in HouseholdDetail.
-          // This uses the check from your existing HouseholdDetail logic.
           (typeof api.getHouseholdData === 'function' ? loadHouseholdDataOptimized() : loadHouseholdData());
-          toast('Household data refreshed after invitation.'); // Optional: notify user
+          toast('Household data refreshed after invitation.');
         }}
       />
     )}
-  </Layout> // Closing tag of Layout in HouseholdDetail
+  </Layout> 
 );
 };
 
-// Main App Component
-const App: React.FC = () => {
-  const { user, loading } = useAuth();
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-gray-500" />
-      </div>
+// Main App Component - Modified for new onboarding flow
+const App: React.FC = () => {
+  const { user, loading: authLoading } = useAuth();
+  const [households, setHouseholds] = useState<Household[]>([]);
+  const [loadingUserHouseholds, setLoadingUserHouseholds] = useState(true);
+  const [appState, setAppState] = useState<'loading' | 'landing' | 'authForm' | 'onboardingChoice' | 'householdSetup' | 'dashboard' | 'householdWelcome'>('loading');
+  const [isRegistering, setIsRegistering] = useState(false);
+  const [welcomeHouseholdId, setWelcomeHouseholdId] = useState<string | null>(null); // For showing household info after invite accept
+
+  useEffect(() => {
+    const determineState = async () => {
+      if (authLoading) {
+        setAppState('loading');
+        return;
+      }
+
+      if (!user) {
+        setAppState('landing'); // Show LandingPageContent via LoginPageContentWrapper
+        return;
+      }
+
+      // User is logged in, check for households
+      setLoadingUserHouseholds(true);
+      try {
+        const userHouseholds = await api.getUserHouseholds();
+        setHouseholds(userHouseholds);
+        if (userHouseholds.length === 0) {
+          setAppState('onboardingChoice');
+        } else {
+          // Check if we need to show household welcome (e.g., after accepting invite)
+          // This logic might need refinement based on how invite acceptance flow is fully handled
+          const queryParams = new URLSearchParams(window.location.search);
+          const acceptedInviteHouseholdId = queryParams.get('acceptedInviteToHousehold');
+          if (acceptedInviteHouseholdId) {
+            setWelcomeHouseholdId(acceptedInviteHouseholdId);
+            setAppState('householdWelcome');
+             // Clear the query param to prevent re-showing on refresh
+            const nextURL = new URL(window.location.href);
+            nextURL.searchParams.delete('acceptedInviteToHousehold');
+            window.history.replaceState({}, '', nextURL.toString());
+          } else {
+            setAppState('dashboard');
+          }
+        }
+      } catch (error) {
+        console.error("Error fetching user households", error);
+        toast.error("Could not fetch your household information.");
+        setAppState('onboardingChoice'); // Fallback to choice if error
+      } finally {
+        setLoadingUserHouseholds(false);
+      }
+    };
+
+    determineState();
+  }, [user, authLoading]);
+
+  if (appState === 'loading' || (user && loadingUserHouseholds)) {
+    return <LoadingSpinner />;
+  }
+
+  if (appState === 'landing') {
+     return (
+        <LandingPageContent
+            onSignIn={() => {
+                setIsRegistering(false);
+                setAppState('authForm');
+            }}
+            onSignUp={() => {
+                setIsRegistering(true);
+                setAppState('authForm');
+            }}
+        />
     );
   }
 
-  return user ? <Dashboard /> : <LoginPage />;
+  if (appState === 'authForm') {
+    return <AuthForm isRegisteringInitially={isRegistering} />;
+  }
+
+  if (appState === 'onboardingChoice') {
+    return (
+      <OnboardingChoice
+        onCreateHousehold={() => setAppState('householdSetup')}
+        onJoinHousehold={() => {
+          // For MVP, navigate to the dashboard where "Invitations" tab can be selected
+          // The MyInvitations component is part of the Dashboard view
+          setAppState('dashboard'); 
+        }}
+      />
+    );
+  }
+
+  if (appState === 'householdSetup') {
+    return (
+      <HouseholdSetupForm
+        onHouseholdCreated={(householdId) => {
+          toast.success('Household created successfully!');
+          setAppState('dashboard'); // Navigate to dashboard
+          // Optionally, trigger a refresh of households list in Dashboard state if needed
+        }}
+      />
+    );
+  }
+    if (appState === 'householdWelcome' && welcomeHouseholdId) {
+    return (
+      <HouseholdWelcomeDisplay
+        householdId={welcomeHouseholdId}
+        onProceed={() => {
+          setWelcomeHouseholdId(null);
+          setAppState('dashboard');
+        }}
+      />
+    );
+  }
+
+
+  if (appState === 'dashboard') {
+    return <Dashboard />;
+  }
+  
+  // Fallback or error state
+  return <p>Something went wrong.</p>;
 };
+
 
 // Export with Auth Provider
 export default function RoomiesApp() {
   return (
     <AuthProvider>
       <App />
-      {/* Toaster can also be placed here if preferred, but Layout is often better for positioning relative to content */}
     </AuthProvider>
   );
 }

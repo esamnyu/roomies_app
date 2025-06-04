@@ -1,3 +1,4 @@
+// esamnyu/roomies_app/roomies_app-feat-landing-and-onboarding/src/lib/api.ts
 // Add these types to your existing api.ts file
 import { ReactNode } from 'react' // Assuming ReactNode might be used elsewhere or was part of your original setup
 import { supabase } from './supabase'
@@ -25,6 +26,11 @@ export interface Household {
   created_by: string
   created_at: string
   updated_at: string
+  // Add new fields based on schema update
+  member_count?: number
+  core_chores?: string
+  chore_frequency?: string
+  chore_framework?: string
 }
 
 export interface HouseholdMember {
@@ -176,15 +182,31 @@ export const getProfileWithEmail = async (userId: string) => {
 }
 
 
+// Interface for the new household creation parameters
+export interface CreateHouseholdParams {
+  name: string;
+  member_count: number;
+  core_chores?: string;
+  chore_frequency?: string;
+  chore_framework?: string;
+}
+
 // Household functions
-export const createHousehold = async (name: string) => {
+export const createHousehold = async (params: CreateHouseholdParams) => {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) throw new Error('Not authenticated')
 
-  // Create household
+  // Create household with all new details
   const { data: household, error: householdError } = await supabase
     .from('households')
-    .insert({ name, created_by: user.id })
+    .insert({
+      name: params.name,
+      created_by: user.id,
+      member_count: params.member_count,
+      core_chores: params.core_chores,
+      chore_frequency: params.chore_frequency,
+      chore_framework: params.chore_framework,
+    })
     .select()
     .single()
 
@@ -199,7 +221,11 @@ export const createHousehold = async (name: string) => {
       role: 'admin'
     })
 
-  if (memberError) throw memberError
+  if (memberError) {
+    // If adding member fails, consider deleting the household to avoid orphaned records
+    await supabase.from('households').delete().eq('id', household.id);
+    throw memberError;
+  }
 
   return household
 }
@@ -229,6 +255,22 @@ export const getHouseholdData = async (householdId: string) => {
   if (error) throw error
   return data
 }
+
+// Function to get a single household's details, including new fields
+export const getHouseholdDetails = async (householdId: string): Promise<Household | null> => {
+  const { data, error } = await supabase
+    .from('households')
+    .select('*') // Selects all columns, including the new ones
+    .eq('id', householdId)
+    .single();
+
+  if (error) {
+    console.error('Error fetching household details:', error);
+    return null;
+  }
+  return data;
+};
+
 
 export const getHouseholdMembers = async (householdId: string) => {
   const { data, error } = await supabase
