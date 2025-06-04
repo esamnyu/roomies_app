@@ -69,7 +69,7 @@ export const HouseholdSetupForm: React.FC<HouseholdSetupFormProps> = ({ onHouseh
       const params: api.CreateHouseholdParams = {
         name: householdName,
         member_count: memberCount,
-        core_chores: coreChores.length > 0 ? coreChores : undefined, // This remains the same
+        core_chores: coreChores,
         chore_frequency: choreFrequency || undefined,
         chore_framework: choreFramework.trim() || undefined,
       };
