@@ -2,24 +2,45 @@
 'use client';
 
 import React, { useState } from 'react';
-import { useAuth } from './AuthProvider'; // Assuming AuthProvider is in the components folder
+import Select, { MultiValue } from 'react-select'; // <--- IMPORT react-select
+import { useAuth } from './AuthProvider';
 import * as api from '@/lib/api';
-import { useRouter } from 'next/navigation'; // For Next.js App Router
+// useRouter is imported but not used in the provided snippet, remove if not needed elsewhere.
+// import { useRouter } from 'next/navigation';
 
 interface HouseholdSetupFormProps {
   onHouseholdCreated: (householdId: string) => void;
 }
 
+// Define the shape of options for react-select
+interface ChoreOptionType {
+  value: string;
+  label: string;
+}
+
 export const HouseholdSetupForm: React.FC<HouseholdSetupFormProps> = ({ onHouseholdCreated }) => {
   const { user } = useAuth();
-  const router = useRouter();
+  // const router = useRouter(); // Not used in this component currently
   const [householdName, setHouseholdName] = useState('');
   const [memberCount, setMemberCount] = useState(2);
-  const [coreChores, setCoreChores] = useState('');
+  const [coreChores, setCoreChores] = useState<string[]>([]); // State remains string[]
   const [choreFrequency, setChoreFrequency] = useState('Weekly');
-  const [choreFramework, setChoreFramework] = useState('Split'); // Or useState('');
+  const [choreFramework, setChoreFramework] = useState('Split');
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+
+  const AVAILABLE_CORE_CHORES_LIST = [ // Renamed for clarity
+    "Kitchen cleaning",
+    "Living room cleaning",
+    "Taking out trash",
+    "Bathroom cleaning"
+  ];
+
+  // Format options for react-select
+  const reactSelectChoreOptions: ChoreOptionType[] = AVAILABLE_CORE_CHORES_LIST.map(chore => ({
+    value: chore,
+    label: chore,
+  }));
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -31,10 +52,15 @@ export const HouseholdSetupForm: React.FC<HouseholdSetupFormProps> = ({ onHouseh
       setError('Household name is required.');
       return;
     }
-    if (memberCount < 1) { // Allowing solo households for now, can be changed to 2
-        setError('Household must have at least 1 member.');
-        return;
+    if (memberCount < 1) {
+      setError('Household must have at least 1 member.');
+      return;
     }
+    // Add validation for coreChores if it becomes mandatory
+    // if (coreChores.length === 0) {
+    //   setError('Please select at least one core chore.');
+    //   return;
+    // }
 
     setIsLoading(true);
     setError(null);
@@ -43,13 +69,13 @@ export const HouseholdSetupForm: React.FC<HouseholdSetupFormProps> = ({ onHouseh
       const params: api.CreateHouseholdParams = {
         name: householdName,
         member_count: memberCount,
-        core_chores: coreChores.trim() || undefined,
+        core_chores: coreChores.length > 0 ? coreChores : undefined, // This remains the same
         chore_frequency: choreFrequency || undefined,
         chore_framework: choreFramework.trim() || undefined,
       };
       const newHousehold = await api.createHousehold(params);
       if (newHousehold) {
-        onHouseholdCreated(newHousehold.id); // Callback to notify parent
+        onHouseholdCreated(newHousehold.id);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create household.');
@@ -58,6 +84,16 @@ export const HouseholdSetupForm: React.FC<HouseholdSetupFormProps> = ({ onHouseh
       setIsLoading(false);
     }
   };
+
+  // Handler for react-select's onChange
+  const handleCoreChoresChange = (selectedOptions: MultiValue<ChoreOptionType>) => {
+    setCoreChores(selectedOptions ? selectedOptions.map(option => option.value) : []);
+  };
+
+  // Determine the value for react-select based on the current coreChores state
+  const selectedValueForReactSelect = reactSelectChoreOptions.filter(option =>
+    coreChores.includes(option.value)
+  );
 
   return (
     <div className="max-w-lg mx-auto p-6 bg-white rounded-lg shadow-md">
@@ -94,19 +130,25 @@ export const HouseholdSetupForm: React.FC<HouseholdSetupFormProps> = ({ onHouseh
           />
         </div>
 
+        {/* --- MODIFIED Core Chores Field --- */}
         <div>
           <label htmlFor="coreChores" className="block text-sm font-medium text-gray-700">
             Core Chores (Optional)
           </label>
-          <textarea
+          <Select
             id="coreChores"
-            value={coreChores}
-            onChange={(e) => setCoreChores(e.target.value)}
-            rows={3}
-            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-            placeholder="e.g., Cleaning Bathroom, Taking out trash, Washing dishes (comma-separated)"
+            isMulti
+            options={reactSelectChoreOptions}
+            value={selectedValueForReactSelect}
+            onChange={handleCoreChoresChange}
+            className="mt-1 block w-full basic-multi-select"
+            classNamePrefix="select" // Important for styling with react-select's default styles or custom styles
+            placeholder="Select chores..."
+            noOptionsMessage={() => "No more chores available"}
           />
+          {/* The helper text for Ctrl+click is no longer needed with react-select */}
         </div>
+        {/* --- END MODIFIED Core Chores Field --- */}
 
         <div>
           <label htmlFor="choreFrequency" className="block text-sm font-medium text-gray-700">
@@ -126,22 +168,19 @@ export const HouseholdSetupForm: React.FC<HouseholdSetupFormProps> = ({ onHouseh
         </div>
 
         <div>
-        <label htmlFor="choreFramework" className="block text-sm font-medium text-gray-700">
-            Framework for Chore Doing <span className="text-red-500">*</span> {/* Consider if this should be optional or required */}
-        </label>
-        <select
+          <label htmlFor="choreFramework" className="block text-sm font-medium text-gray-700">
+            Framework for Chore Doing <span className="text-red-500">*</span>
+          </label>
+          <select
             id="choreFramework"
             value={choreFramework}
             onChange={(e) => setChoreFramework(e.target.value)}
-            required // Add required if this field is mandatory
+            required
             className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-        >
-            {/* Optional: Add a default placeholder option if state is initialized to '' */}
-            {/* <option value="" disabled>Select a framework</option> */}
+          >
             <option value="Split">Split</option>
             <option value="One person army">One person army</option>
-            {/* You can add more predefined options here in the future if needed */}
-        </select>
+          </select>
         </div>
 
         <button

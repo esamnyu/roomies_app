@@ -28,7 +28,7 @@ export interface Household {
   updated_at: string
   // Add new fields based on schema update
   member_count?: number
-  core_chores?: string
+  core_chores?: string[]
   chore_frequency?: string
   chore_framework?: string
 }
@@ -186,7 +186,7 @@ export const getProfileWithEmail = async (userId: string) => {
 export interface CreateHouseholdParams {
   name: string;
   member_count: number;
-  core_chores?: string;
+  core_chores?: string[];
   chore_frequency?: string;
   chore_framework?: string;
 }

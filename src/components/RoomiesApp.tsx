@@ -409,7 +409,7 @@ const handleAccept = async (invitationId: string) => {
       // router.push(`/household-welcome?householdId=${result.household.id}`);
       window.location.reload(); // Or trigger state update to show dashboard
     } else {
-      toast.error(result.message || 'Failed to accept invitation');
+      toast.error(result.rpcData?.message || 'Failed to accept invitation');
     }
   } catch (error: any) {
     console.error('Error accepting invitation:', error);
@@ -570,7 +570,8 @@ const HouseholdWelcomeDisplay: React.FC<{ householdId: string; onProceed: () => 
 
 
 const Dashboard: React.FC = () => {
-  const { user } = useAuth();
+  // const { user } = useAuth();
+  const { user, profile } = useAuth();
   const [households, setHouseholds] = useState<Household[]>([]);
   const [loadingHouseholds, setLoadingHouseholds] = useState(true);
   const [showCreateHouseholdModal, setShowCreateHouseholdModal] = useState(false);
@@ -622,7 +623,8 @@ const Dashboard: React.FC = () => {
   }
 
   return (
-    <Layout title={user?.name || "Dashboard"}>
+    // <Layout title={user?.name || "Dashboard"}>
+    <Layout title={profile?.name || "Dashboard"}>
       <div className="space-y-6">
         <div className="border-b border-gray-200">
           <nav className="-mb-px flex space-x-8">
