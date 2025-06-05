@@ -100,17 +100,17 @@ export interface RecurringExpense {
 }
 
 export interface Notification {
-  id: string
-  user_id: string
-  household_id: string | null
-  type: 'expense_added' | 'payment_reminder' | 'task_assigned' | 'task_completed' | 'settlement_recorded' | 'recurring_expense_added' | 'member_joined' | 'member_left' | 'household_invitation' | 'message_sent' // Added 'household_invitation'
-  title: string
-  message: string
-  data: any
-  is_read: boolean
-  read_at: string | null
-  created_at: string
-  updated_at: string
+  id: string;
+  user_id: string;
+  household_id: string | null;
+  type: 'expense_added' | 'payment_reminder' | 'task_assigned' | 'task_completed' | 'settlement_recorded' | 'recurring_expense_added' | 'member_joined' | 'member_left' | 'household_invitation' | 'message_sent'; // <-- Add 'message_sent' here
+  title: string;
+  message: string;
+  data: any;
+  is_read: boolean;
+  read_at: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface Message {
