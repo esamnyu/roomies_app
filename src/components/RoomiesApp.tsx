@@ -11,7 +11,7 @@ import { Toaster, toast } from 'react-hot-toast';
 import { LandingPageContent } from './LandingPageContent';
 import { HouseholdSetupForm } from './HouseholdSetupForm';
 import { OnboardingChoice } from './OnboardingChoice';
-import { HouseholdChat } from './HouseholdChat'; 
+import { HouseholdChat } from './HouseholdChat';
 import { Circle, Edit3, Trash2, AlertTriangle } from 'lucide-react'; // Added ClipboardList
 import { ChoreDashboard } from './ChoreDashboard'; // Import the new component
 
@@ -550,6 +550,30 @@ const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = (
   }, [refreshData]);
 
   useEffect(() => {
+    if (!householdId) return;
+  
+    const subscription = api.subscribeToSettlements(householdId, (newSettlement) => {
+      setSettlements(prev => {
+        // Check if settlement already exists to prevent duplicates
+        const exists = prev.some(s => s.id === newSettlement.id);
+        if (exists) return prev;
+              
+        // Add new settlement at the beginning
+        const updated = [newSettlement, ...prev];
+        // Keep only the most recent 50 settlements
+        return updated.slice(0, 50);
+      });
+  
+      // Recalculate balances
+      setTimeout(() => refreshData(false), 100);
+    });
+  
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [householdId, refreshData]);
+
+  useEffect(() => {
     const processAndRefresh = async () => {
       if (!householdId) return;
       try {
@@ -846,14 +870,31 @@ const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = (
 
     const handleSubmit = async () => {
       if (!payeeId || !customAmount || !householdId) return;
+    
+      // Add validation
+      const amount = parseFloat(customAmount);
+      if (isNaN(amount) || amount <= 0) {
+        toast.error('Please enter a valid amount greater than 0');
+        return;
+      }
+    
+      if (payeeId === user?.id) {
+        toast.error('Cannot create a payment to yourself');
+        return;
+      }
+    
       setSubmitting(true);
       try {
-        await api.createSettlement(householdId, payeeId, parseFloat(customAmount), description);
+        await api.createSettlement(householdId, payeeId, amount, description);
         await refreshData();
         setShowSettleUp(false);
         toast.success('Settlement recorded!');
-      } catch (error) { console.error('Error creating settlement:', error); toast.error('Failed to record settlement'); }
-      finally { setSubmitting(false); }
+      } catch (error) {
+        console.error('Error creating settlement:', error);
+        toast.error((error as Error).message || 'Failed to record settlement');
+      } finally {
+        setSubmitting(false);
+      }
     };
     
     const getProfileForSuggestion = (suggestion: typeof settlementSuggestions[0], type: 'from' | 'to') => {
@@ -967,7 +1008,24 @@ const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = (
             <div className="space-y-4 pt-6 border-t">
               <div className="flex justify-between items-center"><h3 className="text-lg font-medium text-gray-900">Recent Settlements</h3></div>
               <div className="space-y-3">
-                {loadingData && settlements.length === 0 ? <LoadingSpinner/> : settlements.length === 0 ? <p className="text-gray-500 text-center py-4">No settlements yet.</p> : ( settlements.map(settlement => (<div key={settlement.id} className="bg-white rounded-lg shadow p-4"><div className="flex items-center justify-between"><div><p className="font-medium text-gray-900">{settlement.payer_profile?.name} → {settlement.payee_profile?.name}</p><p className="text-sm text-gray-500">{new Date(settlement.created_at).toLocaleDateString()}{settlement.description && ` • ${settlement.description}`}</p></div><div className="text-right"><p className="font-medium text-green-600">${settlement.amount.toFixed(2)}</p></div></div></div>)) )}
+                {loadingData && settlements.length === 0 ? <LoadingSpinner/> : settlements.length === 0 ? <p className="text-gray-500 text-center py-4">No settlements yet.</p> : ( settlements.map(settlement => (
+                  <div key={settlement.id} className="bg-white rounded-lg shadow p-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="font-medium text-gray-900">
+                          {settlement.payer_profile?.name || 'Unknown'} → {settlement.payee_profile?.name || 'Unknown'}
+                        </p>
+                        <p className="text-sm text-gray-500">
+                          {new Date(settlement.created_at).toLocaleDateString()}
+                          {settlement.description && ` • ${settlement.description}`}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-medium text-green-600">${settlement.amount.toFixed(2)}</p>
+                      </div>
+                    </div>
+                  </div>
+                )))}
               </div>
             </div>
           </div>
@@ -1119,16 +1177,3 @@ const App: React.FC = () => {
 export default function RoomiesApp() {
   return ( <AuthProvider> <App /> </AuthProvider> );
 }
-
-// Helper CSS classes (ensure these are in globals.css or defined)
-/*
-.input { @apply mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm; }
-.input-sm { @apply px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm; }
-.checkbox { @apply h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded; }
-.btn { @apply px-3 py-2 text-sm font-medium rounded-md transition-colors duration-150 ease-in-out; }
-.btn-primary { @apply bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50; }
-.btn-primary-sm { @apply inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded shadow-sm text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50; }
-.btn-secondary { @apply bg-gray-200 text-gray-700 hover:bg-gray-300 disabled:opacity-50; }
-.btn-secondary-sm { @apply inline-flex items-center px-2.5 py-1.5 border border-gray-300 text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50; }
-.btn-secondary-outline { @apply border border-gray-300 text-gray-700 bg-white hover:bg-gray-50; }
-*/
