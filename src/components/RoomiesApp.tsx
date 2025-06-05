@@ -12,6 +12,8 @@ import { LandingPageContent } from './LandingPageContent';
 import { HouseholdSetupForm } from './HouseholdSetupForm';
 import { OnboardingChoice } from './OnboardingChoice';
 import { HouseholdChat } from './HouseholdChat'; 
+import { Circle, Edit3, Trash2, AlertTriangle } from 'lucide-react'; // Added ClipboardList
+import { ChoreDashboard } from './ChoreDashboard'; // Import the new component
 
 // Layout Component
 const Layout: React.FC<{ children: React.ReactNode; title?: string; showBack?: boolean; onBack?: () => void }> = ({
@@ -488,60 +490,50 @@ const Dashboard: React.FC<{ setAppState: (state: AppState) => void }> = ({ setAp
   );
 };
 
-type HouseholdDetailTab = 'money' | 'chores' | 'communication' | 'rulesSettings';
+// Modify HouseholdDetailTab type
+type HouseholdDetailTab = 'money' | 'choresList' | 'structuredChores' | 'communication' | 'rulesSettings'; // Added 'structuredChores', renamed old 'chores' to 'choresList'
 
 const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = ({ householdId, onBack }) => {
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState<HouseholdDetailTab>('money');
+  // Default to structuredChores if chores module is primary focus now
+  const [activeTab, setActiveTab] = useState<HouseholdDetailTab>('structuredChores'); 
   const [household, setHousehold] = useState<Household | null>(null);
   const [members, setMembers] = useState<HouseholdMember[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
-  const [tasks, setTasks] = useState<Task[]>([]);
+  const [tasks, setTasks] = useState<Task[]>([]); // This is for the old "Tasks" (To-Do list)
   const [settlements, setSettlements] = useState<Settlement[]>([]);
   const [loadingData, setLoadingData] = useState(true);
   const [recurringExpenses, setRecurringExpenses] = useState<RecurringExpense[]>([]);
   
   const [showAddRecurring, setShowAddRecurring] = useState(false);
   const [showAddExpense, setShowAddExpense] = useState(false);
-  const [showAddTask, setShowAddTask] = useState(false);
+  const [showAddTask, setShowAddTask] = useState(false); // For the old "Tasks"
   const [showManageJoinCode, setShowManageJoinCode] = useState(false);
   const [currentJoinCode, setCurrentJoinCode] = useState<string | null | undefined>(undefined);
   const [showSettleUp, setShowSettleUp] = useState(false);
 
   const refreshData = useCallback(async (showToast = false) => {
+    // ... (refreshData logic largely unchanged, ensure it fetches household details for chore setup)
     if (!householdId) return;
     setLoadingData(true);
-    let useOptimized = true; // Prefer optimized
     try {
-      if (typeof api.getHouseholdData !== 'function') useOptimized = false;
+        const data = await api.getHouseholdData(householdId); // This RPC should ideally include household chore settings too
+        let fetchedHouseholdDetails = data?.household;
+        
+        // If getHouseholdData RPC doesn't include all necessary household fields for chores, fetch separately
+        if (!fetchedHouseholdDetails?.core_chores || !fetchedHouseholdDetails?.chore_frequency) {
+            fetchedHouseholdDetails = await api.getHouseholdDetails(householdId);
+        }
+
+        if (fetchedHouseholdDetails) {
+          setHousehold(fetchedHouseholdDetails);
+          setCurrentJoinCode(fetchedHouseholdDetails?.join_code);
+        }
+        setMembers(data?.members || await api.getHouseholdMembers(householdId)); // Fallback
+        setExpenses(data?.recent_expenses || await api.getHouseholdExpenses(householdId));
+        setTasks(data?.tasks || await api.getHouseholdTasks(householdId)); // For old tasks
+        setSettlements(data?.recent_settlements || (api.getHouseholdSettlements ? await api.getHouseholdSettlements(householdId) : []));
       
-      if (useOptimized) {
-        const data = await api.getHouseholdData(householdId);
-        if (data && data.household) {
-          setHousehold(data.household);
-          setCurrentJoinCode(data.household?.join_code);
-          setMembers(data.members || []);
-          setExpenses(data.recent_expenses || []);
-          setTasks(data.tasks || []);
-          setSettlements(data.recent_settlements || []);
-        } else { useOptimized = false; } // Fallback if optimized fails partially
-      }
-      
-      if(!useOptimized) { // Standard fetch or fallback
-        const [fetchedHousehold, membersData, expensesData, tasksData, settlementsData] = await Promise.all([
-          api.getHouseholdDetails(householdId),
-          api.getHouseholdMembers(householdId),
-          api.getHouseholdExpenses(householdId),
-          api.getHouseholdTasks(householdId),
-          api.getHouseholdSettlements ? api.getHouseholdSettlements(householdId) : Promise.resolve([]),
-        ]);
-        setHousehold(fetchedHousehold);
-        setCurrentJoinCode(fetchedHousehold?.join_code);
-        setMembers(membersData);
-        setExpenses(expensesData);
-        setTasks(tasksData);
-        setSettlements(settlementsData);
-      }
       const recurringData = await api.getHouseholdRecurringExpenses(householdId);
       setRecurringExpenses(recurringData);
       if(showToast) toast.success("Data refreshed!");
@@ -802,6 +794,7 @@ const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = (
   };
 
 
+  // Task Modal (for old tasks system)
   const AddTaskModal = () => {
     const [title, setTitle] = useState('');
     const [assignedTo, setAssignedTo] = useState('');
@@ -810,8 +803,8 @@ const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = (
       if (!title || !householdId) return;
       setSubmitting(true);
       try {
-        await api.createTask(householdId, title, assignedTo || undefined);
-        await refreshData();
+        await api.createTask(householdId, title, assignedTo || undefined); // Uses old createTask
+        await refreshData(); // Refresh all data, including tasks
         setShowAddTask(false); toast.success('Task added!');
       } catch (error) { console.error('Error creating task:', error); toast.error((error as Error).message || 'Failed to create task'); }
       finally { setSubmitting(false); }
@@ -901,8 +894,9 @@ const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = (
     catch (error) { console.error('Error marking expense settled:', error); toast.error('Failed to mark expense settled.'); }
   };
 
+  // completeTask (for old tasks system)
   const completeTask = async (taskId: string) => {
-    try { await api.completeTask(taskId); await refreshData(); toast.success('Task completed!'); }
+    try { await api.completeTask(taskId); await refreshData(); toast.success('Task completed!'); } // Uses old completeTask
     catch (error) { console.error('Error completing task:', error); toast.error('Failed to complete task.'); }
   };
 
@@ -935,17 +929,21 @@ const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = (
 
         <div className="border-b border-gray-200">
           <nav className="-mb-px flex space-x-4 sm:space-x-8 overflow-x-auto">
-            {(['money', 'chores', 'communication', 'rulesSettings'] as HouseholdDetailTab[]).map(tab => (
+            {(['money', 'structuredChores', 'choresList', 'communication', 'rulesSettings'] as HouseholdDetailTab[]).map(tab => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
                 className={`py-2 px-1 sm:px-3 border-b-2 font-medium text-sm whitespace-nowrap ${activeTab === tab ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}
               >
                 {tab === 'money' && <DollarSign className="inline h-4 w-4 mr-1" />}
-                {tab === 'chores' && <ClipboardList className="inline h-4 w-4 mr-1" />}
+                {tab === 'structuredChores' && <ClipboardList className="inline h-4 w-4 mr-1" />}
+                {tab === 'choresList' && <CheckSquare className="inline h-4 w-4 mr-1" />} 
                 {tab === 'communication' && <MessageSquare className="inline h-4 w-4 mr-1" />}
                 {tab === 'rulesSettings' && <Settings className="inline h-4 w-4 mr-1" />}
-                {tab === 'money' ? 'Money' : tab === 'chores' ? 'Chores' : tab === 'communication' ? 'Communication' : 'Rules & Settings'}
+                {tab === 'money' ? 'Money' : 
+                 tab === 'structuredChores' ? 'Chores (New)' : 
+                 tab === 'choresList' ? 'Tasks (Old)' : 
+                 tab === 'communication' ? 'Communication' : 'Rules & Settings'}
               </button>
             ))}
           </nav>
@@ -975,11 +973,14 @@ const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = (
           </div>
         )}
 
-        {activeTab === 'chores' && (
+        {activeTab === 'structuredChores' && householdId && (
+          <ChoreDashboard householdId={householdId} />
+        )}
+
+        {activeTab === 'choresList' && ( // This is the OLD tasks system
             <div className="space-y-4">
-                <div className="flex justify-between items-center"><h3 className="text-lg font-medium text-gray-900">Tasks (Chores)</h3><button onClick={() => setShowAddTask(true)} className="btn-primary-sm flex items-center"><Plus className="h-4 w-4 mr-1" />Add Task</button></div>
+                <div className="flex justify-between items-center"><h3 className="text-lg font-medium text-gray-900">Tasks (To-Do List)</h3><button onClick={() => setShowAddTask(true)} className="btn-primary-sm flex items-center"><Plus className="h-4 w-4 mr-1" />Add Task</button></div>
                  <div className="space-y-3"> {loadingData && tasks.filter(t => !t.completed).length === 0 && tasks.filter(t => t.completed).length === 0 ? <LoadingSpinner/> : tasks.filter(t => !t.completed).length === 0 && tasks.filter(t => t.completed).length === 0 ? <p className="text-gray-500 text-center py-4">No tasks yet.</p> : (<> {tasks.filter(t => !t.completed).length > 0 && <h4 className="text-sm font-medium text-gray-700">To Do</h4>} {tasks.filter(t => !t.completed).map(task => (<div key={task.id} className="bg-white rounded-lg shadow p-4"><div className="flex items-center justify-between"><div className="flex items-center"><button onClick={() => completeTask(task.id)} className="flex-shrink-0 p-1 rounded-full hover:bg-gray-100" title="Mark task as complete"><div className="h-5 w-5 rounded-full border-2 border-gray-300 hover:border-green-500" /></button><div className="ml-3"><p className="font-medium text-gray-900">{task.title}</p>{task.profiles && (<p className="text-sm text-gray-500">Assigned to {task.profiles.name}</p>)}{!task.profiles && (<p className="text-sm text-gray-400">Unassigned</p>)}</div></div></div></div>))} {tasks.filter(t => t.completed).length > 0 && (<><h4 className="text-sm font-medium text-gray-500 mt-6 pt-4 border-t">Completed</h4>{tasks.filter(t => t.completed).map(task => (<div key={task.id} className="bg-gray-100 rounded-lg p-4 opacity-70"><div className="flex items-center"><CheckSquare className="h-5 w-5 text-green-500 flex-shrink-0" /><div className="ml-3"><p className="text-gray-500 line-through">{task.title}</p>{task.profiles && (<p className="text-xs text-gray-400 line-through">Done by {task.profiles.name}</p>)}</div></div></div>))}</>)} </>)} </div>
-                 <div className="text-center text-gray-400 mt-8 p-4 border-2 border-dashed rounded-lg">Future: Dedicated Chores Management Area</div>
             </div>
         )}
 
@@ -1014,7 +1015,7 @@ const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = (
       </div>
 
       {showAddExpense && <AddExpenseModal />}
-      {showAddTask && <AddTaskModal />}
+      {showAddTask && <AddTaskModal />} {/* This is for the old "Tasks" */}
       {showSettleUp && <SettleUpModal />}
       {showAddRecurring && <AddRecurringExpenseModal />}
       {showManageJoinCode && householdId && (
@@ -1024,7 +1025,6 @@ const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = (
             onClose={() => setShowManageJoinCode(false)}
             onCodeRefreshed={(newCode) => {
                 setCurrentJoinCode(newCode);
-                // Update the household state to reflect new code if needed for other parts
                 if (household) setHousehold({...household, join_code: newCode });
             }}
         />
@@ -1035,9 +1035,11 @@ const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = (
 
 type AppState = 'loading' | 'landing' | 'authForm' | 'onboardingChoice' | 'householdSetup' | 'dashboard' | 'joinWithCode' | 'householdWelcome';
 
+// App component (Main logic for app state and routing)
 const App: React.FC = () => {
+  // ... (App component logic remains largely the same, ensures household data is fetched for onboarding/dashboard decisions)
   const { user, loading: authLoading } = useAuth();
-  const [households, setHouseholds] = useState<Household[]>([]);
+  const [households, setHouseholds] = useState<Household[]>([]); // User's households
   const [loadingUserHouseholds, setLoadingUserHouseholds] = useState(true);
   const [appState, setAppState] = useState<AppState>('loading');
   const [isRegisteringForAuthForm, setIsRegisteringForAuthForm] = useState(false);
@@ -1059,11 +1061,11 @@ const App: React.FC = () => {
 
       setLoadingUserHouseholds(true);
       try {
-        const userHouseholds = await api.getUserHouseholds();
-        setHouseholds(userHouseholds); // Keep this state for potential future use or direct passing
-
+        const userHouseholds = await api.getUserHouseholds(); // This RPC should return enough info
+        setHouseholds(userHouseholds); 
+        
         const queryParams = new URLSearchParams(window.location.search);
-        const joinedHouseholdIdParam = queryParams.get('joinedHouseholdId'); // Used after direct join
+        const joinedHouseholdIdParam = queryParams.get('joinedHouseholdId'); 
         
         if (joinedHouseholdIdParam) {
           setWelcomeHouseholdId(joinedHouseholdIdParam);
@@ -1073,18 +1075,20 @@ const App: React.FC = () => {
           window.history.replaceState({}, '', nextURL.toString());
         } else if (targetHouseholdAfterJoin) {
             setWelcomeHouseholdId(targetHouseholdAfterJoin.id);
-            // Potentially pass household name too if available on targetHouseholdAfterJoin
             setAppState('householdWelcome');
             setTargetHouseholdAfterJoin(null); 
         } else if (userHouseholds.length === 0) {
           setAppState('onboardingChoice');
         } else {
+          // Before going to dashboard, ensure chores are initialized for the primary household (if applicable)
+          // For simplicity, we might rely on checkAndTriggerChoreRotation in HouseholdDetail/ChoreDashboard
+          // Or, explicitly initialize here if needed for the first household.
           setAppState('dashboard');
         }
       } catch (error) {
         console.error("Error fetching user households", error);
         toast.error("Could not fetch your household information.");
-        setAppState('onboardingChoice');
+        setAppState('onboardingChoice'); // Fallback
       } finally {
         setLoadingUserHouseholds(false);
       }
@@ -1111,18 +1115,20 @@ const App: React.FC = () => {
   return <p>Something went wrong with application state. Current state: {appState}</p>;
 };
 
+// Default export (unchanged)
 export default function RoomiesApp() {
   return ( <AuthProvider> <App /> </AuthProvider> );
 }
 
-// Helper CSS classes (add to your globals.css or a shared style file if not using Tailwind components extensively)
+// Helper CSS classes (ensure these are in globals.css or defined)
 /*
-.input { @apply mt-1 w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm; }
+.input { @apply mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm; }
 .input-sm { @apply px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-sm; }
 .checkbox { @apply h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded; }
-.btn { @apply px-3 py-2 text-sm font-medium rounded-md; }
+.btn { @apply px-3 py-2 text-sm font-medium rounded-md transition-colors duration-150 ease-in-out; }
 .btn-primary { @apply bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50; }
-.btn-primary-sm { @apply inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50; }
-.btn-secondary { @apply px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md disabled:opacity-50; }
-.btn-secondary-outline { @apply bg-gray-100 text-gray-700 hover:bg-gray-200; }
+.btn-primary-sm { @apply inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded shadow-sm text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50; }
+.btn-secondary { @apply bg-gray-200 text-gray-700 hover:bg-gray-300 disabled:opacity-50; }
+.btn-secondary-sm { @apply inline-flex items-center px-2.5 py-1.5 border border-gray-300 text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50; }
+.btn-secondary-outline { @apply border border-gray-300 text-gray-700 bg-white hover:bg-gray-50; }
 */
