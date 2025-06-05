@@ -125,6 +125,18 @@ export interface Message {
   profiles?: Profile
 }
 
+// Define the type for the RPC response
+interface MessageWithProfileRPC {
+  id: string
+  household_id: string
+  user_id: string
+  content: string
+  edited: boolean
+  deleted: boolean
+  created_at: string
+  updated_at: string
+  profile: any // This will be JSON from the RPC
+}
 
 // Auth functions (signUp, signIn, signOut, getSession) - unchanged
 export const signUp = async (email: string, password: string, name: string) => {
@@ -1147,18 +1159,19 @@ export const sendMessage = async (householdId: string, content: string) => {
       user_id: user.id,
       content: content.trim()
     })
-    .select(`
-      *,
-      profiles:user_id (
-        id,
-        name,
-        avatar_url
-      )
-    `)
+    .select()
     .single()
 
   if (error) throw error
-  return data
+
+  // Fetch complete profile
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('*') // Select all fields
+    .eq('id', user.id)
+    .single()
+
+  return { ...data, profiles: profile || undefined }
 }
 
 export const getHouseholdMessages = async (
@@ -1166,36 +1179,30 @@ export const getHouseholdMessages = async (
   limit = 50,
   before?: string
 ) => {
-  let query = supabase
-    .from('messages')
-    .select(`
-      *,
-      profiles:user_id (
-        id,
-        name,
-        avatar_url
-      )
-    `)
-    .eq('household_id', householdId)
-    .eq('deleted', false)
-    .order('created_at', { ascending: false })
-    .limit(limit)
-
-  if (before) {
-    query = query.lt('created_at', before)
-  }
-
-  const { data, error } = await query
+  const { data, error } = await supabase
+    .rpc('get_messages_with_profiles', {
+      p_household_id: householdId,
+      p_limit: limit,
+      p_before: before
+    })
   
   if (error) throw error
-  return (data || []).reverse() // Reverse to show oldest first
+  
+  // Parse profile JSON and reverse
+  return ((data || []) as MessageWithProfileRPC[]).map((msg: MessageWithProfileRPC) => ({
+    ...msg,
+    profiles: msg.profile
+  })).reverse()
 }
 
 // Subscribe to new messages
+// In api.ts
 export const subscribeToMessages = (
   householdId: string,
   onMessage: (message: Message) => void
 ) => {
+  console.log('Setting up subscription for household:', householdId);
+  
   const subscription = supabase
     .channel(`messages:${householdId}`)
     .on(
@@ -1207,26 +1214,33 @@ export const subscribeToMessages = (
         filter: `household_id=eq.${householdId}`
       },
       async (payload) => {
-        // Fetch the complete message with profile
-        const { data } = await supabase
-          .from('messages')
-          .select(`
-            *,
-            profiles:user_id (
-              id,
-              name,
-              avatar_url
-            )
-          `)
-          .eq('id', payload.new.id)
-          .single()
+        console.log('Received payload:', payload);
         
-        if (data) onMessage(data)
+        if (payload.new && payload.new.household_id === householdId) {
+          // Cast the payload.new to Message type
+          const newMessage = payload.new as Message;
+          
+          // Fetch the complete profile (including all required fields)
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('*') // Select all fields to match Profile interface
+            .eq('id', newMessage.user_id)
+            .single();
+          
+          // Combine message with profile
+          const messageWithProfile: Message = {
+            ...newMessage,
+            profiles: profile || undefined
+          };
+          
+          console.log('Calling onMessage with:', messageWithProfile);
+          onMessage(messageWithProfile);
+        }
       }
     )
-    .subscribe()
+    .subscribe();
 
-  return subscription
+  return subscription;
 }
 
 
