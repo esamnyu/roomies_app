@@ -103,7 +103,7 @@ export interface Notification {
   id: string
   user_id: string
   household_id: string | null
-  type: 'expense_added' | 'payment_reminder' | 'task_assigned' | 'task_completed' | 'settlement_recorded' | 'recurring_expense_added' | 'member_joined' | 'member_left' | 'household_invitation' // Added 'household_invitation'
+  type: 'expense_added' | 'payment_reminder' | 'task_assigned' | 'task_completed' | 'settlement_recorded' | 'recurring_expense_added' | 'member_joined' | 'member_left' | 'household_invitation' | 'message_sent' // Added 'household_invitation'
   title: string
   message: string
   data: any
@@ -112,6 +112,19 @@ export interface Notification {
   created_at: string
   updated_at: string
 }
+
+export interface Message {
+  id: string
+  household_id: string
+  user_id: string
+  content: string
+  edited: boolean
+  deleted: boolean
+  created_at: string
+  updated_at: string
+  profiles?: Profile
+}
+
 
 // Auth functions (signUp, signIn, signOut, getSession) - unchanged
 export const signUp = async (email: string, password: string, name: string) => {
@@ -691,251 +704,6 @@ export const getHouseholdSettlements = async (householdId: string) => {
   return data || []
 }
 
-// --- CORRECTED INVITATION FUNCTIONS ---
-
-// Get pending invitations for current user:
-// export const getMyPendingInvitations = async () => {
-//   const { data: { user } } = await supabase.auth.getUser();
-//   if (!user) throw new Error('Not authenticated');
-
-//   const userEmail = user.email;
-//   if (!userEmail) throw new Error('User email not found');
-
-//   // Simpler query first, then enrich with inviter profile
-//   const { data: invitations, error } = await supabase
-//     .from('invitations')
-//     .select(`
-//       *,
-//       households (id, name)
-//     `)
-//     .eq('email', userEmail.toLowerCase()) // Ensure lowercase for consistency
-//     .eq('status', 'pending')
-//     .order('created_at', { ascending: false });
-
-//   if (error) {
-//     console.error('Error fetching invitations:', error);
-//     throw error;
-//   }
-
-//   if (invitations && invitations.length > 0) {
-//     const inviterIds = [...new Set(invitations.map(inv => inv.invited_by).filter(Boolean))];
-    
-//     if (inviterIds.length > 0) {
-//         const { data: inviterProfiles, error: profileError } = await supabase
-//           .from('profiles')
-//           .select('id, name')
-//           .in('id', inviterIds);
-
-//         if (profileError) {
-//             console.error('Error fetching inviter profiles:', profileError);
-//             // Proceed without inviter profiles if fetch fails
-//              return invitations.map(invitation => ({
-//                 ...invitation,
-//                 inviter: null // Set inviter to null if profiles couldn't be fetched
-//             }));
-//         }
-        
-//         return invitations.map(invitation => ({
-//           ...invitation,
-//           inviter: inviterProfiles?.find(p => p.id === invitation.invited_by) || null
-//         }));
-//     }
-//   }
-//   return invitations || [];
-// };
-
-// // Create invitation with better error handling:
-// export const createInvitation = async (householdId: string, inviteeEmail: string) => {
-//   const { data: { user } } = await supabase.auth.getUser();
-//   if (!user) throw new Error('Not authenticated');
-  
-//   const normalizedEmail = inviteeEmail.toLowerCase().trim();
-
-//   // Check if the inviter is a member of the household
-//   const { data: inviterMembership, error: inviterMemberError } = await supabase
-//     .from('household_members')
-//     .select('role')
-//     .eq('household_id', householdId)
-//     .eq('user_id', user.id)
-//     .single();
-
-//   if (inviterMemberError || !inviterMembership) {
-//     throw new Error('You are not a member of this household or cannot send invitations.');
-//   }
-
-//   // Check if the target user exists
-//   const { data: targetUser, error: targetUserError } = await supabase
-//     .from('profiles')
-//     .select('id, email') // Select email to ensure it matches normalizedEmail
-//     .eq('email', normalizedEmail)
-//     .single();
-
-//   if (targetUserError || !targetUser) {
-//     throw new Error('No user found with this email address. They need to create an account first.');
-//   }
-  
-//   // Check if the target user is already a member of the household
-//   const { data: existingMember, error: existingMemberError } = await supabase
-//     .from('household_members')
-//     .select('id')
-//     .eq('household_id', householdId)
-//     .eq('user_id', targetUser.id)
-//     .single();
-
-//   if (existingMember) {
-//     throw new Error('This user is already a member of the household.');
-//   }
-//   if (existingMemberError && existingMemberError.code !== 'PGRST116') { // PGRST116 means no rows found, which is good here
-//     throw existingMemberError;
-//   }
-
-//   // Check for existing pending invitation
-//   const { data: existingInvitation, error: existingInviteError } = await supabase
-//     .from('invitations')
-//     .select('id, created_at')
-//     .eq('household_id', householdId)
-//     .eq('email', normalizedEmail)
-//     .eq('status', 'pending')
-//     .single();
-    
-//   if (existingInvitation) {
-//     throw new Error('An invitation has already been sent to this email for this household.');
-//   }
-//    if (existingInviteError && existingInviteError.code !== 'PGRST116') {
-//     throw existingInviteError;
-//   }
-
-
-//   // Use the RPC function
-//   const { data, error: rpcError } = await supabase
-//     .rpc('send_invitation', {
-//       p_household_id: householdId,
-//       p_email: normalizedEmail,
-//       p_inviter_id: user.id // Make sure your RPC function accepts and uses this
-//     });
-
-//   if (rpcError) {
-//     console.error('Error creating invitation via RPC:', rpcError);
-//     // Provide more specific error messages based on common Supabase errors
-//     if (rpcError.message.includes('User not found')) {
-//         throw new Error('No user found with this email address. They need to create an account first.');
-//     } else if (rpcError.message.includes('already a member')) {
-//         throw new Error('This user is already a member of the household.');
-//     } else if (rpcError.message.includes('invitation already exists')) {
-//         throw new Error('An invitation has already been sent to this email for this household.');
-//     }
-//     throw new Error(rpcError.message || 'Failed to send invitation.');
-//   }
-  
-//   return data; // Assuming RPC returns some data on success
-// };
-
-
-// // Accept invitation with better error handling:
-// export const acceptInvitation = async (invitationId: string) => {
-//   const { data: { user } } = await supabase.auth.getUser();
-//   if (!user || !user.email) throw new Error('Not authenticated or user email missing');
-
-//   // Verify the invitation exists, is for this user, and is pending
-//   const { data: invitation, error: fetchError } = await supabase
-//     .from('invitations')
-//     .select('*, households(*)') // Fetch household details too
-//     .eq('id', invitationId)
-//     .eq('email', user.email.toLowerCase())
-//     .eq('status', 'pending')
-//     .single();
-
-//   if (fetchError || !invitation) {
-//     console.error('Error fetching invitation or invitation not found/valid:', fetchError);
-//     throw new Error('Invitation not found, not for you, or already processed.');
-//   }
-
-//   // Check if invitation is expired
-//   if (new Date(invitation.expires_at) < new Date()) {
-//     // Optionally, update status to 'expired'
-//     await supabase.from('invitations').update({ status: 'expired' }).eq('id', invitationId);
-//     throw new Error('This invitation has expired.');
-//   }
-
-//   // Call the RPC function to accept the invitation
-//   const { data: rpcData, error: rpcError } = await supabase
-//     .rpc('accept_invitation', {
-//       p_invitation_id: invitationId,
-//       p_user_id: user.id // Pass user_id to RPC
-//     });
-
-//   if (rpcError) {
-//     console.error('Error accepting invitation via RPC:', rpcError);
-//      if (rpcError.message.includes('already a member')) { // Check for specific error message from RPC
-//         throw new Error('You are already a member of this household.');
-//     }
-//     throw new Error(rpcError.message || 'Failed to accept invitation.');
-//   }
-
-//   // Return success and household data for UI update
-//   return { success: true, household: invitation.households, rpcData };
-// };
-
-// // Decline invitation (FIXED):
-// export const declineInvitation = async (invitationId: string) => {
-//   const { data: { user } } = await supabase.auth.getUser();
-//   if (!user || !user.email) throw new Error('Not authenticated or user email missing');
-
-//   // Fetch the invitation to ensure it's valid for this user
-//   const { data: invitation, error: fetchError } = await supabase
-//     .from('invitations')
-//     .select('*, households(id, name), profiles!invitations_invited_by_fkey(id, name)') // Join with households and inviter profile
-//     .eq('id', invitationId)
-//     .eq('email', user.email.toLowerCase())
-//     .eq('status', 'pending')
-//     .single();
-
-//   if (fetchError || !invitation) {
-//     console.error('Error fetching invitation or invitation not found/valid for decline:', fetchError);
-//     throw new Error('Invitation not found or already processed.');
-//   }
-
-//   // Update invitation status to 'declined'
-//   const { error: updateError } = await supabase
-//     .from('invitations')
-//     .update({
-//       status: 'declined',
-//       updated_at: new Date().toISOString()
-//     })
-//     .eq('id', invitationId);
-
-//   if (updateError) {
-//     console.error('Error updating invitation status to declined:', updateError);
-//     throw updateError;
-//   }
-
-//   // Notify the inviter (optional, but good practice)
-//   const { data: currentUserProfile } = await getProfile(user.id); // Re-fetch current user's profile for name
-//   if (currentUserProfile && invitation.invited_by && invitation.households) {
-//     try {
-//       await createNotification(
-//         invitation.invited_by,
-//         'member_left', // Or a more specific type like 'invitation_declined'
-//         'Invitation Declined',
-//         `${currentUserProfile.name || 'A user'} has declined your invitation to join ${invitation.households.name}.`,
-//         invitation.household_id,
-//         { declined_user_id: user.id, household_name: invitation.households.name }
-//       );
-//     } catch (notifError) {
-//       console.error("Failed to send decline notification:", notifError);
-//     }
-//   }
-
-//   return { success: true, declinedInvitationId: invitation.id };
-// };
-
-// // --- END: CORRECTED INVITATION FUNCTIONS ---
-
-
-// // Alias functions for compatibility with UI components
-// export const inviteUserToHousehold = createInvitation;
-// export const getPendingInvitations = getMyPendingInvitations; // Changed from getMyPendingInvitations to match UI
-// Keep stubs if they are widely called and you want to phase them out gradually
 export const getMyPendingInvitations = async () => { 
   console.warn("getMyPendingInvitations is deprecated. Use code-based join."); return []; 
 };
@@ -1367,7 +1135,100 @@ export const getSettlementSuggestions = (
   return suggestions
 }
 
-// Add this function to your src/lib/api.ts file
+// Message functions
+export const sendMessage = async (householdId: string, content: string) => {
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) throw new Error('Not authenticated')
+
+  const { data, error } = await supabase
+    .from('messages')
+    .insert({
+      household_id: householdId,
+      user_id: user.id,
+      content: content.trim()
+    })
+    .select(`
+      *,
+      profiles:user_id (
+        id,
+        name,
+        avatar_url
+      )
+    `)
+    .single()
+
+  if (error) throw error
+  return data
+}
+
+export const getHouseholdMessages = async (
+  householdId: string,
+  limit = 50,
+  before?: string
+) => {
+  let query = supabase
+    .from('messages')
+    .select(`
+      *,
+      profiles:user_id (
+        id,
+        name,
+        avatar_url
+      )
+    `)
+    .eq('household_id', householdId)
+    .eq('deleted', false)
+    .order('created_at', { ascending: false })
+    .limit(limit)
+
+  if (before) {
+    query = query.lt('created_at', before)
+  }
+
+  const { data, error } = await query
+  
+  if (error) throw error
+  return (data || []).reverse() // Reverse to show oldest first
+}
+
+// Subscribe to new messages
+export const subscribeToMessages = (
+  householdId: string,
+  onMessage: (message: Message) => void
+) => {
+  const subscription = supabase
+    .channel(`messages:${householdId}`)
+    .on(
+      'postgres_changes',
+      {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'messages',
+        filter: `household_id=eq.${householdId}`
+      },
+      async (payload) => {
+        // Fetch the complete message with profile
+        const { data } = await supabase
+          .from('messages')
+          .select(`
+            *,
+            profiles:user_id (
+              id,
+              name,
+              avatar_url
+            )
+          `)
+          .eq('id', payload.new.id)
+          .single()
+        
+        if (data) onMessage(data)
+      }
+    )
+    .subscribe()
+
+  return subscription
+}
+
 
 export const createExpenseWithCustomSplits = async (
   householdId: string,
@@ -1486,53 +1347,3 @@ export const createExpenseV2 = async (
     isRecurring
   )
 }
-
-// // Debug function to check invitation system
-// export const debugInvitationSystem = async () => {
-//   const { data: { user } } = await supabase.auth.getUser()
-//   if (!user) throw new Error('Not authenticated')
-
-//   console.log('Current user:', user.email)
-
-//   // Check invitations table structure
-//   const { data: invitations, error: invError } = await supabase
-//     .from('invitations')
-//     .select('*')
-//     .eq('email', user.email?.toLowerCase() || '')
-//     .limit(5)
-
-//   console.log('My invitations:', invitations)
-//   console.log('Invitation error:', invError)
-
-//   // Check if user's email exists in profiles
-//   const { data: profile, error: profileError } = await supabase
-//     .from('profiles')
-//     .select('*')
-//     .eq('id', user.id)
-//     .single()
-
-//   console.log('User profile:', profile)
-//   console.log('Profile error:', profileError)
-
-//   // Check RLS status
-//   let rlsCheck, rlsError;
-//   try {
-//     const result = await supabase
-//       .rpc('check_rls_status', {
-//         table_name: 'invitations'
-//       })
-//       .single();
-//     rlsCheck = result.data;
-//     rlsError = result.error;
-//   } catch (e) {
-//     rlsCheck = null;
-//     rlsError = 'RPC not available';
-//   }
-
-//   return {
-//     user,
-//     profile,
-//     invitations,
-//     rlsStatus: rlsCheck || 'Unable to check RLS status'
-//   }
-// }
