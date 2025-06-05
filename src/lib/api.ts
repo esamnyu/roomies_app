@@ -434,13 +434,126 @@ export const completeTask = async (taskId: string): Promise<Task> => {
 
 // --- SETTLEMENT FUNCTIONS (unverändert) ---
 export const createSettlement = async (householdId: string, payeeId: string, amount: number, description?: string) => {
-  const { data: { user } } = await supabase.auth.getUser(); if (!user) throw new Error('Not authenticated');
-  const { data, error } = await supabase.from('settlements').insert({ household_id: householdId, payer_id: user.id, payee_id: payeeId, amount, description: description || `Payment from ${user.id} to ${payeeId}`}).select(`*, payer_profile:payer_id (id, name, avatar_url), payee_profile:payee_id (id, name, avatar_url)`).single();
-  if (error) throw error; return data;
+  const { data: { user } } = await supabase.auth.getUser(); 
+  if (!user) throw new Error('Not authenticated');
+  
+  // Add validation
+  if (amount <= 0) throw new Error('Settlement amount must be positive');
+  if (payeeId === user.id) throw new Error('Cannot create settlement to yourself');
+  
+  // Verify both users are in the household
+  const { data: members, error: memberError } = await supabase
+    .from('household_members')
+    .select('user_id')
+    .eq('household_id', householdId)
+    .in('user_id', [user.id, payeeId]);
+  
+  if (memberError || !members || members.length !== 2) {
+    throw new Error('Both users must be members of the household');
+  }
+  
+  // Check for recent duplicate
+  const recentCutoff = new Date();
+  recentCutoff.setMinutes(recentCutoff.getMinutes() - 1);
+  
+  const { data: recentSettlement } = await supabase
+    .from('settlements')
+    .select('id', { count: 'exact' }) // Using count is even better
+    .eq('household_id', householdId)
+    .eq('payer_id', user.id)
+    .eq('payee_id', payeeId)
+    .eq('amount', amount)
+    .gte('created_at', recentCutoff.toISOString());
+
+  if (recentSettlement && recentSettlement.length > 0) { // Check if any duplicates were found
+    throw new Error('A similar settlement was just created. Please wait a moment.');
+  }
+
+  if (recentSettlement) {
+    throw new Error('A similar settlement was just created. Please wait a moment.');
+  }
+  
+  // Get payee name for description
+  const { data: payeeProfile } = await supabase
+    .from('profiles')
+    .select('name')
+    .eq('id', payeeId)
+    .single();
+  
+  const finalDescription = description || `Payment to ${payeeProfile?.name || 'member'}`;
+  
+  const { data, error } = await supabase
+    .from('settlements')
+    .insert({ 
+      household_id: householdId, 
+      payer_id: user.id, 
+      payee_id: payeeId, 
+      amount, 
+      description: finalDescription
+    })
+    .select(`*, payer_profile:payer_id (id, name, avatar_url), payee_profile:payee_id (id, name, avatar_url)`)
+    .single();
+  
+  if (error) throw error;
+  
+  // Create notification for payee
+  const { data: payerProfile } = await getProfile(user.id);
+  if (payerProfile) {
+    await createNotification(
+      payeeId,
+      'settlement_recorded',
+      'Payment Received',
+      `${payerProfile.name} paid you $${amount.toFixed(2)}`,
+      householdId,
+      { settlement_id: data.id, amount, payer_id: user.id }
+    );
+  }
+  
+  return data;
 };
 export const getHouseholdSettlements = async (householdId: string) => {
-  const { data, error } = await supabase.from('settlements').select(`*, payer_profile:payer_id (id, name, avatar_url), payee_profile:payee_id (id, name, avatar_url)`).eq('household_id', householdId).order('created_at', { ascending: false }).limit(50);
-  if (error) throw error; return data || [];
+  const { data, error } = await supabase
+    .from('settlements')
+    .select(`
+      *,
+      payer_profile:profiles!settlements_payer_id_fkey(id, name, avatar_url),
+      payee_profile:profiles!settlements_payee_id_fkey(id, name, avatar_url)
+    `)
+    .eq('household_id', householdId)
+    .order('created_at', { ascending: false })
+    .limit(50);
+  
+  if (error) throw error;
+  return data || [];
+};
+
+// ADD THIS NEW FUNCTION:
+export const subscribeToSettlements = (householdId: string, onSettlement: (settlement: Settlement) => void) => {
+  const subscription = supabase
+    .channel(`settlements:${householdId}`)
+    .on('postgres_changes', { 
+      event: 'INSERT', 
+      schema: 'public', 
+      table: 'settlements', 
+      filter: `household_id=eq.${householdId}`
+    }, async (payload) => {
+      if (payload.new) {
+        const newSettlement = payload.new as Settlement;
+        // Fetch profiles for the settlement
+        const { data } = await supabase
+          .from('settlements')
+          .select(`
+            *,
+            payer_profile:profiles!settlements_payer_id_fkey(id, name, avatar_url),
+            payee_profile:profiles!settlements_payee_id_fkey(id, name, avatar_url)
+          `)
+          .eq('id', newSettlement.id)
+          .single();
+        if (data) onSettlement(data);
+      }
+    })
+    .subscribe();
+  return subscription;
 };
 
 // --- DEPRECATED INVITATION FUNCTIONS ---
@@ -525,11 +638,64 @@ export const sendPaymentReminder = async (householdId: string, debtorId: string,
 };
 
 // --- BALANCE & SETTLEMENT HELPERS (unverändert) ---
+// REPLACE THE ENTIRE FUNCTION:
 export const calculateBalances = (expenses: Expense[], members: HouseholdMember[], settlements?: Settlement[]): { userId: string; balance: number; profile: Profile }[] => {
-  const balanceMap = new Map<string, number>(); members.forEach(member => { balanceMap.set(member.user_id, 0); });
-  expenses.forEach(expense => { const payerBalance = balanceMap.get(expense.paid_by) || 0; balanceMap.set(expense.paid_by, payerBalance + expense.amount); expense.expense_splits?.forEach(split => { if (!split.settled) { const currentBalance = balanceMap.get(split.user_id) || 0; balanceMap.set(split.user_id, currentBalance - split.amount); }}); });
-  if (settlements) { settlements.forEach(settlement => { const payerBalance = balanceMap.get(settlement.payer_id) || 0; balanceMap.set(settlement.payer_id, payerBalance - settlement.amount); const payeeBalance = balanceMap.get(settlement.payee_id) || 0; balanceMap.set(settlement.payee_id, payeeBalance + settlement.amount); });}
-  return Array.from(balanceMap.entries()).map(([userId, balance]) => { const member = members.find(m => m.user_id === userId); if (!member?.profiles) { console.warn(`Profile not found for user ID: ${userId} in calculateBalances.`); return null; } return { userId, balance: Math.round(balance * 100) / 100, profile: member.profiles }; }).filter(Boolean) as { userId: string; balance: number; profile: Profile }[];
+  const balanceMap = new Map<string, number>();
+  
+  // Initialize all members with 0 balance (skip placeholders)
+  members.forEach(member => {
+    if (member.user_id && !member.user_id.startsWith('placeholder_')) {
+      balanceMap.set(member.user_id, 0);
+    }
+  });
+  
+  // Process expenses
+  expenses.forEach(expense => {
+    if (!expense.paid_by || !balanceMap.has(expense.paid_by)) return;
+    
+    const payerBalance = balanceMap.get(expense.paid_by) || 0;
+    balanceMap.set(expense.paid_by, payerBalance + expense.amount);
+    
+    expense.expense_splits?.forEach(split => {
+      if (!split.settled && split.user_id && balanceMap.has(split.user_id)) {
+        const currentBalance = balanceMap.get(split.user_id) || 0;
+        balanceMap.set(split.user_id, currentBalance - split.amount);
+      }
+    });
+  });
+  
+  // Process settlements with validation
+  if (settlements) {
+    settlements.forEach(settlement => {
+      if (!settlement.payer_id || !settlement.payee_id || settlement.amount <= 0) return;
+      
+      if (balanceMap.has(settlement.payer_id)) {
+        const payerBalance = balanceMap.get(settlement.payer_id) || 0;
+        balanceMap.set(settlement.payer_id, payerBalance - settlement.amount);
+      }
+      
+      if (balanceMap.has(settlement.payee_id)) {
+        const payeeBalance = balanceMap.get(settlement.payee_id) || 0;
+        balanceMap.set(settlement.payee_id, payeeBalance + settlement.amount);
+      }
+    });
+  }
+  
+  // Convert to array and filter out invalid entries
+  return Array.from(balanceMap.entries())
+    .map(([userId, balance]) => {
+      const member = members.find(m => m.user_id === userId);
+      if (!member?.profiles) {
+        console.warn(`Profile not found for user ID: ${userId} in calculateBalances.`);
+        return null;
+      }
+      return {
+        userId,
+        balance: Math.round(balance * 100) / 100,
+        profile: member.profiles
+      };
+    })
+    .filter(Boolean) as { userId: string; balance: number; profile: Profile }[];
 };
 export const getSettlementSuggestions = (balances: ReturnType<typeof calculateBalances>): { from: string; to: string; amount: number; fromProfile: Profile; toProfile: Profile }[] => {
   const suggestions: { from: string; to: string; amount: number; fromProfile: Profile; toProfile: Profile }[] = [];
