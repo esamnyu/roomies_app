@@ -100,17 +100,42 @@ export interface RecurringExpense {
 }
 
 export interface Notification {
+  id: string;
+  user_id: string;
+  household_id: string | null;
+  type: 'expense_added' | 'payment_reminder' | 'task_assigned' | 'task_completed' | 'settlement_recorded' | 'recurring_expense_added' | 'member_joined' | 'member_left' | 'household_invitation' | 'message_sent'; // <-- Add 'message_sent' here
+  title: string;
+  message: string;
+  data: any;
+  is_read: boolean;
+  read_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Message {
   id: string
+  household_id: string
   user_id: string
-  household_id: string | null
-  type: 'expense_added' | 'payment_reminder' | 'task_assigned' | 'task_completed' | 'settlement_recorded' | 'recurring_expense_added' | 'member_joined' | 'member_left' | 'household_invitation' // Added 'household_invitation'
-  title: string
-  message: string
-  data: any
-  is_read: boolean
-  read_at: string | null
+  content: string
+  edited: boolean
+  deleted: boolean
   created_at: string
   updated_at: string
+  profiles?: Profile
+}
+
+// Define the type for the RPC response
+interface MessageWithProfileRPC {
+  id: string
+  household_id: string
+  user_id: string
+  content: string
+  edited: boolean
+  deleted: boolean
+  created_at: string
+  updated_at: string
+  profile: any // This will be JSON from the RPC
 }
 
 // Auth functions (signUp, signIn, signOut, getSession) - unchanged
@@ -1122,7 +1147,102 @@ export const getSettlementSuggestions = (
   return suggestions
 }
 
-// Add this function to your src/lib/api.ts file
+// Message functions
+export const sendMessage = async (householdId: string, content: string) => {
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) throw new Error('Not authenticated')
+
+  const { data, error } = await supabase
+    .from('messages')
+    .insert({
+      household_id: householdId,
+      user_id: user.id,
+      content: content.trim()
+    })
+    .select()
+    .single()
+
+  if (error) throw error
+
+  // Fetch complete profile
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('*') // Select all fields
+    .eq('id', user.id)
+    .single()
+
+  return { ...data, profiles: profile || undefined }
+}
+
+export const getHouseholdMessages = async (
+  householdId: string,
+  limit = 50,
+  before?: string
+) => {
+  const { data, error } = await supabase
+    .rpc('get_messages_with_profiles', {
+      p_household_id: householdId,
+      p_limit: limit,
+      p_before: before
+    })
+  
+  if (error) throw error
+  
+  // Parse profile JSON and reverse
+  return ((data || []) as MessageWithProfileRPC[]).map((msg: MessageWithProfileRPC) => ({
+    ...msg,
+    profiles: msg.profile
+  })).reverse()
+}
+
+// Subscribe to new messages
+// In api.ts
+export const subscribeToMessages = (
+  householdId: string,
+  onMessage: (message: Message) => void
+) => {
+  console.log('Setting up subscription for household:', householdId);
+  
+  const subscription = supabase
+    .channel(`messages:${householdId}`)
+    .on(
+      'postgres_changes',
+      {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'messages',
+        filter: `household_id=eq.${householdId}`
+      },
+      async (payload) => {
+        console.log('Received payload:', payload);
+        
+        if (payload.new && payload.new.household_id === householdId) {
+          // Cast the payload.new to Message type
+          const newMessage = payload.new as Message;
+          
+          // Fetch the complete profile (including all required fields)
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('*') // Select all fields to match Profile interface
+            .eq('id', newMessage.user_id)
+            .single();
+          
+          // Combine message with profile
+          const messageWithProfile: Message = {
+            ...newMessage,
+            profiles: profile || undefined
+          };
+          
+          console.log('Calling onMessage with:', messageWithProfile);
+          onMessage(messageWithProfile);
+        }
+      }
+    )
+    .subscribe();
+
+  return subscription;
+}
+
 
 export const createExpenseWithCustomSplits = async (
   householdId: string,

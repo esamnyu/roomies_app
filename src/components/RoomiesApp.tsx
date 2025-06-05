@@ -11,6 +11,7 @@ import { Toaster, toast } from 'react-hot-toast';
 import { LandingPageContent } from './LandingPageContent';
 import { HouseholdSetupForm } from './HouseholdSetupForm';
 import { OnboardingChoice } from './OnboardingChoice';
+import { HouseholdChat } from './HouseholdChat'; 
 
 // Layout Component
 const Layout: React.FC<{ children: React.ReactNode; title?: string; showBack?: boolean; onBack?: () => void }> = ({
@@ -996,7 +997,11 @@ const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = (
             <div className="space-y-3">
               {loadingData && members.length === 0 ? <LoadingSpinner/> : members.map(member => (<div key={member.id} className="bg-white rounded-lg shadow p-4"><div className="flex items-center justify-between"><div className="flex items-center"><div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center text-gray-500">{member.profiles?.name?.charAt(0).toUpperCase() || <User className="h-5 w-5" />}</div><div className="ml-3"><p className="font-medium text-gray-900">{member.profiles?.name}</p><p className="text-xs text-gray-400">{member.role}</p></div></div></div></div>))}
             </div>
-            <div className="text-center text-gray-400 mt-8 p-4 border-2 border-dashed rounded-lg">Placeholder: Chat feature coming soon!</div>
+             {/* Chat Section */}
+            <div className="mt-6">
+              <h3 className="text-lg font-medium text-gray-900 mb-4">Household Chat</h3>
+              <HouseholdChat householdId={householdId} />
+            </div>
           </div>
         )}
 
