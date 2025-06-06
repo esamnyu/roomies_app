@@ -279,12 +279,17 @@ export const createHousehold = async (params: CreateHouseholdParams) => {
   return household;
 };
 
+// src/lib/api.ts
 export const getUserHouseholds = async () => {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) throw new Error('Not authenticated')
   const { data, error } = await supabase
     .rpc('get_user_households_with_counts', { p_user_id: user.id })
-  if (error) throw error
+
+  if (error) {
+    console.error('Error in getUserHouseholds RPC:', error); // More specific logging
+    throw error
+  }
   return data || []
 }
 
@@ -301,7 +306,11 @@ export const getHouseholdDetails = async (householdId: string): Promise<Househol
     .select('*')
     .eq('id', householdId)
     .single();
-  if (error) { console.error('Error fetching household details:', error); return null; }
+  // If no household found, return null instead of throwing an error
+  if (error) {
+    console.error('Error fetching household details:', error);
+    throw error; // Throw the error to be caught by the calling function's try/catch block
+  }
   return data;
 };
 
@@ -310,19 +319,17 @@ export const getHouseholdMembers = async (householdId: string): Promise<Househol
     .from('household_members')
     .select(`
       *,
-      profiles (*), 
-      households (*)
-    `)
+      profiles (*)
+    `) // REMOVED households (*)
     .eq('household_id', householdId)
-    .order('joined_at', { ascending: true }); // CORRECTED: Was 'created_at'
+    .order('joined_at', { ascending: true });
 
   if (error) {
-    console.error('Error fetching household members:', error); // It's good to log the specific error
+    console.error('Error fetching household members:', error);
     throw error;
   }
   return data || [];
 };
-
 
 // --- JOIN CODE FUNCTIONS (unverändert) ---
 const generateRandomCode = (length = 4): string => {
@@ -378,13 +385,8 @@ export const joinHouseholdWithCode = async (joinCode: string): Promise<Household
   return household as Household;
 };
 
-// --- EXPENSE FUNCTIONS (unverändert) ---
-export const createExpense = async (householdId: string, description: string, amount: number, date?: string, isRecurring: boolean = false) => {
-  const { data: { user } } = await supabase.auth.getUser(); if (!user) throw new Error('Not authenticated');
-  const finalDescription = isRecurring ? `${description} (Recurring)` : description;
-  const { data, error } = await supabase.rpc('create_expense_with_splits', { p_household_id: householdId, p_description: finalDescription, p_amount: amount, p_paid_by: user.id, p_date: date || new Date().toISOString().split('T')[0]});
-  if (error) throw error; return data;
-};
+// --- EXPENSE FUNCTIONS  ---
+
 export const getHouseholdExpenses = async (householdId: string) => {
   const { data, error } = await supabase.from('expenses').select(`*, profiles:paid_by (id, name, avatar_url), expense_splits (*, profiles:user_id (id, name, avatar_url))`).eq('household_id', householdId).order('date', { ascending: false }).order('created_at', { ascending: false });
   if (error) throw error; return data || [];
@@ -434,79 +436,24 @@ export const completeTask = async (taskId: string): Promise<Task> => {
 
 // --- SETTLEMENT FUNCTIONS (unverändert) ---
 export const createSettlement = async (householdId: string, payeeId: string, amount: number, description?: string) => {
-  const { data: { user } } = await supabase.auth.getUser(); 
-  if (!user) throw new Error('Not authenticated');
-  
-  // Add validation
-  if (amount <= 0) throw new Error('Settlement amount must be positive');
-  if (payeeId === user.id) throw new Error('Cannot create settlement to yourself');
-  
-  // Verify both users are in the household
-  const { data: members, error: memberError } = await supabase
-    .from('household_members')
-    .select('user_id')
-    .eq('household_id', householdId)
-    .in('user_id', [user.id, payeeId]);
-  
-  if (memberError || !members || members.length !== 2) {
-    throw new Error('Both users must be members of the household');
-  }
-  
-  // Check for recent duplicate
-  const recentCutoff = new Date();
-  recentCutoff.setMinutes(recentCutoff.getMinutes() - 1);
-  
-  const { data: recentSettlement } = await supabase
-    .from('settlements')
-    .select('id', { count: 'exact' }) // Using count is even better
-    .eq('household_id', householdId)
-    .eq('payer_id', user.id)
-    .eq('payee_id', payeeId)
-    .eq('amount', amount)
-    .gte('created_at', recentCutoff.toISOString());
-
-  if (recentSettlement && recentSettlement.length > 0) { // Check if any duplicates were found
-    throw new Error('A similar settlement was just created. Please wait a moment.');
-  }
-
-  if (recentSettlement) {
-    throw new Error('A similar settlement was just created. Please wait a moment.');
-  }
-  
-  // Get payee name for description
-  const { data: payeeProfile } = await supabase
-    .from('profiles')
-    .select('name')
-    .eq('id', payeeId)
-    .single();
-  
-  const finalDescription = description || `Payment to ${payeeProfile?.name || 'member'}`;
-  
+  // All the complex logic is now handled securely in the database function.
   const { data, error } = await supabase
-    .from('settlements')
-    .insert({ 
-      household_id: householdId, 
-      payer_id: user.id, 
-      payee_id: payeeId, 
-      amount, 
-      description: finalDescription
+    .rpc('create_settlement_and_notify', {
+      p_household_id: householdId,
+      p_payee_id: payeeId,
+      p_amount: amount,
+      p_description: description
     })
-    .select(`*, payer_profile:payer_id (id, name, avatar_url), payee_profile:payee_id (id, name, avatar_url)`)
+    .select(`
+      *,
+      payer_profile:profiles!settlements_payer_id_fkey(id, name, avatar_url),
+      payee_profile:profiles!settlements_payee_id_fkey(id, name, avatar_url)
+    `)
     .single();
-  
-  if (error) throw error;
-  
-  // Create notification for payee
-  const { data: payerProfile } = await getProfile(user.id);
-  if (payerProfile) {
-    await createNotification(
-      payeeId,
-      'settlement_recorded',
-      'Payment Received',
-      `${payerProfile.name} paid you $${amount.toFixed(2)}`,
-      householdId,
-      { settlement_id: data.id, amount, payer_id: user.id }
-    );
+
+  if (error) {
+    console.error("Error creating settlement:", error);
+    throw error;
   }
   
   return data;
@@ -556,14 +503,6 @@ export const subscribeToSettlements = (householdId: string, onSettlement: (settl
   return subscription;
 };
 
-// --- DEPRECATED INVITATION FUNCTIONS ---
-export const getMyPendingInvitations = async () => { console.warn("getMyPendingInvitations is deprecated. Use code-based join."); return []; };
-export const createInvitation = async () => { console.warn("createInvitation is deprecated. Use code-based join."); throw new Error("Email invitations are no longer supported."); };
-export const acceptInvitation = async () => { console.warn("acceptInvitation is deprecated. Use code-based join."); throw new Error("Email invitations are no longer supported."); };
-export const declineInvitation = async () => { console.warn("declineInvitation is deprecated. Use code-based join."); throw new Error("Email invitations are no longer supported.");};
-export const inviteUserToHousehold = createInvitation;
-export const getPendingInvitations = getMyPendingInvitations;
-export const debugInvitationSystem = async () => { console.warn("debugInvitationSystem relates to deprecated email invitations."); return { note: "Email invitations are deprecated."};};
 
 // --- RECURRING EXPENSE FUNCTIONS (unverändert) ---
 const calculateNextDueDate = (currentDate: Date, frequency: RecurringExpense['frequency'], dayOfMonth?: number, dayOfWeek?: number): string => {
@@ -588,17 +527,14 @@ export const getHouseholdRecurringExpenses = async (householdId: string) => {
   if (error) throw error; return data || [];
 };
 export const processDueRecurringExpenses = async (householdId: string) => {
-  const today = new Date().toISOString().split('T')[0];
-  const { data: dueExpenses, error: fetchError } = await supabase.from('recurring_expenses').select('*').eq('household_id', householdId).eq('is_active', true).lte('next_due_date', today);
-  if (fetchError) { console.error('Error fetching due recurring expenses:', fetchError); throw fetchError; }
-  if (!dueExpenses) { console.log('No due recurring expenses to process.'); return; }
-  for (const recurring of dueExpenses) {
-    try {
-      await createExpense(recurring.household_id, recurring.description, recurring.amount, recurring.next_due_date, true);
-      const nextDate = calculateNextDueDate(new Date(recurring.next_due_date), recurring.frequency, recurring.day_of_month, recurring.day_of_week);
-      const { error: updateError } = await supabase.from('recurring_expenses').update({ next_due_date: nextDate }).eq('id', recurring.id);
-      if (updateError) { console.error(`Error updating next due date for recurring expense ${recurring.id}:`, updateError); }
-    } catch (processError) { console.error(`Error processing recurring expense ${recurring.id}:`, processError); }
+  // Call the new database function once. All the heavy lifting is now done on the server.
+  const { error } = await supabase.rpc('process_due_recurring_expenses', {
+    p_household_id: householdId,
+  });
+
+  if (error) {
+    console.error('Error processing due recurring expenses:', error);
+    throw error;
   }
 };
 
@@ -725,8 +661,38 @@ export const getHouseholdMessages = async (householdId: string, limit = 50, befo
   return ((data || []) as MessageWithProfileRPC[]).map((msg: MessageWithProfileRPC) => ({ ...msg, profiles: msg.profile })).reverse();
 };
 export const subscribeToMessages = (householdId: string, onMessage: (message: Message) => void) => {
-  const subscription = supabase.channel(`messages:${householdId}`).on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `household_id=eq.${householdId}`}, async (payload) => { if (payload.new && payload.new.household_id === householdId) { const newMessage = payload.new as Message; const { data: profile } = await supabase.from('profiles').select('*').eq('id', newMessage.user_id).single(); const messageWithProfile: Message = { ...newMessage, profiles: profile || undefined }; onMessage(messageWithProfile); }}).subscribe();
-  return subscription;
+  const channel = supabase.channel('new_message');
+
+  channel.on('postgres_changes', {
+      event: '*',
+      schema: 'public',
+      table: 'messages',
+    },
+    (payload) => {
+      // The old trigger is gone, but we can keep this for other events like edits/deletes if needed.
+      // For now, it won't do anything for new messages.
+      console.log('Postgres change received:', payload);
+    }
+  );
+
+  // Listen to our new custom event
+  channel.on('broadcast', { event: 'new_message' }, (payload) => {
+    // The payload from our trigger function will be in payload.payload
+    const received = payload.payload;
+
+    // Check if the message belongs to the current household
+    if (received.message && received.message.household_id === householdId) {
+      // Combine the message and profile data
+      const messageWithProfile: Message = {
+        ...received.message,
+        profiles: received.profile,
+      };
+      onMessage(messageWithProfile);
+    }
+  });
+
+  channel.subscribe();
+  return channel;
 };
 
 // --- NEW CHORE API FUNCTIONS ---
