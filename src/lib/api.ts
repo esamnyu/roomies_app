@@ -584,66 +584,14 @@ export const getHouseholdRecurringExpenses = async (householdId: string) => {
   if (error) throw error; return data || [];
 };
 export const processDueRecurringExpenses = async (householdId: string) => {
-  const today = new Date().toISOString().split('T')[0];
-  const { data: dueExpenses, error: fetchError } = await supabase.from('recurring_expenses').select('*').eq('household_id', householdId).eq('is_active', true).lte('next_due_date', today);
-  
-  if (fetchError) { 
-    console.error('Error fetching due recurring expenses:', fetchError); 
-    throw fetchError; 
-  }
-  
-  if (!dueExpenses || dueExpenses.length === 0) { 
-    // This is not an error, just no work to do.
-    return; 
-  }
+  // Call the new database function once. All the heavy lifting is now done on the server.
+  const { error } = await supabase.rpc('process_due_recurring_expenses', {
+    p_household_id: householdId,
+  });
 
-  // Fetch members once for all expenses in this run
-  const members = await getHouseholdMembers(householdId);
-  if (members.length === 0) {
-    console.warn(`Cannot process recurring expenses for household ${householdId}: No members found.`);
-    return;
-  }
-  const memberIds = members.map(m => m.user_id);
-
-  for (const recurring of dueExpenses) {
-    try {
-      // --- Start of changed block ---
-
-      // 1. Calculate the equal split for the recurring expense
-      const splitAmount = Math.round((recurring.amount / members.length) * 100) / 100;
-      const splits = memberIds.map(userId => ({
-        user_id: userId,
-        amount: splitAmount
-      }));
-
-      // Adjust for rounding errors on the first member
-      const totalSplitAmount = splits.reduce((sum, s) => sum + s.amount, 0);
-      const difference = recurring.amount - totalSplitAmount;
-      if (Math.abs(difference) > 0.001) {
-          splits[0].amount += difference;
-      }
-
-      // 2. Call the new, versatile function with the calculated splits
-      await createExpenseWithCustomSplits(
-        recurring.household_id, 
-        recurring.description, 
-        recurring.amount, 
-        splits, // Pass the explicit splits
-        recurring.next_due_date, 
-        true // Mark as a recurring instance
-      );
-
-      // --- End of changed block ---
-
-      const nextDate = calculateNextDueDate(new Date(recurring.next_due_date), recurring.frequency, recurring.day_of_month, recurring.day_of_week);
-      const { error: updateError } = await supabase.from('recurring_expenses').update({ next_due_date: nextDate }).eq('id', recurring.id);
-      
-      if (updateError) { 
-        console.error(`Error updating next due date for recurring expense ${recurring.id}:`, updateError); 
-      }
-    } catch (processError) { 
-      console.error(`Error processing recurring expense ${recurring.id}:`, processError); 
-    }
+  if (error) {
+    console.error('Error processing due recurring expenses:', error);
+    throw error;
   }
 };
 
