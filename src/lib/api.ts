@@ -279,12 +279,17 @@ export const createHousehold = async (params: CreateHouseholdParams) => {
   return household;
 };
 
+// src/lib/api.ts
 export const getUserHouseholds = async () => {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) throw new Error('Not authenticated')
   const { data, error } = await supabase
     .rpc('get_user_households_with_counts', { p_user_id: user.id })
-  if (error) throw error
+
+  if (error) {
+    console.error('Error in getUserHouseholds RPC:', error); // More specific logging
+    throw error
+  }
   return data || []
 }
 
