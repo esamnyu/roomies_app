@@ -319,19 +319,17 @@ export const getHouseholdMembers = async (householdId: string): Promise<Househol
     .from('household_members')
     .select(`
       *,
-      profiles (*), 
-      households (*)
-    `)
+      profiles (*)
+    `) // REMOVED households (*)
     .eq('household_id', householdId)
-    .order('joined_at', { ascending: true }); // CORRECTED: Was 'created_at'
+    .order('joined_at', { ascending: true });
 
   if (error) {
-    console.error('Error fetching household members:', error); // It's good to log the specific error
+    console.error('Error fetching household members:', error);
     throw error;
   }
   return data || [];
 };
-
 
 // --- JOIN CODE FUNCTIONS (unverändert) ---
 const generateRandomCode = (length = 4): string => {
