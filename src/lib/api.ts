@@ -436,79 +436,24 @@ export const completeTask = async (taskId: string): Promise<Task> => {
 
 // --- SETTLEMENT FUNCTIONS (unverändert) ---
 export const createSettlement = async (householdId: string, payeeId: string, amount: number, description?: string) => {
-  const { data: { user } } = await supabase.auth.getUser(); 
-  if (!user) throw new Error('Not authenticated');
-  
-  // Add validation
-  if (amount <= 0) throw new Error('Settlement amount must be positive');
-  if (payeeId === user.id) throw new Error('Cannot create settlement to yourself');
-  
-  // Verify both users are in the household
-  const { data: members, error: memberError } = await supabase
-    .from('household_members')
-    .select('user_id')
-    .eq('household_id', householdId)
-    .in('user_id', [user.id, payeeId]);
-  
-  if (memberError || !members || members.length !== 2) {
-    throw new Error('Both users must be members of the household');
-  }
-  
-  // Check for recent duplicate
-  const recentCutoff = new Date();
-  recentCutoff.setMinutes(recentCutoff.getMinutes() - 1);
-  
-  const { data: recentSettlement } = await supabase
-    .from('settlements')
-    .select('id', { count: 'exact' }) // Using count is even better
-    .eq('household_id', householdId)
-    .eq('payer_id', user.id)
-    .eq('payee_id', payeeId)
-    .eq('amount', amount)
-    .gte('created_at', recentCutoff.toISOString());
-
-  if (recentSettlement && recentSettlement.length > 0) { // Check if any duplicates were found
-    throw new Error('A similar settlement was just created. Please wait a moment.');
-  }
-
-  if (recentSettlement) {
-    throw new Error('A similar settlement was just created. Please wait a moment.');
-  }
-  
-  // Get payee name for description
-  const { data: payeeProfile } = await supabase
-    .from('profiles')
-    .select('name')
-    .eq('id', payeeId)
-    .single();
-  
-  const finalDescription = description || `Payment to ${payeeProfile?.name || 'member'}`;
-  
+  // All the complex logic is now handled securely in the database function.
   const { data, error } = await supabase
-    .from('settlements')
-    .insert({ 
-      household_id: householdId, 
-      payer_id: user.id, 
-      payee_id: payeeId, 
-      amount, 
-      description: finalDescription
+    .rpc('create_settlement_and_notify', {
+      p_household_id: householdId,
+      p_payee_id: payeeId,
+      p_amount: amount,
+      p_description: description
     })
-    .select(`*, payer_profile:payer_id (id, name, avatar_url), payee_profile:payee_id (id, name, avatar_url)`)
+    .select(`
+      *,
+      payer_profile:profiles!settlements_payer_id_fkey(id, name, avatar_url),
+      payee_profile:profiles!settlements_payee_id_fkey(id, name, avatar_url)
+    `)
     .single();
-  
-  if (error) throw error;
-  
-  // Create notification for payee
-  const { data: payerProfile } = await getProfile(user.id);
-  if (payerProfile) {
-    await createNotification(
-      payeeId,
-      'settlement_recorded',
-      'Payment Received',
-      `${payerProfile.name} paid you $${amount.toFixed(2)}`,
-      householdId,
-      { settlement_id: data.id, amount, payer_id: user.id }
-    );
+
+  if (error) {
+    console.error("Error creating settlement:", error);
+    throw error;
   }
   
   return data;
@@ -716,8 +661,38 @@ export const getHouseholdMessages = async (householdId: string, limit = 50, befo
   return ((data || []) as MessageWithProfileRPC[]).map((msg: MessageWithProfileRPC) => ({ ...msg, profiles: msg.profile })).reverse();
 };
 export const subscribeToMessages = (householdId: string, onMessage: (message: Message) => void) => {
-  const subscription = supabase.channel(`messages:${householdId}`).on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `household_id=eq.${householdId}`}, async (payload) => { if (payload.new && payload.new.household_id === householdId) { const newMessage = payload.new as Message; const { data: profile } = await supabase.from('profiles').select('*').eq('id', newMessage.user_id).single(); const messageWithProfile: Message = { ...newMessage, profiles: profile || undefined }; onMessage(messageWithProfile); }}).subscribe();
-  return subscription;
+  const channel = supabase.channel('new_message');
+
+  channel.on('postgres_changes', {
+      event: '*',
+      schema: 'public',
+      table: 'messages',
+    },
+    (payload) => {
+      // The old trigger is gone, but we can keep this for other events like edits/deletes if needed.
+      // For now, it won't do anything for new messages.
+      console.log('Postgres change received:', payload);
+    }
+  );
+
+  // Listen to our new custom event
+  channel.on('broadcast', { event: 'new_message' }, (payload) => {
+    // The payload from our trigger function will be in payload.payload
+    const received = payload.payload;
+
+    // Check if the message belongs to the current household
+    if (received.message && received.message.household_id === householdId) {
+      // Combine the message and profile data
+      const messageWithProfile: Message = {
+        ...received.message,
+        profiles: received.profile,
+      };
+      onMessage(messageWithProfile);
+    }
+  });
+
+  channel.subscribe();
+  return channel;
 };
 
 // --- NEW CHORE API FUNCTIONS ---

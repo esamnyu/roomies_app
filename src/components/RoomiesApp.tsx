@@ -873,6 +873,12 @@ const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = (
     
       // Add validation
       const amount = parseFloat(customAmount);
+
+      if (amount > 99999999.99) {
+    toast.error('The settlement amount is too large. Please enter a value less than 100 million.');
+    return; // Stop the function here
+      }
+
       if (isNaN(amount) || amount <= 0) {
         toast.error('Please enter a valid amount greater than 0');
         return;
