@@ -301,7 +301,11 @@ export const getHouseholdDetails = async (householdId: string): Promise<Househol
     .select('*')
     .eq('id', householdId)
     .single();
-  if (error) { console.error('Error fetching household details:', error); return null; }
+  // If no household found, return null instead of throwing an error
+  if (error) {
+    console.error('Error fetching household details:', error);
+    throw error; // Throw the error to be caught by the calling function's try/catch block
+  }
   return data;
 };
 
@@ -378,13 +382,8 @@ export const joinHouseholdWithCode = async (joinCode: string): Promise<Household
   return household as Household;
 };
 
-// --- EXPENSE FUNCTIONS (unverändert) ---
-export const createExpense = async (householdId: string, description: string, amount: number, date?: string, isRecurring: boolean = false) => {
-  const { data: { user } } = await supabase.auth.getUser(); if (!user) throw new Error('Not authenticated');
-  const finalDescription = isRecurring ? `${description} (Recurring)` : description;
-  const { data, error } = await supabase.rpc('create_expense_with_splits', { p_household_id: householdId, p_description: finalDescription, p_amount: amount, p_paid_by: user.id, p_date: date || new Date().toISOString().split('T')[0]});
-  if (error) throw error; return data;
-};
+// --- EXPENSE FUNCTIONS  ---
+
 export const getHouseholdExpenses = async (householdId: string) => {
   const { data, error } = await supabase.from('expenses').select(`*, profiles:paid_by (id, name, avatar_url), expense_splits (*, profiles:user_id (id, name, avatar_url))`).eq('household_id', householdId).order('date', { ascending: false }).order('created_at', { ascending: false });
   if (error) throw error; return data || [];
@@ -556,14 +555,6 @@ export const subscribeToSettlements = (householdId: string, onSettlement: (settl
   return subscription;
 };
 
-// --- DEPRECATED INVITATION FUNCTIONS ---
-export const getMyPendingInvitations = async () => { console.warn("getMyPendingInvitations is deprecated. Use code-based join."); return []; };
-export const createInvitation = async () => { console.warn("createInvitation is deprecated. Use code-based join."); throw new Error("Email invitations are no longer supported."); };
-export const acceptInvitation = async () => { console.warn("acceptInvitation is deprecated. Use code-based join."); throw new Error("Email invitations are no longer supported."); };
-export const declineInvitation = async () => { console.warn("declineInvitation is deprecated. Use code-based join."); throw new Error("Email invitations are no longer supported.");};
-export const inviteUserToHousehold = createInvitation;
-export const getPendingInvitations = getMyPendingInvitations;
-export const debugInvitationSystem = async () => { console.warn("debugInvitationSystem relates to deprecated email invitations."); return { note: "Email invitations are deprecated."};};
 
 // --- RECURRING EXPENSE FUNCTIONS (unverändert) ---
 const calculateNextDueDate = (currentDate: Date, frequency: RecurringExpense['frequency'], dayOfMonth?: number, dayOfWeek?: number): string => {
@@ -590,15 +581,64 @@ export const getHouseholdRecurringExpenses = async (householdId: string) => {
 export const processDueRecurringExpenses = async (householdId: string) => {
   const today = new Date().toISOString().split('T')[0];
   const { data: dueExpenses, error: fetchError } = await supabase.from('recurring_expenses').select('*').eq('household_id', householdId).eq('is_active', true).lte('next_due_date', today);
-  if (fetchError) { console.error('Error fetching due recurring expenses:', fetchError); throw fetchError; }
-  if (!dueExpenses) { console.log('No due recurring expenses to process.'); return; }
+  
+  if (fetchError) { 
+    console.error('Error fetching due recurring expenses:', fetchError); 
+    throw fetchError; 
+  }
+  
+  if (!dueExpenses || dueExpenses.length === 0) { 
+    // This is not an error, just no work to do.
+    return; 
+  }
+
+  // Fetch members once for all expenses in this run
+  const members = await getHouseholdMembers(householdId);
+  if (members.length === 0) {
+    console.warn(`Cannot process recurring expenses for household ${householdId}: No members found.`);
+    return;
+  }
+  const memberIds = members.map(m => m.user_id);
+
   for (const recurring of dueExpenses) {
     try {
-      await createExpense(recurring.household_id, recurring.description, recurring.amount, recurring.next_due_date, true);
+      // --- Start of changed block ---
+
+      // 1. Calculate the equal split for the recurring expense
+      const splitAmount = Math.round((recurring.amount / members.length) * 100) / 100;
+      const splits = memberIds.map(userId => ({
+        user_id: userId,
+        amount: splitAmount
+      }));
+
+      // Adjust for rounding errors on the first member
+      const totalSplitAmount = splits.reduce((sum, s) => sum + s.amount, 0);
+      const difference = recurring.amount - totalSplitAmount;
+      if (Math.abs(difference) > 0.001) {
+          splits[0].amount += difference;
+      }
+
+      // 2. Call the new, versatile function with the calculated splits
+      await createExpenseWithCustomSplits(
+        recurring.household_id, 
+        recurring.description, 
+        recurring.amount, 
+        splits, // Pass the explicit splits
+        recurring.next_due_date, 
+        true // Mark as a recurring instance
+      );
+
+      // --- End of changed block ---
+
       const nextDate = calculateNextDueDate(new Date(recurring.next_due_date), recurring.frequency, recurring.day_of_month, recurring.day_of_week);
       const { error: updateError } = await supabase.from('recurring_expenses').update({ next_due_date: nextDate }).eq('id', recurring.id);
-      if (updateError) { console.error(`Error updating next due date for recurring expense ${recurring.id}:`, updateError); }
-    } catch (processError) { console.error(`Error processing recurring expense ${recurring.id}:`, processError); }
+      
+      if (updateError) { 
+        console.error(`Error updating next due date for recurring expense ${recurring.id}:`, updateError); 
+      }
+    } catch (processError) { 
+      console.error(`Error processing recurring expense ${recurring.id}:`, processError); 
+    }
   }
 };
 
