@@ -12,24 +12,29 @@ export interface Profile {
   email?: string;
 }
 
+// --- MODIFIED Household Interface ---
 export interface Household {
-  memberCount: ReactNode; // Consider if this is still needed or use member_count
   id: string;
-  name:string;
+  name: string;
   created_by: string;
   created_at: string;
   updated_at: string;
   member_count?: number; // Target member count from setup
   core_chores?: string[];
-  chore_frequency?: 'Daily' | 'Weekly' | 'Bi-weekly' | 'Monthly'; // Made more specific
-  chore_framework?: 'Split' | 'One person army'; // Made more specific
+  chore_frequency?: 'Daily' | 'Weekly' | 'Bi-weekly' | 'Monthly';
+  chore_framework?: 'Split' | 'One person army';
   join_code?: string | null;
 
-  // Chore specific fields for household settings
-  last_chore_rotation_date?: string | null; // ISO date string
-  next_chore_rotation_date?: string | null; // ISO date string
-  chore_current_assignee_index?: number; // For 'One person army' rotation tracking
+  // Chore specific fields
+  last_chore_rotation_date?: string | null;
+  next_chore_rotation_date?: string | null;
+  chore_current_assignee_index?: number;
+
+  // NEW: Fields for House Rules
+  rules_document?: string | null;
+  rules_last_updated?: string | null;
 }
+
 
 export interface HouseholdMember {
   id: string;
@@ -39,8 +44,7 @@ export interface HouseholdMember {
   joined_at: string;
   profiles?: Profile;
   households?: Household;
-  // For chore assignment ordering if needed, can be based on join_date or a specific order
-  chore_rotation_order?: number; 
+  chore_rotation_order?: number;
 }
 
 export interface Expense {
@@ -66,7 +70,6 @@ export interface ExpenseSplit {
   profiles?: Profile
 }
 
-// This is the existing Task type, which we'll differentiate from Chores
 export interface Task {
   id: string
   household_id: string
@@ -76,7 +79,7 @@ export interface Task {
   completed_at?: string
   created_at: string
   updated_at: string
-  profiles?: Profile // Profile of assigned_to user
+  profiles?: Profile
 }
 
 export interface Settlement {
@@ -141,65 +144,57 @@ interface MessageWithProfileRPC {
   deleted: boolean
   created_at: string
   updated_at: string
-  profile: any 
+  profile: any
 }
 
 
 // --- NEW CHORE MANAGEMENT TYPES ---
-export interface HouseholdChore { // Defines a chore for a household
-  id: string; // pk
-  household_id: string; // fk
+export interface HouseholdChore {
+  id: string;
+  household_id: string;
   name: string;
   description?: string | null;
-  is_core_chore: boolean; // Was it from the initial household.core_chores?
-  default_order?: number | null; // For 'Split' framework, to maintain a consistent rotation order if desired
+  is_core_chore: boolean;
+  default_order?: number | null;
   created_at: string;
   updated_at: string;
-  is_active: boolean; // To allow disabling a chore without deleting history
+  is_active: boolean;
 }
 
-export interface ChoreAssignment { // Represents a specific assignment of a HouseholdChore
-  id: string; // pk
-  household_chore_id: string; // fk to household_chores
-  household_id: string; // fk (denormalized for easier querying by household)
-  assigned_user_id: string; // fk to profiles (who is it assigned to)
-  // 'placeholder_N' if member_count > actual members who joined
-  
-  cycle_start_date: string; // ISO date (e.g., start of the week/period for this assignment batch)
-  due_date: string; // ISO date
-  
+export interface ChoreAssignment {
+  id: string;
+  household_chore_id: string;
+  household_id: string;
+  assigned_user_id: string;
+  cycle_start_date: string;
+  due_date: string;
   status: 'pending' | 'completed' | 'missed' | 'skipped';
-  completed_at?: string | null; // ISO timestamp
-  completed_by_user_id?: string | null; // fk to profiles (in case someone else marks it)
-  
+  completed_at?: string | null;
+  completed_by_user_id?: string | null;
   notes?: string | null;
   created_at: string;
   updated_at: string;
-
-  // Joined data for display
-  chore_definition?: HouseholdChore; // The actual chore details (name, desc)
-  assigned_profile?: Profile | null; // Profile of the assigned user
+  chore_definition?: HouseholdChore;
+  assigned_profile?: Profile | null;
 }
 
-// For displaying rotation schedule easily
 export interface ChoreRotationPeriod {
-  period_label: string; // e.g., "Week of June 10", "June 15 - June 21"
+  period_label: string;
   assignments: Array<{
     chore_name: string;
     assigned_member_name: string | 'Placeholder';
     chore_id: string;
-    assigned_user_id: string | null; // null if placeholder
+    assigned_user_id: string | null;
   }>;
 }
-// --- END NEW CHORE MANAGEMENT TYPES ---
 
 
 export interface CreateHouseholdParams {
   name: string;
   member_count: number;
   core_chores?: string[];
-  chore_frequency?: string; // Will be 'Daily', 'Weekly', 'Bi-weekly', 'Monthly'
-  chore_framework?: string; // Will be 'Split', 'One person army'
+  chore_frequency?: string;
+  chore_framework?: string;
 }
 
 // --- AUTH FUNCTIONS (unverändert) ---
@@ -250,7 +245,7 @@ export const createHousehold = async (params: CreateHouseholdParams) => {
     core_chores: params.core_chores,
     chore_frequency: params.chore_frequency as Household['chore_frequency'],
     chore_framework: params.chore_framework as Household['chore_framework'],
-    last_chore_rotation_date: null, // Initialize chore fields
+    last_chore_rotation_date: null,
     next_chore_rotation_date: null,
   };
 
@@ -270,16 +265,14 @@ export const createHousehold = async (params: CreateHouseholdParams) => {
     await supabase.from('households').delete().eq('id', household.id);
     throw memberError;
   }
-  
-  // After creating household, initialize its chores
+
   if (household.core_chores && household.core_chores.length > 0) {
-    await initializeChoresForHousehold(household.id, household as Household); // Pass full household
+    await initializeChoresForHousehold(household.id, household as Household);
   }
 
   return household;
 };
 
-// src/lib/api.ts
 export const getUserHouseholds = async () => {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) throw new Error('Not authenticated')
@@ -287,7 +280,7 @@ export const getUserHouseholds = async () => {
     .rpc('get_user_households_with_counts', { p_user_id: user.id })
 
   if (error) {
-    console.error('Error in getUserHouseholds RPC:', error); // More specific logging
+    console.error('Error in getUserHouseholds RPC:', error);
     throw error
   }
   return data || []
@@ -300,16 +293,17 @@ export const getHouseholdData = async (householdId: string) => {
   return data
 }
 
+// MODIFIED to include new rules columns
 export const getHouseholdDetails = async (householdId: string): Promise<Household | null> => {
   const { data, error } = await supabase
     .from('households')
-    .select('*')
+    .select('*, rules_document, rules_last_updated') // Select all plus new fields
     .eq('id', householdId)
     .single();
-  // If no household found, return null instead of throwing an error
+
   if (error) {
     console.error('Error fetching household details:', error);
-    throw error; // Throw the error to be caught by the calling function's try/catch block
+    throw error;
   }
   return data;
 };
@@ -320,7 +314,7 @@ export const getHouseholdMembers = async (householdId: string): Promise<Househol
     .select(`
       *,
       profiles (*)
-    `) // REMOVED households (*)
+    `)
     .eq('household_id', householdId)
     .order('joined_at', { ascending: true });
 
@@ -330,6 +324,166 @@ export const getHouseholdMembers = async (householdId: string): Promise<Househol
   }
   return data || [];
 };
+
+
+// --- SETTINGS & MANAGEMENT FUNCTIONS ---
+
+/**
+ * Updates the settings for a specific household.
+ * Only authenticated users who are members (ideally admins) should be able to call this.
+ * Access control should be handled by Supabase Row Level Security (RLS) policies.
+ */
+export const updateHouseholdSettings = async (householdId: string, updates: Partial<Household>) => {
+    const { data, error } = await supabase
+        .from('households')
+        .update(updates)
+        .eq('id', householdId)
+        .select()
+        .single();
+
+    if (error) {
+        console.error("Error updating household settings:", error);
+        throw error;
+    }
+    return data;
+};
+
+/**
+ * Updates a household member's role.
+ * Requires admin privileges, enforced by RLS.
+ */
+export const updateMemberRole = async (memberId: string, role: 'admin' | 'member') => {
+    const { data, error } = await supabase
+        .from('household_members')
+        .update({ role })
+        .eq('id', memberId)
+        .select()
+        .single();
+    if (error) {
+        console.error("Error updating member role:", error);
+        throw error;
+    }
+    return data;
+};
+
+/**
+ * Removes a member from a household.
+ * Requires admin privileges, enforced by RLS.
+ * NOTE: For a production app, this should be a Supabase RPC function (`remove_member_with_checks`)
+ * to handle open debts or task re-assignments atomically.
+ */
+export const removeMember = async (memberId: string) => {
+    const { error } = await supabase
+        .from('household_members')
+        .delete()
+        .eq('id', memberId);
+    if (error) {
+        console.error("Error removing member:", error);
+        throw error;
+    }
+    return true;
+};
+
+/**
+ * Allows the currently authenticated user to leave a household.
+ */
+export const leaveHousehold = async (householdId: string) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('Not authenticated');
+    
+    // It's good practice to check for outstanding balances before leaving.
+    // This logic would be in the UI, not here.
+    
+    const { error } = await supabase
+        .from('household_members')
+        .delete()
+        .eq('household_id', householdId)
+        .eq('user_id', user.id);
+
+    if (error) {
+        console.error("Error leaving household:", error);
+        throw error;
+    }
+    return true;
+};
+
+/**
+ * Deletes a household. This is a destructive action.
+ * Requires the user to be the `created_by` user or an admin, enforced by RLS.
+ */
+export const deleteHousehold = async (householdId: string) => {
+    const { error } = await supabase
+        .from('households')
+        .delete()
+        .eq('id', householdId);
+    
+    if (error) {
+        console.error("Error deleting household:", error);
+        throw error;
+    }
+    return true;
+};
+
+/**
+ * Updates a specific chore's details.
+ */
+export const updateHouseholdChore = async (choreId: string, updates: Partial<Pick<HouseholdChore, 'name' | 'description'>>) => {
+    const { data, error } = await supabase
+        .from('household_chores')
+        .update(updates)
+        .eq('id', choreId)
+        .select()
+        .single();
+    if (error) {
+        console.error("Error updating chore:", error);
+        throw error;
+    }
+    return data;
+};
+
+/**
+ * Toggles a chore between active and inactive states.
+ */
+export const toggleChoreActive = async (choreId: string, isActive: boolean) => {
+    const { data, error } = await supabase
+        .from('household_chores')
+        .update({ is_active: isActive })
+        .eq('id', choreId)
+        .select()
+        .single();
+    if (error) {
+        console.error("Error toggling chore status:", error);
+        throw error;
+    }
+    return data;
+};
+
+/**
+ * Updates the house rules document for a household.
+ */
+export const updateHouseRules = async (householdId: string, rules: string) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('Not authenticated');
+
+    const { data, error } = await supabase
+        .from('households')
+        .update({
+            rules_document: rules,
+            rules_last_updated: new Date().toISOString()
+        })
+        .eq('id', householdId)
+        .select()
+        .single();
+
+    if (error) {
+        console.error("Error updating house rules:", error);
+        throw error;
+    }
+    return data;
+};
+
+// --- END OF NEW SETTINGS FUNCTIONS ---
+
 
 // --- JOIN CODE FUNCTIONS (unverändert) ---
 const generateRandomCode = (length = 4): string => {
@@ -386,6 +540,7 @@ export const joinHouseholdWithCode = async (joinCode: string): Promise<Household
 };
 
 // --- EXPENSE FUNCTIONS  ---
+// ... (rest of the file is unchanged)
 
 export const getHouseholdExpenses = async (householdId: string) => {
   const { data, error } = await supabase.from('expenses').select(`*, profiles:paid_by (id, name, avatar_url), expense_splits (*, profiles:user_id (id, name, avatar_url))`).eq('household_id', householdId).order('date', { ascending: false }).order('created_at', { ascending: false });
@@ -436,7 +591,6 @@ export const completeTask = async (taskId: string): Promise<Task> => {
 
 // --- SETTLEMENT FUNCTIONS (unverändert) ---
 export const createSettlement = async (householdId: string, payeeId: string, amount: number, description?: string) => {
-  // All the complex logic is now handled securely in the database function.
   const { data, error } = await supabase
     .rpc('create_settlement_and_notify', {
       p_household_id: householdId,
@@ -474,7 +628,6 @@ export const getHouseholdSettlements = async (householdId: string) => {
   return data || [];
 };
 
-// ADD THIS NEW FUNCTION:
 export const subscribeToSettlements = (householdId: string, onSettlement: (settlement: Settlement) => void) => {
   const subscription = supabase
     .channel(`settlements:${householdId}`)
@@ -486,7 +639,6 @@ export const subscribeToSettlements = (householdId: string, onSettlement: (settl
     }, async (payload) => {
       if (payload.new) {
         const newSettlement = payload.new as Settlement;
-        // Fetch profiles for the settlement
         const { data } = await supabase
           .from('settlements')
           .select(`
@@ -527,7 +679,6 @@ export const getHouseholdRecurringExpenses = async (householdId: string) => {
   if (error) throw error; return data || [];
 };
 export const processDueRecurringExpenses = async (householdId: string) => {
-  // Call the new database function once. All the heavy lifting is now done on the server.
   const { error } = await supabase.rpc('process_due_recurring_expenses', {
     p_household_id: householdId,
   });
@@ -574,18 +725,15 @@ export const sendPaymentReminder = async (householdId: string, debtorId: string,
 };
 
 // --- BALANCE & SETTLEMENT HELPERS (unverändert) ---
-// REPLACE THE ENTIRE FUNCTION:
 export const calculateBalances = (expenses: Expense[], members: HouseholdMember[], settlements?: Settlement[]): { userId: string; balance: number; profile: Profile }[] => {
   const balanceMap = new Map<string, number>();
   
-  // Initialize all members with 0 balance (skip placeholders)
   members.forEach(member => {
     if (member.user_id && !member.user_id.startsWith('placeholder_')) {
       balanceMap.set(member.user_id, 0);
     }
   });
   
-  // Process expenses
   expenses.forEach(expense => {
     if (!expense.paid_by || !balanceMap.has(expense.paid_by)) return;
     
@@ -600,7 +748,6 @@ export const calculateBalances = (expenses: Expense[], members: HouseholdMember[
     });
   });
   
-  // Process settlements with validation
   if (settlements) {
     settlements.forEach(settlement => {
       if (!settlement.payer_id || !settlement.payee_id || settlement.amount <= 0) return;
@@ -617,7 +764,6 @@ export const calculateBalances = (expenses: Expense[], members: HouseholdMember[
     });
   }
   
-  // Convert to array and filter out invalid entries
   return Array.from(balanceMap.entries())
     .map(([userId, balance]) => {
       const member = members.find(m => m.user_id === userId);
@@ -669,20 +815,14 @@ export const subscribeToMessages = (householdId: string, onMessage: (message: Me
       table: 'messages',
     },
     (payload) => {
-      // The old trigger is gone, but we can keep this for other events like edits/deletes if needed.
-      // For now, it won't do anything for new messages.
       console.log('Postgres change received:', payload);
     }
   );
 
-  // Listen to our new custom event
   channel.on('broadcast', { event: 'new_message' }, (payload) => {
-    // The payload from our trigger function will be in payload.payload
     const received = payload.payload;
 
-    // Check if the message belongs to the current household
     if (received.message && received.message.household_id === householdId) {
-      // Combine the message and profile data
       const messageWithProfile: Message = {
         ...received.message,
         profiles: received.profile,
@@ -696,12 +836,6 @@ export const subscribeToMessages = (householdId: string, onMessage: (message: Me
 };
 
 // --- NEW CHORE API FUNCTIONS ---
-
-/**
- * Initializes chores for a household based on its core_chores list.
- * Creates HouseholdChore entries if they don't exist.
- * Then, triggers the first assignment cycle.
- */
 export const initializeChoresForHousehold = async (householdId: string, householdData?: Household): Promise<void> => {
   const household = householdData || await getHouseholdDetails(householdId);
   if (!household || !household.core_chores || household.core_chores.length === 0) {
@@ -728,7 +862,7 @@ export const initializeChoresForHousehold = async (householdId: string, househol
       name,
       is_core_chore: true,
       is_active: true,
-      default_order: index, // Simple ordering for now
+      default_order: index,
     }));
 
   if (choresToCreate.length > 0) {
@@ -738,14 +872,9 @@ export const initializeChoresForHousehold = async (householdId: string, househol
       throw insertError;
     }
   }
-  // After ensuring chore definitions exist, make the first assignments.
   await assignChoresForCurrentCycle(householdId, household);
 };
 
-/**
- * Assigns chores for the current/next cycle based on household settings.
- * This is the core rotation and assignment logic.
- */
 export const assignChoresForCurrentCycle = async (householdId: string, householdOverride?: Household): Promise<ChoreAssignment[]> => {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error('Not authenticated');
@@ -755,10 +884,7 @@ export const assignChoresForCurrentCycle = async (householdId: string, household
 
   const members = await getHouseholdMembers(householdId);
   if (members.length === 0) {
-      // No actual members yet, create placeholder assignments if member_count is set
       if(household.member_count && household.member_count > 0) {
-          // We'll handle placeholder display on the UI side for now,
-          // or create placeholder assignments if the DB schema supports it (e.g. assigned_user_id is nullable)
           console.log("No members yet, chore assignment skipped or will use placeholders.");
           return []; 
       } else {
@@ -782,18 +908,13 @@ export const assignChoresForCurrentCycle = async (householdId: string, household
   const framework = household.chore_framework || 'Split';
   
   const today = new Date();
-  today.setHours(0, 0, 0, 0); // Normalize to start of day
+  today.setHours(0, 0, 0, 0);
 
   let cycleStartDate: Date;
   if (household.next_chore_rotation_date && new Date(household.next_chore_rotation_date) > today) {
-      // If next rotation is in the future, means current assignments are still valid or it's the very first run.
-      // For MVP, we'll simplify and assume if next_rotation_date is present and future, we don't re-assign yet.
-      // A more robust system would check if it's time to rotate.
-      // For now, let's assume this function is called when rotation *is* due or for initialization.
       cycleStartDate = household.last_chore_rotation_date ? new Date(household.last_chore_rotation_date) : today;
-      // If last_chore_rotation_date is null, it's the first time, start today.
   } else {
-      cycleStartDate = today; // Default to today if no rotation info or past due
+      cycleStartDate = today;
   }
 
 
@@ -803,13 +924,12 @@ export const assignChoresForCurrentCycle = async (householdId: string, household
     case 'Weekly': dueDate.setDate(cycleStartDate.getDate() + 7); break;
     case 'Bi-weekly': dueDate.setDate(cycleStartDate.getDate() + 14); break;
     case 'Monthly': dueDate.setMonth(cycleStartDate.getMonth() + 1); break;
-    default: dueDate.setDate(cycleStartDate.getDate() + 7); // Default to weekly
+    default: dueDate.setDate(cycleStartDate.getDate() + 7);
   }
-  dueDate.setHours(23, 59, 59, 999); // Due at the end of the day
+  dueDate.setHours(23, 59, 59, 999);
 
   const newAssignments: Omit<ChoreAssignment, 'id' | 'created_at' | 'updated_at'>[] = [];
   
-  // Placeholder user IDs if not enough real members
   const targetMemberCount = household.member_count || members.length;
   const memberIdsForAssignment: string[] = members.map(m => m.user_id);
   for (let i = members.length; i < targetMemberCount; i++) {
@@ -833,9 +953,8 @@ export const assignChoresForCurrentCycle = async (householdId: string, household
       });
     });
     currentAssigneeIndex = (currentAssigneeIndex + 1) % memberIdsForAssignment.length;
-  } else { // Split framework
+  } else {
     choresDefinitions.forEach((choreDef, index) => {
-      // Rotate through members for each chore
       const assigneeUserId = memberIdsForAssignment[(currentAssigneeIndex + index) % memberIdsForAssignment.length];
       newAssignments.push({
         household_chore_id: choreDef.id,
@@ -846,28 +965,18 @@ export const assignChoresForCurrentCycle = async (householdId: string, household
         status: 'pending',
       });
     });
-    // For 'Split', the next rotation might involve shifting all assignments, or a more complex scheme.
-    // For MVP, we'll effectively restart the "round robin" from the household's chore_current_assignee_index
-    // For the next cycle, this index needs to be updated if we want a different starting point.
-    // Or, if 'Split' means each chore rotates independently, that's more complex.
-    // Let's simplify: for 'Split', the current_assignee_index effectively means the starting member for the list of chores.
-    // And this index itself rotates.
      currentAssigneeIndex = (currentAssigneeIndex + 1) % memberIdsForAssignment.length;
   }
 
-  // Delete old pending assignments for this cycle before inserting new ones
-  // to prevent duplicates if this function is run multiple times for the same cycle start.
-  // A more robust approach might be to update existing pending or use an upsert.
   const { error: deleteError } = await supabase
     .from('chore_assignments')
     .delete()
     .eq('household_id', householdId)
     .eq('status', 'pending')
-    .gte('cycle_start_date', cycleStartDate.toISOString().split('T')[0]); // Only clear future/current pending
+    .gte('cycle_start_date', cycleStartDate.toISOString().split('T')[0]);
 
   if (deleteError) {
       console.warn("Could not clear old pending assignments:", deleteError);
-      // Decide if this is critical. For now, we'll proceed.
   }
 
   const { data: insertedAssignments, error: insertAssignmentsError } = await supabase
@@ -880,19 +989,17 @@ export const assignChoresForCurrentCycle = async (householdId: string, household
     throw insertAssignmentsError;
   }
 
-  // Update household's rotation dates
   const { error: updateHouseholdError } = await supabase
     .from('households')
     .update({ 
         last_chore_rotation_date: cycleStartDate.toISOString().split('T')[0],
-        next_chore_rotation_date: dueDate.toISOString().split('T')[0], // Next rotation starts when current cycle is due
+        next_chore_rotation_date: dueDate.toISOString().split('T')[0],
         chore_current_assignee_index: currentAssigneeIndex 
     })
     .eq('id', householdId);
 
   if (updateHouseholdError) {
     console.error('Error updating household rotation dates:', updateHouseholdError);
-    // Non-critical for assignment itself, but impacts future rotations
   }
   
   return insertedAssignments || [];
@@ -908,7 +1015,7 @@ export const getHouseholdChoreAssignmentsWithDetails = async (householdId: strin
       assigned_profile:profiles (id, name, avatar_url)
     `)
     .eq('household_id', householdId)
-    .eq('status', 'pending') // Typically, you want to see pending chores
+    .eq('status', 'pending')
     .order('due_date', { ascending: true });
 
   if (error) {
@@ -944,13 +1051,9 @@ export const markChoreAssignmentComplete = async (assignmentId: string, userId: 
   return data;
 };
 
-// Function to add a new (non-core) chore definition to a household
 export const addCustomChoreToHousehold = async (householdId: string, name: string, description?: string): Promise<HouseholdChore | null> => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error('Not authenticated');
-
-    // Check if user is part of the household (optional, but good practice)
-    // ...
 
     const { data: newChore, error } = await supabase
         .from('household_chores')
@@ -958,7 +1061,7 @@ export const addCustomChoreToHousehold = async (householdId: string, name: strin
             household_id: householdId,
             name,
             description,
-            is_core_chore: false, // Custom chores are not core by default
+            is_core_chore: false,
             is_active: true,
         })
         .select()
@@ -968,15 +1071,9 @@ export const addCustomChoreToHousehold = async (householdId: string, name: strin
         console.error("Error adding custom chore:", error);
         throw error;
     }
-    // After adding, you might want to re-trigger assignChoresForCurrentCycle if it should be immediately included
-    // For now, it will be picked up in the next cycle.
     return newChore;
 };
 
-/**
- * Gets the chore rotation schedule for display purposes.
- * For MVP, this will show the current assignments. A more complex version would project future rotations.
- */
 export const getChoreRotationUIData = async (
   householdId: string
 ): Promise<{
@@ -1013,7 +1110,6 @@ export const getChoreRotationUIData = async (
   };
 };
 
-// Function to check if chore rotation is due and trigger it
 export const checkAndTriggerChoreRotation = async (householdId: string): Promise<boolean> => {
   const household = await getHouseholdDetails(householdId);
   if (!household) return false;
@@ -1023,18 +1119,17 @@ export const checkAndTriggerChoreRotation = async (householdId: string): Promise
 
   if (household.next_chore_rotation_date) {
     const nextRotationDate = new Date(household.next_chore_rotation_date);
-    nextRotationDate.setHours(0,0,0,0); // Normalize
+    nextRotationDate.setHours(0,0,0,0);
 
     if (today >= nextRotationDate) {
       console.log(`Chore rotation due for household ${householdId}. Triggering...`);
       await assignChoresForCurrentCycle(householdId, household);
-      return true; // Rotation was triggered
+      return true;
     }
   } else {
-    // No next_chore_rotation_date, likely first time or needs initialization
     console.log(`Initial chore assignment or re-initialization for household ${householdId}.`);
-    await initializeChoresForHousehold(householdId, household); //This will also call assignChores
-    return true; // Initialization/Assignment was triggered
+    await initializeChoresForHousehold(householdId, household);
+    return true;
   }
-  return false; // No rotation needed
+  return false;
 };
