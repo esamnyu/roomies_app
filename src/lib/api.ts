@@ -12,6 +12,13 @@ export interface Profile {
   email?: string;
 }
 
+// Add this new interface
+export interface HouseRule {
+  id: string; // A unique ID for each rule
+  category: string;
+  content: string;
+}
+
 // --- MODIFIED Household Interface ---
 export interface Household {
   id: string;
@@ -31,7 +38,7 @@ export interface Household {
   chore_current_assignee_index?: number;
 
   // NEW: Fields for House Rules
-  rules_document?: string | null;
+  rules?: HouseRule[]; // <-- CHANGE THIS LINE
   rules_last_updated?: string | null;
 }
 
@@ -294,10 +301,11 @@ export const getHouseholdData = async (householdId: string) => {
 }
 
 // MODIFIED to include new rules columns
+// AFTER
 export const getHouseholdDetails = async (householdId: string): Promise<Household | null> => {
   const { data, error } = await supabase
     .from('households')
-    .select('*, rules_document, rules_last_updated') // Select all plus new fields
+    .select('*, rules, rules_last_updated') // <-- Select the new 'rules' column
     .eq('id', householdId)
     .single();
 
@@ -307,6 +315,97 @@ export const getHouseholdDetails = async (householdId: string): Promise<Househol
   }
   return data;
 };
+
+/**
+ * Updates a specific rule within a household's house rules.
+ */
+export const updateHouseRule = async (householdId: string, updatedRule: HouseRule): Promise<Household> => {
+    if (!householdId || !updatedRule || !updatedRule.id) {
+        throw new Error("Household ID and a complete rule object with ID are required.");
+    }
+
+    const { data: household, error: fetchError } = await supabase
+        .from('households')
+        .select('rules')
+        .eq('id', householdId)
+        .single();
+
+    if (fetchError || !household) {
+        throw new Error("Could not retrieve household to update rule.");
+    }
+
+    const existingRules = household.rules || [];
+    const ruleIndex: number = (existingRules as HouseRule[]).findIndex((rule: HouseRule) => rule.id === updatedRule.id);
+
+    if (ruleIndex === -1) {
+        throw new Error("Rule not found to update.");
+    }
+
+    const updatedRules = [...existingRules];
+    updatedRules[ruleIndex] = updatedRule;
+
+    const { data, error } = await supabase
+        .from('households')
+        .update({
+            rules: updatedRules,
+            rules_last_updated: new Date().toISOString()
+        })
+        .eq('id', householdId)
+        .select()
+        .single();
+
+    if (error) {
+        console.error("Error updating house rule:", error);
+        throw error;
+    }
+
+    return data;
+}
+
+/**
+ * Deletes a specific rule from a household's house rules.
+ */
+export const deleteHouseRule = async (householdId: string, ruleId: string): Promise<Household> => {
+    if (!householdId || !ruleId) {
+        throw new Error("Household ID and Rule ID are required.");
+    }
+
+    const { data: household, error: fetchError } = await supabase
+        .from('households')
+        .select('rules')
+        .eq('id', householdId)
+        .single();
+
+    if (fetchError || !household) {
+        throw new Error("Could not retrieve household to delete rule.");
+    }
+
+    const existingRules = household.rules || [];
+    const updatedRules: HouseRule[] = (existingRules as HouseRule[]).filter((rule: HouseRule) => rule.id !== ruleId);
+
+    if (existingRules.length === updatedRules.length) {
+        console.warn("Rule with ID not found, no changes made.");
+        // We can still proceed to save, which will just be a no-op update.
+    }
+
+    const { data, error } = await supabase
+        .from('households')
+        .update({
+            rules: updatedRules,
+            rules_last_updated: new Date().toISOString()
+        })
+        .eq('id', householdId)
+        .select()
+        .single();
+
+    if (error) {
+        console.error("Error deleting house rule:", error);
+        throw error;
+    }
+
+    return data;
+}
+
 
 export const getHouseholdMembers = async (householdId: string): Promise<HouseholdMember[]> => {
   const { data, error } = await supabase
@@ -1133,3 +1232,49 @@ export const checkAndTriggerChoreRotation = async (householdId: string): Promise
   }
   return false;
 };
+
+/**
+ * Adds a new rule to a household's house rules.
+ */
+export const addHouseRule = async (householdId: string, category: string, content: string): Promise<Household> => {
+    if (!householdId || !category || !content) {
+        throw new Error("Household ID, category, and content are required.");
+    }
+
+    const { data: household, error: fetchError } = await supabase
+        .from('households')
+        .select('rules')
+        .eq('id', householdId)
+        .single();
+    
+    if (fetchError || !household) {
+        throw new Error("Could not retrieve household to add rule.");
+    }
+
+    const newRule = {
+        // In a real app, you'd use a proper UUID library
+        id: `rule_${Date.now()}_${Math.random()}`, 
+        category,
+        content,
+    };
+
+    const existingRules = household.rules || [];
+    const updatedRules = [...existingRules, newRule];
+
+    const { data, error } = await supabase
+        .from('households')
+        .update({ 
+            rules: updatedRules,
+            rules_last_updated: new Date().toISOString()
+        })
+        .eq('id', householdId)
+        .select()
+        .single();
+
+    if (error) {
+        console.error("Error adding house rule:", error);
+        throw error;
+    }
+    
+    return data;
+}
