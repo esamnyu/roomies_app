@@ -14,6 +14,7 @@ import { OnboardingChoice } from './OnboardingChoice';
 import { HouseholdChat } from './HouseholdChat';
 import { Circle, Edit3, Trash2, AlertTriangle } from 'lucide-react'; // Added ClipboardList
 import { ChoreDashboard } from './ChoreDashboard'; // Import the new component
+import { HouseholdSettings } from './HouseholdSettings';
 
 // Layout Component
 const Layout: React.FC<{ children: React.ReactNode; title?: string; showBack?: boolean; onBack?: () => void }> = ({
@@ -476,7 +477,7 @@ const Dashboard: React.FC<{ setAppState: (state: AppState) => void }> = ({ setAp
                   <div>
                     <h3 className="text-lg font-medium text-gray-900">{household.name}</h3>
                     <p className="mt-1 text-sm text-gray-500">
-                      {household.member_count || household.memberCount || '?'} {Number(household.member_count || household.memberCount) === 1 ? 'member' : 'members'}
+                      {household.member_count || '?'} {Number(household.member_count) === 1 ? 'member' : 'members'}
                     </p>
                   </div>
                   <ChevronRight className="h-5 w-5 text-gray-400" />
@@ -1070,14 +1071,13 @@ const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = (
           </div>
         )}
 
-        {activeTab === 'rulesSettings' && (
-          <div className="space-y-4">
-            <h3 className="text-lg font-medium text-gray-900">House Rules & Settings</h3>
-            <div className="text-center text-gray-400 mt-8 p-4 border-2 border-dashed rounded-lg">Placeholder: Define house rules and manage household settings here.</div>
-          </div>
-        )}
-      </div>
-
+        {activeTab === 'rulesSettings' && household && (
+        <HouseholdSettings
+          household={household}
+          members={members}
+          onUpdate={() => refreshData(true)}
+          />)}
+</div>
       {showAddExpense && <AddExpenseModal />}
       {showAddTask && <AddTaskModal />} {/* This is for the old "Tasks" */}
       {showSettleUp && <SettleUpModal />}

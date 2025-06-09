@@ -36,26 +36,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    setLoading(true);
-    
-    // Listen for auth changes. This handles initial session, sign-ins, and sign-outs.
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      setUser(session?.user ?? null);
-      
-      if (session?.user) {
-        // Only fetch profile if there is a user
-        await fetchProfile(session.user.id);
-      } else {
-        // Clear profile if there is no user
-        setProfile(null);
-      }
-      setLoading(false);
-    });
+  const getInitialSession = async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    setUser(session?.user ?? null);
+    if (session?.user) {
+      await fetchProfile(session.user.id);
+    }
+    setLoading(false);
+  };
 
-    return () => {
-      subscription?.unsubscribe();
-    };
-  }, []);
+  getInitialSession();
+
+  const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    setUser(session?.user ?? null);
+    if (session?.user) {
+      await fetchProfile(session.user.id);
+    } else {
+      setProfile(null);
+    }
+  });
+
+  return () => {
+    subscription?.unsubscribe();
+  };
+}, []);
 
   const fetchProfile = async (userId: string) => {
     try {
