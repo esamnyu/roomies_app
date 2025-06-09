@@ -1,4 +1,3 @@
-// src/components/HouseholdChat.tsx
 "use client";
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Send, Loader2 } from 'lucide-react';
@@ -23,46 +22,43 @@ export const HouseholdChat: React.FC<HouseholdChatProps> = ({ householdId }) => 
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  const loadMessages = useCallback(async () => {
-    try {
-      setLoading(true);
-      const data = await api.getHouseholdMessages(householdId);
-      setMessages(data);
-      setTimeout(scrollToBottom, 100);
-    } catch (error) {
-      console.error('Error loading messages:', error);
-    } finally {
-      setLoading(false);
-    }
-  }, [householdId]);
-
   useEffect(() => {
-  loadMessages();
-
-  // Subscribe to new messages
-  const subscription = api.subscribeToMessages(householdId, (newMessage) => {
-    console.log('New message received:', newMessage); // Debug log
+    // Define the async function to load messages inside the effect
+    const loadAndSubscribe = async () => {
+      try {
+        setLoading(true);
+        const initialMessages = await api.getHouseholdMessages(householdId);
+        setMessages(initialMessages);
+        setTimeout(scrollToBottom, 100);
+      } catch (error) {
+        console.error('Error loading initial messages:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
     
-    // Add the new message to state
-    setMessages(prev => {
-      // Check if message already exists to prevent duplicates
-      const exists = prev.some(m => m.id === newMessage.id);
-      if (exists) return prev;
-      
-      return [...prev, newMessage];
+    // Call the function to load initial data
+    loadAndSubscribe();
+
+    // Set up the subscription
+    const subscription = api.subscribeToMessages(householdId, (newMessage) => {
+      console.log('New message received:', newMessage);
+
+      setMessages(prev => {
+        const exists = prev.some(m => m.id === newMessage.id);
+        if (exists) return prev;
+        return [...prev, newMessage];
+      });
+
+      setTimeout(scrollToBottom, 100);
     });
-    
-    setTimeout(scrollToBottom, 100);
-  });
 
-  // Remove the .on('subscribe') and .on('error') calls - they're not needed
-  // The subscription will handle connection automatically
-
-  return () => {
-    console.log('Unsubscribing from messages');
-    subscription.unsubscribe();
-  };
-}, [householdId, loadMessages]);
+    // Cleanup function to unsubscribe
+    return () => {
+      console.log('Unsubscribing from messages');
+      subscription.unsubscribe();
+    };
+  }, [householdId]); // The effect now only depends on householdId
 
   const handleSend = async () => {
     if (!newMessage.trim() || sending) return;
@@ -74,8 +70,8 @@ export const HouseholdChat: React.FC<HouseholdChatProps> = ({ householdId }) => 
     try {
       const sentMessage = await api.sendMessage(householdId, messageText);
       
-      // Add the message immediately if it's not already there
-      // (in case the subscription doesn't catch it)
+      // Optimistically add the message to the UI.
+      // The subscription will also catch it, but this feels faster.
       setMessages(prev => {
         const exists = prev.some(m => m.id === sentMessage.id);
         if (exists) return prev;

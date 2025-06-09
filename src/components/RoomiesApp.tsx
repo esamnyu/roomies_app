@@ -1112,53 +1112,50 @@ const App: React.FC = () => {
 
 
   useEffect(() => {
-    const determineState = async () => {
-      if (authLoading) {
-        setAppState('loading');
-        return;
-      }
+  const determineState = async () => {
+    if (authLoading) {
+      setAppState('loading');
+      return;
+    }
 
-      if (!user) {
-        setAppState('landing');
-        return;
-      }
+    if (!user) {
+      setAppState('landing');
+      return;
+    }
 
-      setLoadingUserHouseholds(true);
-      try {
-        const userHouseholds = await api.getUserHouseholds(); // This RPC should return enough info
-        setHouseholds(userHouseholds); 
-        
-        const queryParams = new URLSearchParams(window.location.search);
-        const joinedHouseholdIdParam = queryParams.get('joinedHouseholdId'); 
-        
-        if (joinedHouseholdIdParam) {
-          setWelcomeHouseholdId(joinedHouseholdIdParam);
-          setAppState('householdWelcome');
-          const nextURL = new URL(window.location.href);
-          nextURL.searchParams.delete('joinedHouseholdId');
-          window.history.replaceState({}, '', nextURL.toString());
-        } else if (targetHouseholdAfterJoin) {
-            setWelcomeHouseholdId(targetHouseholdAfterJoin.id);
-            setAppState('householdWelcome');
-            setTargetHouseholdAfterJoin(null); 
-        } else if (userHouseholds.length === 0) {
-          setAppState('onboardingChoice');
-        } else {
-          // Before going to dashboard, ensure chores are initialized for the primary household (if applicable)
-          // For simplicity, we might rely on checkAndTriggerChoreRotation in HouseholdDetail/ChoreDashboard
-          // Or, explicitly initialize here if needed for the first household.
-          setAppState('dashboard');
-        }
-      } catch (error) {
-        console.error("Error fetching user households", error);
-        toast.error("Could not fetch your household information.");
-        setAppState('onboardingChoice'); // Fallback
-      } finally {
-        setLoadingUserHouseholds(false);
+    setLoadingUserHouseholds(true);
+    try {
+      const userHouseholds = await api.getUserHouseholds();
+      setHouseholds(userHouseholds);
+
+      const queryParams = new URLSearchParams(window.location.search);
+      const joinedHouseholdIdParam = queryParams.get('joinedHouseholdId');
+
+      if (joinedHouseholdIdParam) {
+        setWelcomeHouseholdId(joinedHouseholdIdParam);
+        setAppState('householdWelcome');
+        const nextURL = new URL(window.location.href);
+        nextURL.searchParams.delete('joinedHouseholdId');
+        window.history.replaceState({}, '', nextURL.toString());
+      } else if (targetHouseholdAfterJoin) {
+        setWelcomeHouseholdId(targetHouseholdAfterJoin.id);
+        setAppState('householdWelcome');
+        setTargetHouseholdAfterJoin(null);
+      } else if (userHouseholds.length === 0) {
+        setAppState('onboardingChoice');
+      } else {
+        setAppState('dashboard');
       }
-    };
-    determineState();
-  }, [user, authLoading, targetHouseholdAfterJoin]);
+    } catch (error) {
+      console.error("Error fetching user households", error);
+      toast.error("Could not fetch your household information.");
+      setAppState('onboardingChoice'); // Fallback
+    } finally {
+      setLoadingUserHouseholds(false);
+    }
+  };
+  determineState();
+}, [user, authLoading]); // <-- Corrected dependency array
 
   if (appState === 'loading' || (user && loadingUserHouseholds)) return <LoadingSpinner />;
   if (appState === 'landing') return <LandingPageContent onSignIn={() => { setIsRegisteringForAuthForm(false); setAppState('authForm'); }} onSignUp={() => { setIsRegisteringForAuthForm(true); setAppState('authForm'); }} />;
