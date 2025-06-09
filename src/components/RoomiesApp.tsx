@@ -14,7 +14,7 @@ import { OnboardingChoice } from './OnboardingChoice';
 import { HouseholdChat } from './HouseholdChat';
 import { Circle, Edit3, Trash2, AlertTriangle } from 'lucide-react'; // Added ClipboardList
 import { ChoreDashboard } from './ChoreDashboard'; // Import the new component
-import { HouseholdSettings } from './HouseHoldSettings';
+import { HouseholdSettings } from './HouseholdSettings';
 
 // Layout Component
 const Layout: React.FC<{ children: React.ReactNode; title?: string; showBack?: boolean; onBack?: () => void }> = ({
