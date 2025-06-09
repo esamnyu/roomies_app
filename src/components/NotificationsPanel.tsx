@@ -1,6 +1,6 @@
-// Create: src/components/NotificationsPanel.tsx
+// src/components/NotificationsPanel.tsx
 "use client";
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, SetStateAction, Dispatch } from 'react';
 import { Bell, X, Check, DollarSign, CheckSquare, Users, CreditCard, Calendar, AlertCircle } from 'lucide-react';
 import * as api from '@/lib/api';
 import type { Notification } from '@/lib/api';
@@ -9,7 +9,7 @@ import { useAuth } from './AuthProvider';
 interface NotificationsPanelProps {
   isOpen: boolean;
   onClose: () => void;
-  onNotificationCountChange: (count: number) => void;
+  onNotificationCountChange: Dispatch<SetStateAction<number>>;
 }
 
 export const NotificationsPanel: React.FC<NotificationsPanelProps> = ({
@@ -31,17 +31,16 @@ export const NotificationsPanel: React.FC<NotificationsPanelProps> = ({
   useEffect(() => {
     if (!user) return;
 
-    // Subscribe to real-time notifications
     const subscription = api.subscribeToNotifications(user.id, (notification) => {
       setNotifications((prev) => [notification, ...prev]);
-      setUnreadCount((prev) => prev + 1);
-      onNotificationCountChange(unreadCount + 1);
       
-      // Show browser notification if permission granted
+      setUnreadCount((prevCount) => prevCount + 1);
+      onNotificationCountChange((prevCount) => prevCount + 1);
+
       if ('Notification' in window && Notification.permission === 'granted') {
         new Notification(notification.title, {
           body: notification.message,
-          icon: '/icon.png' // Add your app icon
+          icon: '/icon.png'
         });
       }
     });
@@ -49,7 +48,7 @@ export const NotificationsPanel: React.FC<NotificationsPanelProps> = ({
     return () => {
       subscription.unsubscribe();
     };
-  }, [user, unreadCount, onNotificationCountChange]);
+  }, [user, onNotificationCountChange]);
 
   const loadNotifications = async () => {
     try {
@@ -77,7 +76,7 @@ export const NotificationsPanel: React.FC<NotificationsPanelProps> = ({
         )
       );
       setUnreadCount((prev) => Math.max(0, prev - 1));
-      onNotificationCountChange(Math.max(0, unreadCount - 1));
+      onNotificationCountChange((prev) => Math.max(0, prev - 1));
     } catch (error) {
       console.error('Error marking notification as read:', error);
     }

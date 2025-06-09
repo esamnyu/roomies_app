@@ -1,6 +1,5 @@
 "use client";
-import React, { createContext, useContext, useEffect, useState } from 'react';
-import { supabase } from '@/lib/supabase';
+import React, { createContext, useContext, useEffect, useState, useMemo } from 'react';import { supabase } from '@/lib/supabase';
 import { User } from '@supabase/supabase-js';
 import type { Profile } from '@/lib/api';
 import * as api from '@/lib/api';
@@ -37,26 +36,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    setLoading(true);
-    
-    // Listen for auth changes. This handles initial session, sign-ins, and sign-outs.
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      setUser(session?.user ?? null);
-      
-      if (session?.user) {
-        // Only fetch profile if there is a user
-        await fetchProfile(session.user.id);
-      } else {
-        // Clear profile if there is no user
-        setProfile(null);
-      }
-      setLoading(false);
-    });
+  const getInitialSession = async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    setUser(session?.user ?? null);
+    if (session?.user) {
+      await fetchProfile(session.user.id);
+    }
+    setLoading(false);
+  };
 
-    return () => {
-      subscription?.unsubscribe();
-    };
-  }, []);
+  getInitialSession();
+
+  const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    setUser(session?.user ?? null);
+    if (session?.user) {
+      await fetchProfile(session.user.id);
+    } else {
+      setProfile(null);
+    }
+  });
+
+  return () => {
+    subscription?.unsubscribe();
+  };
+}, []);
 
   const fetchProfile = async (userId: string) => {
     try {
@@ -99,8 +102,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+const value = useMemo(() => ({
+    user,
+    profile,
+    loading,
+    signIn,
+    signUp,
+    signOut
+  }), [user, profile, loading, signIn, signUp, signOut]);
+
   return (
-    <AuthContext.Provider value={{ user, profile, loading, signIn, signUp, signOut }}>
+    <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
   );
