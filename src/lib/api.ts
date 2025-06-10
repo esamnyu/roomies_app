@@ -1,6 +1,6 @@
-// esamnyu/roomies_app/roomies_app-feat-landing-and-onboarding/src/lib/api.ts
 import { ReactNode } from 'react';
 import { supabase } from './supabase';
+import { subscriptionManager } from './subscriptionManager';
 
 // --- bestehende Typen (gekürzt zur Übersichtlichkeit) ---
 export interface Profile {
@@ -728,30 +728,31 @@ export const getHouseholdSettlements = async (householdId: string) => {
 };
 
 export const subscribeToSettlements = (householdId: string, onSettlement: (settlement: Settlement) => void) => {
-  const subscription = supabase
-    .channel(`settlements:${householdId}`)
-    .on('postgres_changes', { 
-      event: 'INSERT', 
-      schema: 'public', 
-      table: 'settlements', 
-      filter: `household_id=eq.${householdId}`
-    }, async (payload) => {
-      if (payload.new) {
-        const newSettlement = payload.new as Settlement;
-        const { data } = await supabase
-          .from('settlements')
-          .select(`
-            *,
-            payer_profile:profiles!settlements_payer_id_fkey(id, name, avatar_url),
-            payee_profile:profiles!settlements_payee_id_fkey(id, name, avatar_url)
-          `)
-          .eq('id', newSettlement.id)
-          .single();
-        if (data) onSettlement(data);
-      }
-    })
-    .subscribe();
-  return subscription;
+    const key = `settlements:${householdId}`;
+    const subscription = supabase
+        .channel(key)
+        .on('postgres_changes', {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'settlements',
+            filter: `household_id=eq.${householdId}`
+        }, async (payload) => {
+            if (payload.new) {
+                const newSettlement = payload.new as Settlement;
+                const { data } = await supabase
+                    .from('settlements')
+                    .select(`
+                        *,
+                        payer_profile:profiles!settlements_payer_id_fkey(id, name, avatar_url),
+                        payee_profile:profiles!settlements_payee_id_fkey(id, name, avatar_url)
+                    `)
+                    .eq('id', newSettlement.id)
+                    .single();
+                if (data) onSettlement(data);
+            }
+        })
+        .subscribe();
+    return subscriptionManager.subscribe(key, subscription);
 };
 
 
@@ -814,8 +815,13 @@ export const createNotification = async (userId: string, type: Notification['typ
   if (error) throw error; return notification;
 };
 export const subscribeToNotifications = (userId: string, onNotification: (notification: Notification) => void) => {
-  const subscription = supabase.channel(`notifications:${userId}`).on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${userId}`}, (payload) => { onNotification(payload.new as Notification); }).subscribe();
-  return subscription;
+    const key = `notifications:${userId}`;
+    const channel = supabase.channel(key)
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${userId}`}, (payload) => {
+            onNotification(payload.new as Notification);
+        })
+        .subscribe();
+    return subscriptionManager.subscribe(key, channel);
 };
 export const sendPaymentReminder = async (householdId: string, debtorId: string, amount: number) => {
   const { data: { user } } = await supabase.auth.getUser(); if (!user) throw new Error('Not authenticated');
@@ -906,32 +912,18 @@ export const getHouseholdMessages = async (householdId: string, limit = 50, befo
   return ((data || []) as MessageWithProfileRPC[]).map((msg: MessageWithProfileRPC) => ({ ...msg, profiles: msg.profile })).reverse();
 };
 export const subscribeToMessages = (householdId: string, onMessage: (message: Message) => void) => {
-  const channel = supabase.channel('new_message');
+    const key = `messages:${householdId}`;
+    const channel = supabase.channel(`new_message:${householdId}`)
+      .on('broadcast', { event: 'new_message' }, (payload) => {
+          const received = payload.payload;
+          if (received.message && received.message.household_id === householdId) {
+            const messageWithProfile: Message = { ...received.message, profiles: received.profile };
+            onMessage(messageWithProfile);
+          }
+      })
+      .subscribe();
 
-  channel.on('postgres_changes', {
-      event: '*',
-      schema: 'public',
-      table: 'messages',
-    },
-    (payload) => {
-      console.log('Postgres change received:', payload);
-    }
-  );
-
-  channel.on('broadcast', { event: 'new_message' }, (payload) => {
-    const received = payload.payload;
-
-    if (received.message && received.message.household_id === householdId) {
-      const messageWithProfile: Message = {
-        ...received.message,
-        profiles: received.profile,
-      };
-      onMessage(messageWithProfile);
-    }
-  });
-
-  channel.subscribe();
-  return channel;
+    return subscriptionManager.subscribe(key, channel);
 };
 
 // --- NEW CHORE API FUNCTIONS ---
