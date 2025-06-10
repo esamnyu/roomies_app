@@ -1,3 +1,28 @@
+/* src/app/globals.css */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 222.2 84% 4.9%;
+
+    /* Harmonious Home Palette */
+    --primary: 158 79% 20%; /* Emerald Green */
+    --primary-foreground: 210 40% 98%;
+
+    --secondary: 210 40% 96.1%; /* Cool Slate/Gray */
+    --secondary-foreground: 222.2 47.4% 11.2%;
+
+    --accent: 16 100% 65%; /* Warm Coral */
+    --accent-foreground: 210 40% 98%;
+
+    --destructive: 0 84.2% 60.2%; /* Red */
+    --destructive-foreground: 210 40% 98%;
+    
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 158 79% 25%;
+  }
+}

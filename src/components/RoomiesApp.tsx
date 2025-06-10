@@ -480,18 +480,22 @@ const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = (
   
     const subscription = api.subscribeToSettlements(householdId, (newSettlement) => {
       setSettlements(prev => {
+        // Check if the settlement is already in the list to avoid duplicates
         const exists = prev.some(s => s.id === newSettlement.id);
-        if (exists) return prev;
+        if (exists) {
+            return prev;
+        }
+        // Add the new settlement to the beginning of the array
         const updated = [newSettlement, ...prev];
+        // Keep the list from growing indefinitely
         return updated.slice(0, 50);
       });
-      setTimeout(() => refreshData(false), 100);
     });
   
     return () => {
       subscription.unsubscribe();
     };
-  }, [householdId, refreshData]);
+  }, [householdId]); // refreshData has been removed from the dependency array
 
   useEffect(() => {
     const processAndRefresh = async () => {
