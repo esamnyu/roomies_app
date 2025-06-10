@@ -2,8 +2,8 @@
 import React from 'react';
 import type { HouseholdMember } from '@/lib/api';
 import type { SplitType } from '@/hooks/useExpenseSplits';
+import { Button } from '@/components/ui/Button';
 
-// Define a more specific type for the props this component needs
 interface ExpenseSplitterProps {
     members: HouseholdMember[];
     amount: number;
@@ -23,7 +23,7 @@ interface ExpenseSplitterProps {
 
 export const ExpenseSplitter: React.FC<ExpenseSplitterProps> = ({
     members,
-    amount,
+    finalSplits,
     splitType,
     setSplitType,
     includedMembers,
@@ -31,8 +31,7 @@ export const ExpenseSplitter: React.FC<ExpenseSplitterProps> = ({
     customSplits,
     setCustomSplits,
     percentageSplits,
-    setPercentageSplits,
-    finalSplits
+    setPercentageSplits
 }) => {
     
     const getMemberSplitAmount = (userId: string) => {
@@ -40,44 +39,53 @@ export const ExpenseSplitter: React.FC<ExpenseSplitterProps> = ({
         return split ? split.amount : 0;
     };
 
+    const inputSmStyles = "h-9 w-20 rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50";
+    const checkboxStyles = "h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary";
+
     return (
         <>
             <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">How to split?</label>
+                <label className="block text-sm font-medium text-foreground mb-2">How to split?</label>
                 <div className="grid grid-cols-3 gap-2">
                     {(['equal', 'custom', 'percentage'] as SplitType[]).map(type => (
-                        <button key={type} type="button" onClick={() => setSplitType(type)} className={`btn capitalize ${splitType === type ? 'btn-primary' : 'btn-secondary-outline'}`}>
+                        <Button
+                          key={type}
+                          type="button"
+                          onClick={() => setSplitType(type)}
+                          variant={splitType === type ? 'default' : 'outline'}
+                          className="capitalize"
+                        >
                             {type}
-                        </button>
+                        </Button>
                     ))}
                 </div>
             </div>
 
             <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-foreground mb-2">
                     Split between ({includedMembers.size} {includedMembers.size === 1 ? 'person' : 'people'})
                 </label>
-                <div className="space-y-2 max-h-64 overflow-y-auto border border-gray-200 rounded-md p-3">
+                <div className="space-y-2 max-h-64 overflow-y-auto border border-input rounded-md p-3">
                     {members.map(member => (
-                        <div key={member.user_id} className="flex items-center justify-between p-2 hover:bg-gray-50 rounded">
+                        <div key={member.user_id} className="flex items-center justify-between p-2 hover:bg-secondary rounded">
                             <div className="flex items-center flex-1">
-                                <input type="checkbox" checked={includedMembers.has(member.user_id)} onChange={() => toggleMemberInclusion(member.user_id)} className="h-4 w-4 checkbox" />
-                                <label className="ml-2 text-sm font-medium text-gray-700">{member.profiles?.name}</label>
+                                <input type="checkbox" checked={includedMembers.has(member.user_id)} onChange={() => toggleMemberInclusion(member.user_id)} className={checkboxStyles} />
+                                <label className="ml-2 text-sm font-medium text-foreground">{member.profiles?.name}</label>
                             </div>
                             <div className="flex items-center space-x-2">
                                 {splitType === 'custom' && includedMembers.has(member.user_id) && (
                                     <div className="flex items-center">
-                                        <span className="text-gray-500 mr-1">$</span>
-                                        <input type="number" step="0.01" className="w-20 input-sm" value={customSplits[member.user_id] || ''} onChange={(e) => setCustomSplits({ ...customSplits, [member.user_id]: parseFloat(e.target.value) || 0 })}/>
+                                        <span className="text-secondary-foreground mr-1">$</span>
+                                        <input type="number" step="0.01" className={inputSmStyles} value={customSplits[member.user_id] || ''} onChange={(e) => setCustomSplits({ ...customSplits, [member.user_id]: parseFloat(e.target.value) || 0 })}/>
                                     </div>
                                 )}
                                 {splitType === 'percentage' && includedMembers.has(member.user_id) && (
                                      <div className="flex items-center">
-                                        <input type="number" step="0.01" min="0" max="100" className="w-16 input-sm" value={percentageSplits[member.user_id] || ''} onChange={(e) => setPercentageSplits({ ...percentageSplits, [member.user_id]: parseFloat(e.target.value) || 0 })} />
-                                        <span className="text-gray-500 ml-1">%</span>
+                                        <input type="number" step="0.01" min="0" max="100" className={`${inputSmStyles} w-16`} value={percentageSplits[member.user_id] || ''} onChange={(e) => setPercentageSplits({ ...percentageSplits, [member.user_id]: parseFloat(e.target.value) || 0 })} />
+                                        <span className="text-secondary-foreground ml-1">%</span>
                                     </div>
                                 )}
-                                <span className={`text-sm font-medium ${includedMembers.has(member.user_id) ? 'text-gray-900' : 'text-gray-400'}`}>
+                                <span className={`text-sm font-medium w-16 text-right ${includedMembers.has(member.user_id) ? 'text-foreground' : 'text-secondary-foreground/50'}`}>
                                     ${getMemberSplitAmount(member.user_id).toFixed(2)}
                                 </span>
                             </div>

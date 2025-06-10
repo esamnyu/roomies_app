@@ -7,8 +7,8 @@ import * as api from '@/lib/api';
 import type { Household, HouseholdMember, HouseRule } from '@/lib/api';
 import { toast } from 'react-hot-toast';
 import { Loader2, User, KeyRound, Trash2, Shield, LogOut, AlertTriangle, Plus, Edit3 } from 'lucide-react';
+import { Button } from '@/components/ui/Button';
 
-// ... (SettingsCard, AddRuleModal, and EditRuleModal components remain the same)
 interface HouseholdSettingsProps {
   household: Household;
   members: HouseholdMember[];
@@ -16,15 +16,15 @@ interface HouseholdSettingsProps {
 }
 
 const SettingsCard: React.FC<{ title: string; children: React.ReactNode; footer?: React.ReactNode }> = ({ title, children, footer }) => (
-  <div className="bg-white rounded-lg shadow">
+  <div className="bg-background rounded-lg shadow border border-border">
     <div className="p-6">
-      <h3 className="text-lg font-semibold text-gray-800 mb-4">{title}</h3>
+      <h3 className="text-lg font-semibold text-foreground mb-4">{title}</h3>
       <div className="space-y-4">
         {children}
       </div>
     </div>
     {footer && (
-      <div className="bg-gray-50 px-6 py-3 rounded-b-lg text-right">
+      <div className="bg-secondary px-6 py-3 rounded-b-lg text-right">
         {footer}
       </div>
     )}
@@ -57,25 +57,27 @@ const AddRuleModal: React.FC<{
     }
   };
 
+  const inputStyles = "mt-1 block w-full px-3 py-2 border border-input rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-ring sm:text-sm";
+
   return (
-    <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-lg p-6 max-w-md w-full">
-        <h3 className="text-lg font-medium text-gray-900 mb-4">Add a New House Rule</h3>
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+      <div className="bg-background rounded-lg p-6 max-w-md w-full">
+        <h3 className="text-lg font-medium text-foreground mb-4">Add a New House Rule</h3>
         <div className="space-y-4">
           <div>
-            <label htmlFor="category" className="block text-sm font-medium text-gray-700">Category</label>
-            <input type="text" id="category" value={category} onChange={e => setCategory(e.target.value)} className="mt-1 w-full input" placeholder="e.g., Cleanliness, Guests" />
+            <label htmlFor="category" className="block text-sm font-medium text-foreground">Category</label>
+            <input type="text" id="category" value={category} onChange={e => setCategory(e.target.value)} className={inputStyles} placeholder="e.g., Cleanliness, Guests" />
           </div>
           <div>
-            <label htmlFor="content" className="block text-sm font-medium text-gray-700">Rule Content</label>
-            <textarea id="content" value={content} onChange={e => setContent(e.target.value)} className="mt-1 w-full input" rows={3} placeholder="Describe the rule..."></textarea>
+            <label htmlFor="content" className="block text-sm font-medium text-foreground">Rule Content</label>
+            <textarea id="content" value={content} onChange={e => setContent(e.target.value)} className={inputStyles} rows={3} placeholder="Describe the rule..."></textarea>
           </div>
         </div>
         <div className="mt-6 flex justify-end space-x-3">
-          <button onClick={onClose} disabled={isSaving} className="btn-secondary">Cancel</button>
-          <button onClick={handleSubmit} disabled={isSaving || !category || !content} className="btn-primary">
+          <Button onClick={onClose} disabled={isSaving} variant="secondary">Cancel</Button>
+          <Button onClick={handleSubmit} disabled={isSaving || !category || !content}>
             {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Add Rule'}
-          </button>
+          </Button>
         </div>
       </div>
     </div>
@@ -109,33 +111,33 @@ const EditRuleModal: React.FC<{
     }
   };
 
+  const inputStyles = "mt-1 block w-full px-3 py-2 border border-input rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-ring sm:text-sm";
+
   return (
-    <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-lg p-6 max-w-md w-full">
-        <h3 className="text-lg font-medium text-gray-900 mb-4">Edit House Rule</h3>
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+      <div className="bg-background rounded-lg p-6 max-w-md w-full">
+        <h3 className="text-lg font-medium text-foreground mb-4">Edit House Rule</h3>
         <div className="space-y-4">
           <div>
-            <label htmlFor="edit-category" className="block text-sm font-medium text-gray-700">Category</label>
-            <input type="text" id="edit-category" value={category} onChange={e => setCategory(e.target.value)} className="mt-1 w-full input" />
+            <label htmlFor="edit-category" className="block text-sm font-medium text-foreground">Category</label>
+            <input type="text" id="edit-category" value={category} onChange={e => setCategory(e.target.value)} className={inputStyles} />
           </div>
           <div>
-            <label htmlFor="edit-content" className="block text-sm font-medium text-gray-700">Rule Content</label>
-            <textarea id="edit-content" value={content} onChange={e => setContent(e.target.value)} className="mt-1 w-full input" rows={3}></textarea>
+            <label htmlFor="edit-content" className="block text-sm font-medium text-foreground">Rule Content</label>
+            <textarea id="edit-content" value={content} onChange={e => setContent(e.target.value)} className={inputStyles} rows={3}></textarea>
           </div>
         </div>
         <div className="mt-6 flex justify-end space-x-3">
-          <button onClick={onClose} disabled={isSaving} className="btn-secondary">Cancel</button>
-          <button onClick={handleSubmit} disabled={isSaving || !category || !content} className="btn-primary">
+          <Button onClick={onClose} disabled={isSaving} variant="secondary">Cancel</Button>
+          <Button onClick={handleSubmit} disabled={isSaving || !category || !content}>
             {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Save Changes'}
-          </button>
+          </Button>
         </div>
       </div>
     </div>
   );
 };
 
-
-// MODIFIED: RuleCard now takes onDelete as a prop
 const RuleCard: React.FC<{ 
   rule: HouseRule; 
   isAdmin: boolean; 
@@ -143,25 +145,24 @@ const RuleCard: React.FC<{
   onDelete: (ruleId: string) => void;
 }> = ({ rule, isAdmin, onEdit, onDelete }) => {
   return (
-    <div className="bg-gray-50 p-4 rounded-lg border">
+    <div className="bg-secondary p-4 rounded-lg border border-border">
       <div className="flex justify-between items-center">
-        <h4 className="text-md font-semibold text-gray-700">{rule.category}</h4>
+        <h4 className="text-md font-semibold text-foreground">{rule.category}</h4>
         {isAdmin && (
           <div className="flex space-x-2">
-            <button onClick={() => onEdit(rule)} className="text-gray-400 hover:text-blue-600" title="Edit Rule">
+            <button onClick={() => onEdit(rule)} className="text-secondary-foreground hover:text-primary" title="Edit Rule">
               <Edit3 className="h-4 w-4" />
             </button>
-            <button onClick={() => onDelete(rule.id)} className="text-gray-400 hover:text-red-600" title="Delete Rule">
+            <button onClick={() => onDelete(rule.id)} className="text-secondary-foreground hover:text-destructive" title="Delete Rule">
               <Trash2 className="h-4 w-4" />
             </button>
           </div>
         )}
       </div>
-      <p className="mt-2 text-sm text-gray-600 whitespace-pre-wrap">{rule.content}</p>
+      <p className="mt-2 text-sm text-secondary-foreground whitespace-pre-wrap">{rule.content}</p>
     </div>
   );
 };
-
 
 export const HouseholdSettings: React.FC<HouseholdSettingsProps> = ({ household, members, onUpdate }) => {
   const { user } = useAuth();
@@ -176,7 +177,6 @@ export const HouseholdSettings: React.FC<HouseholdSettingsProps> = ({ household,
   const [showEditRuleModal, setShowEditRuleModal] = useState(false);
   const [ruleToEdit, setRuleToEdit] = useState<HouseRule | null>(null);
 
-
   useEffect(() => {
     setName(household.name);
     setMemberCount(household.member_count || 1);
@@ -185,7 +185,6 @@ export const HouseholdSettings: React.FC<HouseholdSettingsProps> = ({ household,
   }, [household]);
 
   const handleUpdateHouseholdDetails = async () => {
-    // ... (this function is unchanged)
     setIsSavingDetails(true);
     try {
       await api.updateHouseholdSettings(household.id, {
@@ -219,7 +218,6 @@ export const HouseholdSettings: React.FC<HouseholdSettingsProps> = ({ household,
     onUpdate();
   };
 
-  // NEW: Handler for deleting a rule
   const handleDeleteRule = async (ruleId: string) => {
     if (window.confirm("Are you sure you want to delete this rule permanently?")) {
       try {
@@ -232,7 +230,6 @@ export const HouseholdSettings: React.FC<HouseholdSettingsProps> = ({ household,
     }
   };
 
-  // ... (handleRemoveMember, etc. are unchanged)
   const handleRemoveMember = async (memberToRemove: HouseholdMember) => {
     if (window.confirm(`Are you sure you want to remove ${memberToRemove.profiles?.name} from the household?`)) {
         try {
@@ -283,136 +280,123 @@ export const HouseholdSettings: React.FC<HouseholdSettingsProps> = ({ household,
 
   const currentUserRole = members.find(m => m.user_id === user?.id)?.role;
   const isAdmin = currentUserRole === 'admin';
+  const inputStyles = "mt-1 block w-full px-3 py-2 border border-input rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-ring sm:text-sm disabled:opacity-50 disabled:bg-secondary";
 
   return (
     <>
       <div className="space-y-8">
-        {/* ... (Other SettingsCards are unchanged) ... */}
         <SettingsCard 
-        title="Household Details"
-        footer={
-          <button onClick={handleUpdateHouseholdDetails} disabled={isSavingDetails} className="btn-primary">
-            {isSavingDetails ? <Loader2 className="h-4 w-4 animate-spin"/> : 'Save Changes'}
-          </button>
-        }
-      >
-        <div>
-          <label htmlFor="householdName" className="block text-sm font-medium text-gray-700">Household Name</label>
-          <input type="text" id="householdName" value={name} onChange={e => setName(e.target.value)} className="mt-1 w-full input" disabled={!isAdmin} />
-        </div>
-        <div>
-          <label htmlFor="memberCount" className="block text-sm font-medium text-gray-700">Target Member Count</label>
-          <input type="number" id="memberCount" min="1" value={memberCount} onChange={e => setMemberCount(parseInt(e.target.value, 10))} className="mt-1 w-full input" disabled={!isAdmin} />
-        </div>
-      </SettingsCard>
+          title="Household Details"
+          footer={ isAdmin &&
+            <Button onClick={handleUpdateHouseholdDetails} disabled={isSavingDetails}>
+              {isSavingDetails ? <Loader2 className="h-4 w-4 animate-spin"/> : 'Save Changes'}
+            </Button>
+          }
+        >
+          <div>
+            <label htmlFor="householdName" className="block text-sm font-medium text-foreground">Household Name</label>
+            <input type="text" id="householdName" value={name} onChange={e => setName(e.target.value)} className={inputStyles} disabled={!isAdmin} />
+          </div>
+          <div>
+            <label htmlFor="memberCount" className="block text-sm font-medium text-foreground">Target Member Count</label>
+            <input type="number" id="memberCount" min="1" value={memberCount} onChange={e => setMemberCount(parseInt(e.target.value, 10))} className={inputStyles} disabled={!isAdmin} />
+          </div>
+        </SettingsCard>
 
-       <SettingsCard 
-        title="Chore Configuration"
-        footer={
-          <button onClick={handleUpdateHouseholdDetails} disabled={isSavingDetails} className="btn-primary">
-            {isSavingDetails ? <Loader2 className="h-4 w-4 animate-spin"/> : 'Save Chore Settings'}
-          </button>
-        }
-      >
-        <div>
-            <label htmlFor="choreFramework" className="block text-sm font-medium text-gray-700">Chore Framework</label>
-             <select id="choreFramework" value={choreFramework} onChange={e => setChoreFramework(e.target.value as 'Split' | 'One person army')} className="mt-1 w-full input" disabled={!isAdmin}>
-                <option value="Split">Split - Chores are divided among members each cycle.</option>
-                <option value="One person army">One Person Army - One member does all chores for a cycle.</option>
-            </select>
-        </div>
-        <div>
-            <label htmlFor="choreFrequency" className="block text-sm font-medium text-gray-700">Chore Frequency</label>
-             <select id="choreFrequency" value={choreFrequency} onChange={e => setChoreFrequency(e.target.value as 'Daily' | 'Weekly' | 'Bi-weekly' | 'Monthly')} className="mt-1 w-full input" disabled={!isAdmin}>
-                <option value="Daily">Daily</option>
-                <option value="Weekly">Weekly</option>
-                <option value="Bi-weekly">Bi-weekly</option>
-                <option value="Monthly">Monthly</option>
-            </select>
-        </div>
-        <p className="text-xs text-gray-500">To add, edit, or remove specific chores, please visit the main "Chores" tab.</p>
-      </SettingsCard>
+        <SettingsCard 
+          title="Chore Configuration"
+          footer={ isAdmin &&
+            <Button onClick={handleUpdateHouseholdDetails} disabled={isSavingDetails}>
+              {isSavingDetails ? <Loader2 className="h-4 w-4 animate-spin"/> : 'Save Chore Settings'}
+            </Button>
+          }
+        >
+          <div>
+              <label htmlFor="choreFramework" className="block text-sm font-medium text-foreground">Chore Framework</label>
+              <select id="choreFramework" value={choreFramework} onChange={e => setChoreFramework(e.target.value as 'Split' | 'One person army')} className={inputStyles} disabled={!isAdmin}>
+                  <option value="Split">Split - Chores are divided among members each cycle.</option>
+                  <option value="One person army">One Person Army - One member does all chores for a cycle.</option>
+              </select>
+          </div>
+          <div>
+              <label htmlFor="choreFrequency" className="block text-sm font-medium text-foreground">Chore Frequency</label>
+              <select id="choreFrequency" value={choreFrequency} onChange={e => setChoreFrequency(e.target.value as 'Daily' | 'Weekly' | 'Bi-weekly' | 'Monthly')} className={inputStyles} disabled={!isAdmin}>
+                  <option value="Daily">Daily</option>
+                  <option value="Weekly">Weekly</option>
+                  <option value="Bi-weekly">Bi-weekly</option>
+                  <option value="Monthly">Monthly</option>
+              </select>
+          </div>
+          <p className="text-xs text-secondary-foreground opacity-70">To add, edit, or remove specific chores, please visit the main "Chores" tab.</p>
+        </SettingsCard>
 
         <SettingsCard 
           title="House Rules"
           footer={
             isAdmin && (
-              <button 
-                onClick={() => setShowAddRuleModal(true)} 
-                className="btn-primary flex items-center"
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Add New Rule
-              </button>
+              <Button onClick={() => setShowAddRuleModal(true)}>
+                <Plus className="h-4 w-4 mr-2" /> Add New Rule
+              </Button>
             )
           }
         >
           <div className="space-y-4">
             {household.rules && household.rules.length > 0 ? (
               household.rules.map((rule) => (
-                <RuleCard 
-                    key={rule.id} 
-                    rule={rule} 
-                    isAdmin={isAdmin} 
-                    onEdit={handleOpenEditModal} 
-                    // MODIFIED: Pass the delete handler to the card
-                    onDelete={handleDeleteRule}
-                />
+                <RuleCard key={rule.id} rule={rule} isAdmin={isAdmin} onEdit={handleOpenEditModal} onDelete={handleDeleteRule}/>
               ))
             ) : (
               <div className="text-center py-4">
-                <p className="text-sm text-gray-500">No house rules have been added yet.</p>
-                {isAdmin && <p className="text-xs text-gray-400 mt-1">Click "Add New Rule" to get started.</p>}
+                <p className="text-sm text-secondary-foreground">No house rules have been added yet.</p>
+                {isAdmin && <p className="text-xs text-secondary-foreground opacity-70 mt-1">Click "Add New Rule" to get started.</p>}
               </div>
             )}
           </div>
         </SettingsCard>
         
         <SettingsCard title="Member Management">
-        <div className="divide-y divide-gray-200">
-            {members.map(member => (
-                <div key={member.id} className="py-3 flex justify-between items-center">
-                    <div>
-                        <p className="font-medium">{member.profiles?.name} {member.user_id === user?.id && '(You)'}</p>
-                        <p className="text-sm text-gray-500 capitalize">{member.role}</p>
-                    </div>
-                    {isAdmin && user?.id !== member.user_id && (
-                        <div className="flex space-x-2">
-                           {member.role !== 'admin' && (
-                             <button onClick={() => handlePromoteMember(member)} className="btn-secondary-sm" title="Promote to Admin">
-                                <Shield className="h-4 w-4"/>
-                             </button>
-                           )}
-                            <button onClick={() => handleRemoveMember(member)} className="btn-danger-sm" title="Remove Member">
-                                <Trash2 className="h-4 w-4"/>
-                            </button>
-                        </div>
-                    )}
-                </div>
-            ))}
-        </div>
-      </SettingsCard>
-       <SettingsCard title="Danger Zone">
-           <div className="space-y-4">
-               <div>
-                   <button onClick={handleLeaveHousehold} className="btn-danger w-full sm:w-auto">
-                       <LogOut className="h-4 w-4 mr-2" />
-                       Leave Household
-                   </button>
-                   <p className="text-xs text-gray-500 mt-1">You will be removed from the household. This cannot be undone.</p>
-               </div>
+          <div className="divide-y divide-border">
+              {members.map(member => (
+                  <div key={member.id} className="py-3 flex justify-between items-center">
+                      <div>
+                          <p className="font-medium text-foreground">{member.profiles?.name} {member.user_id === user?.id && '(You)'}</p>
+                          <p className="text-sm text-secondary-foreground capitalize">{member.role}</p>
+                      </div>
+                      {isAdmin && user?.id !== member.user_id && (
+                          <div className="flex space-x-2">
+                            {member.role !== 'admin' && (
+                              <Button onClick={() => handlePromoteMember(member)} variant="secondary" size="sm" title="Promote to Admin">
+                                  <Shield className="h-4 w-4"/>
+                              </Button>
+                            )}
+                              <Button onClick={() => handleRemoveMember(member)} variant="destructive" size="sm" title="Remove Member">
+                                  <Trash2 className="h-4 w-4"/>
+                              </Button>
+                          </div>
+                      )}
+                  </div>
+              ))}
+          </div>
+        </SettingsCard>
 
+        <SettingsCard title="Danger Zone">
+            <div className="space-y-4">
+                <div>
+                    <Button onClick={handleLeaveHousehold} variant="destructive" className="w-full sm:w-auto">
+                        <LogOut className="h-4 w-4 mr-2" /> Leave Household
+                    </Button>
+                    <p className="text-xs text-secondary-foreground opacity-70 mt-1">You will be removed from the household. This cannot be undone.</p>
+                </div>
                 {household.created_by === user?.id && (
-                     <div>
-                        <button onClick={handleDeleteHousehold} className="btn-danger w-full sm:w-auto">
-                            <AlertTriangle className="h-4 w-4 mr-2" />
-                            Delete Household
-                        </button>
-                        <p className="text-xs text-gray-500 mt-1">This will permanently delete the household and all its data for everyone. This action is irreversible.</p>
+                      <div>
+                        <Button onClick={handleDeleteHousehold} variant="destructive" className="w-full sm:w-auto">
+                            <AlertTriangle className="h-4 w-4 mr-2" /> Delete Household
+                        </Button>
+                        <p className="text-xs text-secondary-foreground opacity-70 mt-1">This will permanently delete the household and all its data. This action is irreversible.</p>
                     </div>
                 )}
-           </div>
-       </SettingsCard>
+            </div>
+        </SettingsCard>
       </div>
 
       {showAddRuleModal && (
