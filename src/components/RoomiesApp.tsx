@@ -453,12 +453,12 @@ const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = (
           </div>
         )}
 
-        {activeTab === 'rulesSettings' && household && ( <HouseholdSettings household={household} members={members} onUpdate={() => refreshData(true)} />)}
+        {activeTab === 'rulesSettings' && household && ( <HouseholdSettings household={household} members={members} onUpdate={() => refreshData()} />)}
       </div>
 
-      {showAddExpense && <AddExpenseModal householdId={householdId} members={members} onClose={() => setShowAddExpense(false)} onExpenseAdded={() => refreshData(true)} />}
-      {showSettleUp && <SettleUpModal householdId={householdId} members={members} settlementSuggestions={settlementSuggestions} onClose={() => setShowSettleUp(false)} onSettlementCreated={() => refreshData(true)} />}
-      {showAddRecurring && <AddRecurringExpenseModal householdId={householdId} onClose={() => setShowAddRecurring(false)} onExpenseAdded={() => refreshData(true)} />}
+      {showAddExpense && <AddExpenseModal householdId={householdId} members={members} onClose={() => setShowAddExpense(false)} onExpenseAdded={() => refreshData()} />}
+      {showSettleUp && <SettleUpModal householdId={householdId} members={members} settlementSuggestions={settlementSuggestions} onClose={() => setShowSettleUp(false)} onSettlementCreated={() => refreshData()} />}
+      {showAddRecurring && <AddRecurringExpenseModal householdId={householdId} onClose={() => setShowAddRecurring(false)} onExpenseAdded={() => refreshData()} />}
       {showManageJoinCode && householdId && <ManageJoinCodeModal householdId={householdId} currentCode={currentJoinCode} onClose={() => setShowManageJoinCode(false)} onCodeRefreshed={(newCode) => { setCurrentJoinCode(newCode); if (household) setHousehold({...household, join_code: newCode }); }} />}
     </Layout>
   );
