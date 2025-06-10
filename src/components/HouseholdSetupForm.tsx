@@ -2,17 +2,16 @@
 'use client';
 
 import React, { useState } from 'react';
-import Select, { MultiValue } from 'react-select'; // <--- IMPORT react-select
+import Select, { MultiValue } from 'react-select';
 import { useAuth } from './AuthProvider';
 import * as api from '@/lib/api';
-// useRouter is imported but not used in the provided snippet, remove if not needed elsewhere.
-// import { useRouter } from 'next/navigation';
+import { Button } from '@/components/ui/Button';
+import { Loader2 } from 'lucide-react';
 
 interface HouseholdSetupFormProps {
   onHouseholdCreated: (householdId: string) => void;
 }
 
-// Define the shape of options for react-select
 interface ChoreOptionType {
   value: string;
   label: string;
@@ -20,23 +19,21 @@ interface ChoreOptionType {
 
 export const HouseholdSetupForm: React.FC<HouseholdSetupFormProps> = ({ onHouseholdCreated }) => {
   const { user } = useAuth();
-  // const router = useRouter(); // Not used in this component currently
   const [householdName, setHouseholdName] = useState('');
   const [memberCount, setMemberCount] = useState(2);
-  const [coreChores, setCoreChores] = useState<string[]>([]); // State remains string[]
+  const [coreChores, setCoreChores] = useState<string[]>([]);
   const [choreFrequency, setChoreFrequency] = useState('Weekly');
   const [choreFramework, setChoreFramework] = useState('Split');
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
-  const AVAILABLE_CORE_CHORES_LIST = [ // Renamed for clarity
+  const AVAILABLE_CORE_CHORES_LIST = [
     "Kitchen cleaning",
     "Living room cleaning",
     "Taking out trash",
     "Bathroom cleaning"
   ];
 
-  // Format options for react-select
   const reactSelectChoreOptions: ChoreOptionType[] = AVAILABLE_CORE_CHORES_LIST.map(chore => ({
     value: chore,
     label: chore,
@@ -56,11 +53,6 @@ export const HouseholdSetupForm: React.FC<HouseholdSetupFormProps> = ({ onHouseh
       setError('Household must have at least 1 member.');
       return;
     }
-    // Add validation for coreChores if it becomes mandatory
-    // if (coreChores.length === 0) {
-    //   setError('Please select at least one core chore.');
-    //   return;
-    // }
 
     setIsLoading(true);
     setError(null);
@@ -85,24 +77,25 @@ export const HouseholdSetupForm: React.FC<HouseholdSetupFormProps> = ({ onHouseh
     }
   };
 
-  // Handler for react-select's onChange
   const handleCoreChoresChange = (selectedOptions: MultiValue<ChoreOptionType>) => {
     setCoreChores(selectedOptions ? selectedOptions.map(option => option.value) : []);
   };
 
-  // Determine the value for react-select based on the current coreChores state
   const selectedValueForReactSelect = reactSelectChoreOptions.filter(option =>
     coreChores.includes(option.value)
   );
 
+  // A generic input style to match the design system
+  const inputStyles = "mt-1 block w-full px-3 py-2 border border-input rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-ring sm:text-sm";
+
   return (
     <div className="max-w-lg mx-auto p-6 bg-white rounded-lg shadow-md">
-      <h2 className="text-2xl font-bold text-gray-800 mb-6 text-center">Set Up Your Household</h2>
-      {error && <p className="text-red-500 text-sm mb-4 text-center">{error}</p>}
+      <h2 className="text-2xl font-bold text-foreground mb-6 text-center">Set Up Your Household</h2>
+      {error && <p className="text-destructive text-sm mb-4 text-center">{error}</p>}
       <form onSubmit={handleSubmit} className="space-y-6">
         <div>
-          <label htmlFor="householdName" className="block text-sm font-medium text-gray-700">
-            Household Name <span className="text-red-500">*</span>
+          <label htmlFor="householdName" className="block text-sm font-medium text-foreground">
+            Household Name <span className="text-destructive">*</span>
           </label>
           <input
             type="text"
@@ -110,14 +103,14 @@ export const HouseholdSetupForm: React.FC<HouseholdSetupFormProps> = ({ onHouseh
             value={householdName}
             onChange={(e) => setHouseholdName(e.target.value)}
             required
-            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+            className={inputStyles}
             placeholder="e.g., The Cozy Corner, Apartment 10B"
           />
         </div>
 
         <div>
-          <label htmlFor="memberCount" className="block text-sm font-medium text-gray-700">
-            Target Number of Members <span className="text-red-500">*</span>
+          <label htmlFor="memberCount" className="block text-sm font-medium text-foreground">
+            Target Number of Members <span className="text-destructive">*</span>
           </label>
           <input
             type="number"
@@ -126,13 +119,12 @@ export const HouseholdSetupForm: React.FC<HouseholdSetupFormProps> = ({ onHouseh
             onChange={(e) => setMemberCount(parseInt(e.target.value, 10))}
             min="1"
             required
-            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+            className={inputStyles}
           />
         </div>
-
-        {/* --- MODIFIED Core Chores Field --- */}
+        
         <div>
-          <label htmlFor="coreChores" className="block text-sm font-medium text-gray-700">
+          <label htmlFor="coreChores" className="block text-sm font-medium text-foreground">
             Core Chores (Optional)
           </label>
           <Select
@@ -142,23 +134,21 @@ export const HouseholdSetupForm: React.FC<HouseholdSetupFormProps> = ({ onHouseh
             value={selectedValueForReactSelect}
             onChange={handleCoreChoresChange}
             className="mt-1 block w-full basic-multi-select"
-            classNamePrefix="select" // Important for styling with react-select's default styles or custom styles
+            classNamePrefix="select"
             placeholder="Select chores..."
             noOptionsMessage={() => "No more chores available"}
           />
-          {/* The helper text for Ctrl+click is no longer needed with react-select */}
         </div>
-        {/* --- END MODIFIED Core Chores Field --- */}
 
         <div>
-          <label htmlFor="choreFrequency" className="block text-sm font-medium text-gray-700">
+          <label htmlFor="choreFrequency" className="block text-sm font-medium text-foreground">
             Frequency of Chores (Optional)
           </label>
           <select
             id="choreFrequency"
             value={choreFrequency}
             onChange={(e) => setChoreFrequency(e.target.value)}
-            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+            className={inputStyles}
           >
             <option value="Weekly">Weekly</option>
             <option value="Bi-weekly">Bi-weekly</option>
@@ -168,28 +158,28 @@ export const HouseholdSetupForm: React.FC<HouseholdSetupFormProps> = ({ onHouseh
         </div>
 
         <div>
-          <label htmlFor="choreFramework" className="block text-sm font-medium text-gray-700">
-            Framework for Chore Doing <span className="text-red-500">*</span>
+          <label htmlFor="choreFramework" className="block text-sm font-medium text-foreground">
+            Framework for Chore Doing <span className="text-destructive">*</span>
           </label>
           <select
             id="choreFramework"
             value={choreFramework}
             onChange={(e) => setChoreFramework(e.target.value)}
             required
-            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+            className={inputStyles}
           >
             <option value="Split">Split</option>
             <option value="One person army">One person army</option>
           </select>
         </div>
 
-        <button
+        <Button
           type="submit"
           disabled={isLoading}
-          className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+          className="w-full"
         >
-          {isLoading ? 'Creating...' : 'Create Household'}
-        </button>
+          {isLoading ? <Loader2 className="animate-spin" /> : 'Create Household'}
+        </Button>
       </form>
     </div>
   );

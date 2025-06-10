@@ -1,9 +1,10 @@
 "use client";
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Send, Loader2 } from 'lucide-react';
 import { useAuth } from './AuthProvider';
 import * as api from '@/lib/api';
 import type { Message } from '@/lib/api';
+import { Button } from '@/components/ui/Button';
 
 interface HouseholdChatProps {
   householdId: string;
@@ -23,7 +24,6 @@ export const HouseholdChat: React.FC<HouseholdChatProps> = ({ householdId }) => 
   };
 
   useEffect(() => {
-    // Define the async function to load messages inside the effect
     const loadAndSubscribe = async () => {
       try {
         setLoading(true);
@@ -37,28 +37,21 @@ export const HouseholdChat: React.FC<HouseholdChatProps> = ({ householdId }) => 
       }
     };
     
-    // Call the function to load initial data
     loadAndSubscribe();
 
-    // Set up the subscription
     const subscription = api.subscribeToMessages(householdId, (newMessage) => {
-      console.log('New message received:', newMessage);
-
       setMessages(prev => {
         const exists = prev.some(m => m.id === newMessage.id);
         if (exists) return prev;
         return [...prev, newMessage];
       });
-
       setTimeout(scrollToBottom, 100);
     });
 
-    // Cleanup function to unsubscribe
     return () => {
-      console.log('Unsubscribing from messages');
       subscription.unsubscribe();
     };
-  }, [householdId]); // The effect now only depends on householdId
+  }, [householdId]);
 
   const handleSend = async () => {
     if (!newMessage.trim() || sending) return;
@@ -69,19 +62,15 @@ export const HouseholdChat: React.FC<HouseholdChatProps> = ({ householdId }) => 
 
     try {
       const sentMessage = await api.sendMessage(householdId, messageText);
-      
-      // Optimistically add the message to the UI.
-      // The subscription will also catch it, but this feels faster.
       setMessages(prev => {
         const exists = prev.some(m => m.id === sentMessage.id);
         if (exists) return prev;
         return [...prev, sentMessage];
       });
-      
       setTimeout(scrollToBottom, 100);
     } catch (error) {
       console.error('Error sending message:', error);
-      setNewMessage(messageText); // Restore message on error
+      setNewMessage(messageText);
     } finally {
       setSending(false);
     }
@@ -115,20 +104,16 @@ export const HouseholdChat: React.FC<HouseholdChatProps> = ({ householdId }) => 
   if (loading) {
     return (
       <div className="flex items-center justify-center h-96">
-        <Loader2 className="h-8 w-8 animate-spin text-gray-500" />
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col h-[600px] bg-white rounded-lg shadow">
-      {/* Messages Area */}
-      <div
-        ref={chatContainerRef}
-        className="flex-1 overflow-y-auto p-4 space-y-3"
-      >
+    <div className="flex flex-col h-[600px] bg-background rounded-lg shadow border border-border">
+      <div ref={chatContainerRef} className="flex-1 overflow-y-auto p-4 space-y-3">
         {messages.length === 0 ? (
-          <div className="text-center text-gray-500 mt-8">
+          <div className="text-center text-secondary-foreground mt-8">
             <p>No messages yet. Start the conversation!</p>
           </div>
         ) : (
@@ -142,8 +127,8 @@ export const HouseholdChat: React.FC<HouseholdChatProps> = ({ householdId }) => 
                 <div
                   className={`max-w-[70%] ${
                     isOwnMessage
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-gray-100 text-gray-900'
+                      ? 'bg-primary text-primary-foreground'
+                      : 'bg-secondary text-secondary-foreground'
                   } rounded-lg px-4 py-2`}
                 >
                   {!isOwnMessage && (
@@ -155,8 +140,8 @@ export const HouseholdChat: React.FC<HouseholdChatProps> = ({ householdId }) => 
                     {message.content}
                   </p>
                   <p
-                    className={`text-xs mt-1 ${
-                      isOwnMessage ? 'text-blue-100' : 'text-gray-500'
+                    className={`text-xs mt-1 opacity-70 ${
+                      isOwnMessage ? 'text-primary-foreground' : 'text-secondary-foreground'
                     }`}
                   >
                     {formatTime(message.created_at)}
@@ -169,8 +154,7 @@ export const HouseholdChat: React.FC<HouseholdChatProps> = ({ householdId }) => 
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Input Area */}
-      <div className="border-t p-4">
+      <div className="border-t border-border p-4">
         <div className="flex space-x-2">
           <input
             type="text"
@@ -178,20 +162,21 @@ export const HouseholdChat: React.FC<HouseholdChatProps> = ({ householdId }) => 
             onChange={(e) => setNewMessage(e.target.value)}
             onKeyPress={handleKeyPress}
             placeholder="Type a message..."
-            className="flex-1 px-4 py-2 border border-gray-300 rounded-full focus:outline-none focus:border-blue-500"
+            className="flex-1 px-4 py-2 border border-input rounded-full focus:outline-none focus:ring-1 focus:ring-ring"
             disabled={sending}
           />
-          <button
+          <Button
             onClick={handleSend}
             disabled={!newMessage.trim() || sending}
-            className="p-2 bg-blue-600 text-white rounded-full hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            size="default"
+            className="rounded-full w-10 h-10 p-0 flex-shrink-0"
           >
             {sending ? (
               <Loader2 className="h-5 w-5 animate-spin" />
             ) : (
               <Send className="h-5 w-5" />
             )}
-          </button>
+          </Button>
         </div>
       </div>
     </div>
