@@ -1,6 +1,7 @@
+// esamnyu/roomies_app/roomies_app-feat-landing-and-onboarding/src/lib/api.ts
 import { ReactNode } from 'react';
 import { supabase } from './supabase';
-import { subscriptionManager } from './subscriptionManager';
+import { subscriptionManager } from './subscriptionManager'; // <-- ADD THIS IMPORT
 
 // --- bestehende Typen (gekürzt zur Übersichtlichkeit) ---
 export interface Profile {
@@ -728,31 +729,31 @@ export const getHouseholdSettlements = async (householdId: string) => {
 };
 
 export const subscribeToSettlements = (householdId: string, onSettlement: (settlement: Settlement) => void) => {
-    const key = `settlements:${householdId}`;
-    const subscription = supabase
-        .channel(key)
-        .on('postgres_changes', {
-            event: 'INSERT',
-            schema: 'public',
-            table: 'settlements',
-            filter: `household_id=eq.${householdId}`
-        }, async (payload) => {
-            if (payload.new) {
-                const newSettlement = payload.new as Settlement;
-                const { data } = await supabase
-                    .from('settlements')
-                    .select(`
-                        *,
-                        payer_profile:profiles!settlements_payer_id_fkey(id, name, avatar_url),
-                        payee_profile:profiles!settlements_payee_id_fkey(id, name, avatar_url)
-                    `)
-                    .eq('id', newSettlement.id)
-                    .single();
-                if (data) onSettlement(data);
-            }
-        })
-        .subscribe();
-    return subscriptionManager.subscribe(key, subscription);
+  const key = `settlements:${householdId}`;
+  const subscription = supabase
+    .channel(key)
+    .on('postgres_changes', { 
+      event: 'INSERT', 
+      schema: 'public', 
+      table: 'settlements', 
+      filter: `household_id=eq.${householdId}`
+    }, async (payload) => {
+      if (payload.new) {
+        const newSettlement = payload.new as Settlement;
+        const { data } = await supabase
+          .from('settlements')
+          .select(`
+            *,
+            payer_profile:profiles!settlements_payer_id_fkey(id, name, avatar_url),
+            payee_profile:profiles!settlements_payee_id_fkey(id, name, avatar_url)
+          `)
+          .eq('id', newSettlement.id)
+          .single();
+        if (data) onSettlement(data);
+      }
+    })
+    .subscribe();
+  return subscriptionManager.subscribe(key, subscription);
 };
 
 
@@ -821,6 +822,7 @@ export const subscribeToNotifications = (userId: string, onNotification: (notifi
             onNotification(payload.new as Notification);
         })
         .subscribe();
+
     return subscriptionManager.subscribe(key, channel);
 };
 export const sendPaymentReminder = async (householdId: string, debtorId: string, amount: number) => {
@@ -913,7 +915,7 @@ export const getHouseholdMessages = async (householdId: string, limit = 50, befo
 };
 export const subscribeToMessages = (householdId: string, onMessage: (message: Message) => void) => {
     const key = `messages:${householdId}`;
-    const channel = supabase.channel(`new_message:${householdId}`)
+    const channel = supabase.channel(`new_message:${householdId}`) // Use a unique channel name
       .on('broadcast', { event: 'new_message' }, (payload) => {
           const received = payload.payload;
           if (received.message && received.message.household_id === householdId) {
