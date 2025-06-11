@@ -1,7 +1,6 @@
-// src/components/ChoreDashboard.tsx
 "use client";
 import React, { useState, useEffect, useCallback } from 'react';
-import { CheckCircle, Circle, PlusCircle, RefreshCw, AlertTriangle, Loader2, Edit3, Trash2 } from 'lucide-react';
+import { CheckCircle, Circle, PlusCircle, RefreshCw, AlertTriangle, Loader2, ClipboardList } from 'lucide-react';
 import * as api from '@/lib/api';
 import type { ChoreAssignment, Household, HouseholdMember, HouseholdChore } from '@/lib/api';
 import { useAuth } from './AuthProvider';
@@ -46,7 +45,7 @@ const ChoreCard: React.FC<{
     iconColor = 'text-destructive';
   } else if (dueDate.getTime() === today.getTime()) {
     statusText = 'Due Today';
-    statusColor = 'bg-accent/5 border-accent/20 text-accent'; // Use solid accent color for text
+    statusColor = 'bg-accent/5 border-accent/20 text-accent';
     iconColor = 'text-accent';
   }
 
@@ -145,11 +144,13 @@ const AddChoreModal: React.FC<{
     );
 };
 
+
 export const ChoreDashboard: React.FC<ChoreDashboardProps> = ({ householdId }) => {
   const { user } = useAuth();
   const [assignments, setAssignments] = useState<ChoreAssignment[]>([]);
   const [household, setHousehold] = useState<Household | null>(null);
   const [members, setMembers] = useState<HouseholdMember[]>([]);
+  const [allChores, setAllChores] = useState<HouseholdChore[]>([]); // New state
   const [isLoading, setIsLoading] = useState(true);
   const [isRotating, setIsRotating] = useState(false);
   const [showAddChoreModal, setShowAddChoreModal] = useState(false);
@@ -159,10 +160,15 @@ export const ChoreDashboard: React.FC<ChoreDashboardProps> = ({ householdId }) =
     if (showLoading) setIsLoading(true);
     try {
       await api.checkAndTriggerChoreRotation(householdId);
-      const data = await api.getChoreRotationUIData(householdId);
-      setAssignments(data.currentAssignments);
-      setHousehold(data.householdInfo);
-      setMembers(data.members);
+      const [choreData, householdChores] = await Promise.all([
+        api.getChoreRotationUIData(householdId),
+        api.getHouseholdChores(householdId) // Fetch defined chores
+      ]);
+      
+      setAssignments(choreData.currentAssignments);
+      setHousehold(choreData.householdInfo);
+      setMembers(choreData.members);
+      setAllChores(householdChores);
     } catch (error) {
       console.error('Error fetching chore data:', error);
       toast.error('Failed to load chore information. '  + (error instanceof Error ? error.message : ""));
@@ -210,6 +216,7 @@ export const ChoreDashboard: React.FC<ChoreDashboardProps> = ({ householdId }) =
   
   const activeMembersCount = members.filter(m => !m.user_id?.startsWith('placeholder_')).length;
   const targetMemberCount = household?.member_count || 0;
+  const hasDefinedChores = allChores.length > 0;
 
   return (
     <div className="space-y-6">
@@ -254,47 +261,63 @@ export const ChoreDashboard: React.FC<ChoreDashboardProps> = ({ householdId }) =
         </div>
       )}
 
-      {assignments.length === 0 && !isLoading && (
+      {!hasDefinedChores && !isLoading ? (
         <div className="text-center py-10 bg-background p-6 rounded-lg shadow">
-          <Circle className="mx-auto h-12 w-12 text-secondary-foreground/30" />
-          <h3 className="mt-2 text-lg font-medium text-foreground">No chores assigned yet.</h3>
+          <ClipboardList className="mx-auto h-12 w-12 text-secondary-foreground/30" />
+          <h3 className="mt-2 text-lg font-medium text-foreground">No chores have been created yet</h3>
           <p className="mt-1 text-sm text-secondary-foreground">
-            Click the button below to initialize the first set of chores.
+            Click the button below to add your first chore to the household.
           </p>
-           <Button onClick={handleForceRotation} className="mt-4">
-            Initialize Chores Now
+           <Button onClick={() => setShowAddChoreModal(true)} className="mt-4">
+            <PlusCircle className="h-4 w-4 mr-2" /> Add a Chore
           </Button>
         </div>
-      )}
-
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-        {assignments.filter(a => a.status === 'pending').map(assignment => (
-          <ChoreCard 
-            key={assignment.id} 
-            assignment={assignment} 
-            currentUserId={user?.id}
-            onMarkComplete={handleMarkComplete}
-            isLoadingCompletion={isLoadingCompletion}
-          />
-        ))}
-      </div>
-
-      {assignments.filter(a => a.status === 'completed').length > 0 && (
-        <div className="mt-8">
-            <h3 className="text-xl font-semibold text-foreground mb-4">Recently Completed</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {assignments.filter(a => a.status === 'completed').slice(0,4)
-                .map(assignment => (
-                <ChoreCard 
-                    key={assignment.id} 
-                    assignment={assignment} 
-                    currentUserId={user?.id}
-                    onMarkComplete={handleMarkComplete}
-                    isLoadingCompletion={false}
-                />
-                ))}
-            </div>
+      ) : hasDefinedChores && assignments.length === 0 && !isLoading ? (
+        <div className="text-center py-10 bg-background p-6 rounded-lg shadow">
+          <Circle className="mx-auto h-12 w-12 text-secondary-foreground/30" />
+          <h3 className="mt-2 text-lg font-medium text-foreground">No chores assigned for this cycle</h3>
+          <p className="mt-1 text-sm text-secondary-foreground">
+            Click the "Rotate/Refresh" button to assign chores to members.
+          </p>
+           <Button onClick={handleForceRotation} className="mt-4" disabled={isRotating}>
+            {isRotating ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <RefreshCw className="h-4 w-4 mr-2" />}
+            Assign Chores Now
+          </Button>
         </div>
+      ) : null}
+
+      {hasDefinedChores && assignments.length > 0 && (
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {assignments.filter(a => a.status === 'pending').map(assignment => (
+              <ChoreCard 
+                key={assignment.id} 
+                assignment={assignment} 
+                currentUserId={user?.id}
+                onMarkComplete={handleMarkComplete}
+                isLoadingCompletion={isLoadingCompletion}
+              />
+            ))}
+          </div>
+
+          {assignments.filter(a => a.status === 'completed').length > 0 && (
+            <div className="mt-8">
+              <h3 className="text-xl font-semibold text-foreground mb-4">Recently Completed</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              {assignments.filter(a => a.status === 'completed').slice(0,4)
+                  .map(assignment => (
+                  <ChoreCard 
+                      key={assignment.id} 
+                      assignment={assignment} 
+                      currentUserId={user?.id}
+                      onMarkComplete={handleMarkComplete}
+                      isLoadingCompletion={false}
+                  />
+                  ))}
+              </div>
+            </div>
+          )}
+        </>
       )}
 
       {showAddChoreModal && (

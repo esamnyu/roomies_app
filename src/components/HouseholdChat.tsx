@@ -1,10 +1,12 @@
 "use client";
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Send, Loader2 } from 'lucide-react';
 import { useAuth } from './AuthProvider';
 import * as api from '@/lib/api';
+import { subscriptionManager } from '@/lib/subscriptionManager'; // Corrected import
 import type { Message } from '@/lib/api';
 import { Button } from '@/components/ui/Button';
+import { toast } from 'react-hot-toast';
 
 interface HouseholdChatProps {
   householdId: string;
@@ -13,15 +15,25 @@ interface HouseholdChatProps {
 export const HouseholdChat: React.FC<HouseholdChatProps> = ({ householdId }) => {
   const { user } = useAuth();
   const [messages, setMessages] = useState<Message[]>([]);
-  const [newMessage, setNewMessage] = useState('');
+  const [newMessage, setNewMessage] = useState(''); // Re-added this state
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const chatContainerRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
+
+  const handleNewMessage = useCallback((incomingMessage: Message) => {
+    setMessages(prev => {
+      const exists = prev.some(m => m.id === incomingMessage.id);
+      if (exists) return prev;
+      
+      const updated = [...prev, incomingMessage];
+      return updated.slice(-100); // Only keep the last 100 messages
+    });
+    setTimeout(scrollToBottom, 100);
+  }, []);
 
   useEffect(() => {
     const loadAndSubscribe = async () => {
@@ -39,19 +51,14 @@ export const HouseholdChat: React.FC<HouseholdChatProps> = ({ householdId }) => 
     
     loadAndSubscribe();
 
-    const subscription = api.subscribeToMessages(householdId, (newMessage) => {
-      setMessages(prev => {
-        const exists = prev.some(m => m.id === newMessage.id);
-        if (exists) return prev;
-        return [...prev, newMessage];
-      });
-      setTimeout(scrollToBottom, 100);
-    });
+    const subscriptionKey = `messages:${householdId}`;
+    const subscription = api.subscribeToMessages(householdId, handleNewMessage);
 
     return () => {
-      subscription.unsubscribe();
+      // Use the correctly imported subscriptionManager
+      subscriptionManager.unsubscribe(subscriptionKey);
     };
-  }, [householdId]);
+  }, [householdId, handleNewMessage]);
 
   const handleSend = async () => {
     if (!newMessage.trim() || sending) return;
@@ -61,15 +68,10 @@ export const HouseholdChat: React.FC<HouseholdChatProps> = ({ householdId }) => 
     setSending(true);
 
     try {
-      const sentMessage = await api.sendMessage(householdId, messageText);
-      setMessages(prev => {
-        const exists = prev.some(m => m.id === sentMessage.id);
-        if (exists) return prev;
-        return [...prev, sentMessage];
-      });
-      setTimeout(scrollToBottom, 100);
+      await api.sendMessage(householdId, messageText);
     } catch (error) {
       console.error('Error sending message:', error);
+      toast.error("Could not send message.");
       setNewMessage(messageText);
     } finally {
       setSending(false);
@@ -111,7 +113,7 @@ export const HouseholdChat: React.FC<HouseholdChatProps> = ({ householdId }) => 
 
   return (
     <div className="flex flex-col h-[600px] bg-background rounded-lg shadow border border-border">
-      <div ref={chatContainerRef} className="flex-1 overflow-y-auto p-4 space-y-3">
+      <div className="flex-1 overflow-y-auto p-4 space-y-3">
         {messages.length === 0 ? (
           <div className="text-center text-secondary-foreground mt-8">
             <p>No messages yet. Start the conversation!</p>

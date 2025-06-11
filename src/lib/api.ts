@@ -909,15 +909,30 @@ export const getHouseholdMessages = async (householdId: string, limit = 50, befo
 };
 export const subscribeToMessages = (householdId: string, onMessage: (message: Message) => void) => {
     const key = `messages:${householdId}`;
-    const channel = supabase.channel(`new_message:${householdId}`) 
-      .on('broadcast', { event: 'new_message' }, (payload) => {
-          const received = payload.payload;
-          if (received.message && received.message.household_id === householdId) {
-            const messageWithProfile: Message = { ...received.message, profiles: received.profile };
-            onMessage(messageWithProfile);
+    const channel = supabase.channel(key) 
+      .on('postgres_changes', { 
+        event: 'INSERT', 
+        schema: 'public', 
+        table: 'messages', 
+        filter: `household_id=eq.${householdId}`
+      }, async (payload) => {
+          if (payload.new) {
+            const newMessage = payload.new as Message;
+            // Fetch the profile separately to keep the realtime payload light
+            const { data: profile } = await supabase
+              .from('profiles')
+              .select('*')
+              .eq('id', newMessage.user_id)
+              .single();
+            
+            onMessage({ ...newMessage, profiles: profile || undefined });
           }
       })
-      .subscribe();
+      .subscribe((status, err) => {
+        if (err) {
+          console.error(`Subscription error for ${key}:`, err);
+        }
+      });
 
     return subscriptionManager.subscribe(key, channel);
 };
@@ -985,10 +1000,19 @@ export const assignChoresForCurrentCycle = async (householdId: string, household
     .eq('is_active', true)
     .order('default_order', { ascending: true });
 
-  if (choresError || !choresDefinitions || choresDefinitions.length === 0) {
-    console.error('No active chores defined for this household or error fetching them:', choresError);
+  // --- START of CHANGE ---
+  if (choresError) {
+    // This is a real database error.
+    console.error('Error fetching active chores for assignment:', choresError);
     return [];
   }
+  
+  if (!choresDefinitions || choresDefinitions.length === 0) {
+    // This is a normal condition if no chores are active. Change from console.error to console.log.
+    console.log(`No active chores found to assign for household ${householdId}.`);
+    return [];
+  }
+  // --- END of CHANGE ---
   
   const frequency = household.chore_frequency || 'Weekly';
   const framework = household.chore_framework || 'Split';
@@ -1090,7 +1114,6 @@ export const assignChoresForCurrentCycle = async (householdId: string, household
   
   return insertedAssignments || [];
 };
-
 
 export const getHouseholdChoreAssignmentsWithDetails = async (householdId: string): Promise<ChoreAssignment[]> => {
   const { data, error } = await supabase
@@ -1261,3 +1284,18 @@ export const addHouseRule = async (householdId: string, category: string, conten
     
     return data;
 }
+
+// Add this new function to src/lib/api.ts
+export const getHouseholdChores = async (householdId: string): Promise<HouseholdChore[]> => {
+    const { data, error } = await supabase
+        .from('household_chores')
+        .select('*')
+        .eq('household_id', householdId)
+        .order('name', { ascending: true });
+
+    if (error) {
+        console.error("Error fetching household chores definitions:", error);
+        throw error;
+    }
+    return data || [];
+};
