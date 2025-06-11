@@ -2,8 +2,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/Button';
+import { Menu, X } from 'lucide-react';
 
-// Define the interface for mouse position at the top level
 interface MousePosition {
   x: number;
   y: number;
@@ -12,6 +12,7 @@ interface MousePosition {
 export const LandingPageContent: React.FC<{ onSignIn: () => void; onSignUp: () => void; }> = ({ onSignIn, onSignUp }) => {
   const [scrolled, setScrolled] = useState(false);
   const [mousePos, setMousePos] = useState<MousePosition>({ x: 0, y: 0 });
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 20);
@@ -26,7 +27,18 @@ export const LandingPageContent: React.FC<{ onSignIn: () => void; onSignUp: () =
     };
   }, []);
 
-  // Data arrays for features and testimonials...
+  // Close mobile menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = () => {
+      if (mobileMenuOpen) setMobileMenuOpen(false);
+    };
+
+    if (mobileMenuOpen) {
+      document.addEventListener('click', handleClickOutside);
+      return () => document.removeEventListener('click', handleClickOutside);
+    }
+  }, [mobileMenuOpen]);
+
   const features = [
     {
       icon: (
@@ -61,33 +73,35 @@ export const LandingPageContent: React.FC<{ onSignIn: () => void; onSignUp: () =
   ];
 
   const testimonials = [
-      {
-        image: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?q=80&w=1888&auto=format&fit=crop",
-        quote: "Roomies transformed our chaotic apartment into a harmonious home. The automated chore system is genius!",
-        name: "Sophia Chen",
-        role: "Graduate Student"
-      },
-      {
-        image: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?q=80&w=1887&auto=format&fit=crop",
-        quote: "Bill splitting used to be a nightmare. Now it takes seconds and everyone's happy. This app is a lifesaver!",
-        name: "Marcus Johnson",
-        role: "Software Engineer"
-      },
-      {
-        image: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?q=80&w=1887&auto=format&fit=crop",
-        quote: "The best investment for shared living. Our communication improved 10x and conflicts disappeared overnight.",
-        name: "Emma Rodriguez",
-        role: "Marketing Manager"
-      }
-    ];
+    {
+      image: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?q=80&w=1888&auto=format&fit=crop",
+      quote: "Roomies transformed our chaotic apartment into a harmonious home. The automated chore system is genius!",
+      name: "Sophia Chen",
+      role: "Graduate Student"
+    },
+    {
+      image: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?q=80&w=1887&auto=format&fit=crop",
+      quote: "Bill splitting used to be a nightmare. Now it takes seconds and everyone's happy. This app is a lifesaver!",
+      name: "Marcus Johnson",
+      role: "Software Engineer"
+    },
+    {
+      image: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?q=80&w=1887&auto=format&fit=crop",
+      quote: "The best investment for shared living. Our communication improved 10x and conflicts disappeared overnight.",
+      name: "Emma Rodriguez",
+      role: "Marketing Manager"
+    }
+  ];
 
   return (
-    <div className="relative flex size-full min-h-screen flex-col bg-[#0a0a0a] text-white group/design-root overflow-x-hidden font-sans">
+    <div className="relative flex size-full min-h-screen flex-col bg-[#0a0a0a] text-white overflow-x-hidden font-sans">
+      {/* Background effects */}
       <div className="fixed inset-0 -z-10">
         <div className="absolute inset-0 animate-shimmer bg-[linear-gradient(110deg,#0a0a0a,45%,#1e293b,55%,#0a0a0a)] bg-[length:200%_100%] opacity-25" />
         <div className="absolute inset-0 bg-gradient-to-br from-emerald-900/20 via-transparent to-purple-900/20" />
+        {/* Only show mouse tracking effect on larger screens */}
         <div
-          className="absolute inset-0 opacity-40 transition-opacity"
+          className="hidden md:block absolute inset-0 opacity-40 transition-opacity"
           style={{
             background: `radial-gradient(circle at ${mousePos.x}px ${mousePos.y}px, rgba(30, 224, 192, 0.15) 0%, transparent 40%)`,
           }}
@@ -96,27 +110,30 @@ export const LandingPageContent: React.FC<{ onSignIn: () => void; onSignUp: () =
       </div>
 
       <div className="layout-container flex h-full grow flex-col">
+        {/* Header */}
         <header className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${scrolled ? 'bg-black/80 backdrop-blur-xl shadow-2xl' : 'bg-transparent'}`}>
-          <div className="flex items-center justify-between whitespace-nowrap px-10 py-4">
-            <div className="flex items-center gap-4 group cursor-pointer">
+          <div className="flex items-center justify-between whitespace-nowrap px-4 sm:px-6 md:px-10 py-4">
+            <div className="flex items-center gap-3 sm:gap-4 group cursor-pointer">
               <div className="size-4 text-[#1ee0c0] transform transition-transform group-hover:rotate-180 duration-500">
                 <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
                   <path fillRule="evenodd" clipRule="evenodd" d="M24 4H42V17.3333V30.6667H24V44H6V30.6667V17.3333H24V4Z" fill="currentColor"></path>
                 </svg>
               </div>
-              <h2 className="text-white text-lg font-bold leading-tight tracking-[-0.015em] group-hover:text-[#1ee0c0] transition-colors">Roomies</h2>
+              <h2 className="text-white text-base sm:text-lg font-bold leading-tight tracking-[-0.015em] group-hover:text-[#1ee0c0] transition-colors">Roomies</h2>
             </div>
-            <div className="flex flex-1 justify-end items-center gap-4">
-              <nav className="hidden md:flex items-center gap-9">
-                <a className="text-gray-300 text-sm font-medium leading-normal hover:text-[#1ee0c0] transition-colors relative group" href="#">
+            
+            {/* Desktop Navigation */}
+            <div className="hidden md:flex flex-1 justify-end items-center gap-4">
+              <nav className="flex items-center gap-6 lg:gap-9">
+                <a className="text-gray-300 text-sm font-medium leading-normal hover:text-[#1ee0c0] transition-colors relative group" href="#features">
                   Features
                   <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-[#1ee0c0] transition-all group-hover:w-full"></span>
                 </a>
-                <a className="text-gray-300 text-sm font-medium leading-normal hover:text-[#1ee0c0] transition-colors relative group" href="#">
+                <a className="text-gray-300 text-sm font-medium leading-normal hover:text-[#1ee0c0] transition-colors relative group" href="#pricing">
                   Pricing
                   <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-[#1ee0c0] transition-all group-hover:w-full"></span>
                 </a>
-                <a className="text-gray-300 text-sm font-medium leading-normal hover:text-[#1ee0c0] transition-colors relative group" href="#">
+                <a className="text-gray-300 text-sm font-medium leading-normal hover:text-[#1ee0c0] transition-colors relative group" href="#support">
                   Support
                   <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-[#1ee0c0] transition-all group-hover:w-full"></span>
                 </a>
@@ -135,40 +152,104 @@ export const LandingPageContent: React.FC<{ onSignIn: () => void; onSignUp: () =
                 <span className="truncate">Sign Up Free</span>
               </Button>
             </div>
+
+            {/* Mobile Menu Button */}
+            <button
+              className="md:hidden p-2 text-white hover:text-[#1ee0c0] transition-colors"
+              onClick={(e) => {
+                e.stopPropagation();
+                setMobileMenuOpen(!mobileMenuOpen);
+              }}
+              aria-label="Toggle mobile menu"
+            >
+              {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
+            </button>
           </div>
+
+          {/* Mobile Menu */}
+          {mobileMenuOpen && (
+            <div className="md:hidden bg-black/95 backdrop-blur-xl border-t border-gray-800">
+              <nav className="flex flex-col p-4 space-y-3">
+                <a
+                  href="#features"
+                  className="text-gray-300 font-medium py-2 hover:text-[#1ee0c0] transition-colors"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  Features
+                </a>
+                <a
+                  href="#pricing"
+                  className="text-gray-300 font-medium py-2 hover:text-[#1ee0c0] transition-colors"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  Pricing
+                </a>
+                <a
+                  href="#support"
+                  className="text-gray-300 font-medium py-2 hover:text-[#1ee0c0] transition-colors"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  Support
+                </a>
+                <div className="flex flex-col gap-3 pt-4 border-t border-gray-800">
+                  <Button
+                    onClick={() => {
+                      setMobileMenuOpen(false);
+                      onSignIn();
+                    }}
+                    variant="outline"
+                    className="w-full border-gray-600 text-gray-200 hover:border-[#1ee0c0] hover:text-[#1ee0c0] hover:bg-white/5"
+                  >
+                    Login
+                  </Button>
+                  <Button
+                    onClick={() => {
+                      setMobileMenuOpen(false);
+                      onSignUp();
+                    }}
+                    className="w-full bg-gradient-to-r from-[#1ee0c0] to-[#0fa89d] text-black font-semibold"
+                  >
+                    Sign Up Free
+                  </Button>
+                </div>
+              </nav>
+            </div>
+          )}
         </header>
 
-        <main className="px-4 sm:px-10 md:px-20 lg:px-40 flex flex-1 justify-center pt-20">
+        {/* Main Content */}
+        <main className="px-4 sm:px-6 md:px-10 lg:px-20 xl:px-40 flex flex-1 justify-center pt-20">
           <div className="layout-content-container flex flex-col max-w-[960px] flex-1">
 
+            {/* Hero Section */}
             <section className="container mx-auto">
-              <div className="flex flex-col gap-8 py-10 lg:flex-row items-center min-h-[80vh]">
-                <div className="flex flex-col gap-6 lg:w-1/2 text-center lg:text-left animate-fade-in-up">
-                  <h1 className="text-5xl md:text-6xl font-black leading-tight tracking-[-0.033em] bg-gradient-to-r from-white via-gray-200 to-gray-400 bg-clip-text text-transparent animate-gradient">
+              <div className="flex flex-col gap-8 py-6 sm:py-10 lg:flex-row items-center min-h-[calc(100vh-5rem)]">
+                <div className="flex flex-col gap-4 sm:gap-6 lg:w-1/2 text-center lg:text-left animate-fade-in-up">
+                  <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-black leading-tight tracking-[-0.033em] bg-gradient-to-r from-white via-gray-200 to-gray-400 bg-clip-text text-transparent animate-gradient">
                     Simplify Shared Living, Maximize Harmony
                   </h1>
-                  <h2 className="text-gray-400 text-lg leading-relaxed">
+                  <h2 className="text-gray-400 text-base sm:text-lg leading-relaxed max-w-2xl mx-auto lg:mx-0">
                     Roomies is your all-in-one solution for managing shared living spaces. From automated chores to effortless bill splitting and centralized communication, we make cohabitation a breeze.
                   </h2>
-                  <div className="flex gap-4 mt-4 justify-center lg:justify-start">
+                  <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 mt-4 justify-center lg:justify-start">
                     <Button
                       onClick={onSignUp}
-                      className="h-12 px-8 bg-gradient-to-r from-[#1ee0c0] to-[#0fa89d] text-black text-base font-bold hover:shadow-[0_0_30px_rgba(30,224,192,0.6)] transform hover:scale-105 transition-all duration-300"
+                      className="h-10 sm:h-12 px-6 sm:px-8 bg-gradient-to-r from-[#1ee0c0] to-[#0fa89d] text-black text-sm sm:text-base font-bold hover:shadow-[0_0_30px_rgba(30,224,192,0.6)] transform hover:scale-105 transition-all duration-300"
                     >
-                      <span className="truncate">Get Started Free</span>
+                      Get Started Free
                     </Button>
                     <Button
                       variant="outline"
-                      className="h-12 px-8 border-gray-600 text-gray-200 hover:border-[#1ee0c0] hover:bg-white/5 hover:text-[#1ee0c0] transition-all duration-300"
+                      className="h-10 sm:h-12 px-6 sm:px-8 border-gray-600 text-gray-200 hover:border-[#1ee0c0] hover:bg-white/5 hover:text-[#1ee0c0] transition-all duration-300"
                     >
                       Watch Demo
                     </Button>
                   </div>
                 </div>
-                <div className="relative w-full lg:w-1/2 animate-fade-in-up animation-delay-200">
-                  <div className="absolute -inset-8 bg-gradient-to-r from-[#1ee0c0]/20 to-purple-600/20 blur-3xl" />
+                <div className="relative w-full lg:w-1/2 animate-fade-in-up animation-delay-200 mt-8 lg:mt-0">
+                  <div className="absolute -inset-4 sm:-inset-8 bg-gradient-to-r from-[#1ee0c0]/20 to-purple-600/20 blur-2xl sm:blur-3xl" />
                   <div
-                    className="relative w-full bg-center bg-no-repeat aspect-video bg-cover rounded-2xl overflow-hidden transform hover:scale-[1.02] transition-transform duration-500 shadow-2xl"
+                    className="relative w-full bg-center bg-no-repeat aspect-video bg-cover rounded-xl sm:rounded-2xl overflow-hidden transform hover:scale-[1.02] transition-transform duration-500 shadow-2xl"
                     style={{backgroundImage: `url("https://images.unsplash.com/photo-1582268611958-ebfd161ef9cf?q=80&w=2070&auto=format&fit=crop")`}}
                   >
                     <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
@@ -177,28 +258,29 @@ export const LandingPageContent: React.FC<{ onSignIn: () => void; onSignUp: () =
               </div>
             </section>
 
-            <section className="flex flex-col gap-10 px-4 py-20 container mx-auto">
-              <div className="flex flex-col gap-4 text-center animate-fade-in-up">
-                <h1 className="text-4xl lg:text-5xl font-black leading-tight tracking-[-0.033em] bg-gradient-to-r from-white to-gray-400 bg-clip-text text-transparent">
+            {/* Features Section */}
+            <section id="features" className="flex flex-col gap-6 sm:gap-10 py-12 sm:py-20 container mx-auto">
+              <div className="flex flex-col gap-3 sm:gap-4 text-center animate-fade-in-up">
+                <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black leading-tight tracking-[-0.033em] bg-gradient-to-r from-white to-gray-400 bg-clip-text text-transparent">
                   Powerful Features
                 </h1>
-                <p className="text-gray-400 text-lg font-normal leading-normal max-w-[720px] mx-auto">
+                <p className="text-gray-400 text-base sm:text-lg font-normal leading-normal max-w-[720px] mx-auto px-4">
                   Everything you need to create the perfect shared living experience
                 </p>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
                 {features.map((feature, index) => (
                   <div
                     key={index}
-                    className="group relative flex flex-col gap-4 rounded-2xl bg-gradient-to-b from-gray-900/50 to-gray-900/30 backdrop-blur-sm border border-gray-800 p-8 hover:border-gray-700 transition-all duration-500 hover:transform hover:scale-[1.02] animate-fade-in-up"
+                    className="group relative flex flex-col gap-3 sm:gap-4 rounded-xl sm:rounded-2xl bg-gradient-to-b from-gray-900/50 to-gray-900/30 backdrop-blur-sm border border-gray-800 p-6 sm:p-8 hover:border-gray-700 transition-all duration-500 hover:transform hover:scale-[1.02] animate-fade-in-up"
                     style={{ animationDelay: `${index * 100}ms` }}
                   >
-                    <div className={`absolute inset-0 rounded-2xl bg-gradient-to-r ${feature.gradient} opacity-0 group-hover:opacity-10 transition-opacity duration-500`} />
+                    <div className={`absolute inset-0 rounded-xl sm:rounded-2xl bg-gradient-to-r ${feature.gradient} opacity-0 group-hover:opacity-10 transition-opacity duration-500`} />
                     <div className={`text-white bg-gradient-to-r ${feature.gradient} p-3 rounded-xl w-fit group-hover:scale-110 transition-transform duration-300`}>
                       {feature.icon}
                     </div>
                     <div className="flex flex-col gap-2">
-                      <h2 className="text-white text-xl font-bold leading-tight">{feature.title}</h2>
+                      <h2 className="text-white text-lg sm:text-xl font-bold leading-tight">{feature.title}</h2>
                       <p className="text-gray-400 text-sm leading-relaxed">{feature.description}</p>
                     </div>
                   </div>
@@ -206,33 +288,34 @@ export const LandingPageContent: React.FC<{ onSignIn: () => void; onSignUp: () =
               </div>
             </section>
 
-            <section className="py-20">
-              <h2 className="text-3xl font-bold text-center mb-12 bg-gradient-to-r from-white to-gray-400 bg-clip-text text-transparent">
+            {/* Testimonials Section */}
+            <section className="py-12 sm:py-20">
+              <h2 className="text-2xl sm:text-3xl font-bold text-center mb-8 sm:mb-12 bg-gradient-to-r from-white to-gray-400 bg-clip-text text-transparent px-4">
                 Loved by Thousands of Happy Roommates
               </h2>
-              <div className="flex overflow-x-auto gap-6 pb-6 snap-x snap-mandatory no-scrollbar">
+              <div className="flex overflow-x-auto gap-4 sm:gap-6 pb-6 snap-x snap-mandatory no-scrollbar px-4 -mx-4">
                 {testimonials.map((testimonial, index) => (
                   <div
                     key={index}
-                    className="flex-shrink-0 w-80 snap-center"
+                    className="flex-shrink-0 w-72 sm:w-80 snap-center"
                   >
-                    <div className="relative group cursor-pointer">
-                      <div className="absolute -inset-1 bg-gradient-to-r from-[#1ee0c0] to-purple-600 rounded-2xl blur opacity-25 group-hover:opacity-75 transition duration-1000"></div>
-                      <div className="relative flex flex-col gap-4 rounded-2xl bg-gray-900/90 backdrop-blur-sm border border-gray-800 p-6 h-full">
-                        <div className="flex items-center gap-4">
+                    <div className="relative group cursor-pointer h-full">
+                      <div className="absolute -inset-1 bg-gradient-to-r from-[#1ee0c0] to-purple-600 rounded-xl sm:rounded-2xl blur opacity-25 group-hover:opacity-75 transition duration-1000"></div>
+                      <div className="relative flex flex-col gap-3 sm:gap-4 rounded-xl sm:rounded-2xl bg-gray-900/90 backdrop-blur-sm border border-gray-800 p-5 sm:p-6 h-full">
+                        <div className="flex items-center gap-3 sm:gap-4">
                           <div
-                            className="w-16 h-16 bg-center bg-cover rounded-full ring-2 ring-[#1ee0c0]/50"
+                            className="w-12 h-12 sm:w-16 sm:h-16 bg-center bg-cover rounded-full ring-2 ring-[#1ee0c0]/50"
                             style={{backgroundImage: `url("${testimonial.image}")`}}
                           />
                           <div>
-                            <p className="text-white font-semibold">{testimonial.name}</p>
-                            <p className="text-gray-400 text-sm">{testimonial.role}</p>
+                            <p className="text-white font-semibold text-sm sm:text-base">{testimonial.name}</p>
+                            <p className="text-gray-400 text-xs sm:text-sm">{testimonial.role}</p>
                           </div>
                         </div>
-                        <p className="text-gray-300 leading-relaxed italic">&quot;{testimonial.quote}&quot;</p>
+                        <p className="text-gray-300 text-sm sm:text-base leading-relaxed italic">&quot;{testimonial.quote}&quot;</p>
                         <div className="flex gap-1 mt-auto">
                           {[...Array(5)].map((_, i) => (
-                            <svg key={i} className="w-5 h-5 text-[#1ee0c0]" fill="currentColor" viewBox="0 0 20 20">
+                            <svg key={i} className="w-4 h-4 sm:w-5 sm:h-5 text-[#1ee0c0]" fill="currentColor" viewBox="0 0 20 20">
                               <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
                             </svg>
                           ))}
@@ -244,18 +327,19 @@ export const LandingPageContent: React.FC<{ onSignIn: () => void; onSignUp: () =
               </div>
             </section>
 
-            <section className="relative py-20 px-4">
+            {/* CTA Section */}
+            <section className="relative py-12 sm:py-20 px-4">
               <div className="absolute inset-0 bg-gradient-to-r from-[#1ee0c0]/10 to-purple-600/10 blur-3xl" />
-              <div className="relative text-center space-y-6">
-                <h2 className="text-4xl font-black bg-gradient-to-r from-white to-gray-300 bg-clip-text text-transparent">
+              <div className="relative text-center space-y-4 sm:space-y-6">
+                <h2 className="text-3xl sm:text-4xl font-black bg-gradient-to-r from-white to-gray-300 bg-clip-text text-transparent">
                   Ready to Transform Your Living Space?
                 </h2>
-                <p className="text-gray-400 text-lg max-w-2xl mx-auto">
+                <p className="text-gray-400 text-base sm:text-lg max-w-2xl mx-auto">
                   Join thousands of happy roommates who&apos;ve discovered the secret to harmonious shared living.
                 </p>
                 <Button
                   onClick={onSignUp}
-                  className="h-14 px-10 bg-gradient-to-r from-[#1ee0c0] to-[#0fa89d] text-black text-lg font-bold hover:shadow-[0_0_40px_rgba(30,224,192,0.7)] transform hover:scale-105 transition-all duration-300"
+                  className="h-12 sm:h-14 px-8 sm:px-10 bg-gradient-to-r from-[#1ee0c0] to-[#0fa89d] text-black text-base sm:text-lg font-bold hover:shadow-[0_0_40px_rgba(30,224,192,0.7)] transform hover:scale-105 transition-all duration-300"
                 >
                   Start Your Free Trial
                 </Button>
