@@ -1,4 +1,3 @@
-// src/components/RoomiesApp.tsx
 "use client";
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
@@ -110,8 +109,12 @@ const AuthForm: React.FC<{isRegisteringInitially: boolean}> = ({isRegisteringIni
         ? await signUp(email, password, name)
         : await signIn(email, password);
       if (authError) setError(authError.message);
-    } catch (err: any) { // Used 'err' to satisfy linter
-      setError(err.message || 'An unexpected error occurred');
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError('An unexpected error occurred');
+      }
     } finally {
       setIsLoading(false);
     }
