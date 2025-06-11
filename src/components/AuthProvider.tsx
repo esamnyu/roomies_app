@@ -1,5 +1,6 @@
 "use client";
-import React, { createContext, useContext, useEffect, useState, useMemo } from 'react';import { supabase } from '@/lib/supabase';
+import React, { createContext, useContext, useEffect, useState, useMemo, useCallback } from 'react';
+import { supabase } from '@/lib/supabase';
 import { User } from '@supabase/supabase-js';
 import type { Profile } from '@/lib/api';
 import * as api from '@/lib/api';
@@ -35,74 +36,59 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-  const getInitialSession = async () => {
-    const { data: { session } } = await supabase.auth.getSession();
-    setUser(session?.user ?? null);
-    if (session?.user) {
-      await fetchProfile(session.user.id);
-    }
-    setLoading(false);
-  };
-
-  getInitialSession();
-
-  const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-    setUser(session?.user ?? null);
-    if (session?.user) {
-      await fetchProfile(session.user.id);
-    } else {
-      setProfile(null);
-    }
-  });
-
-  return () => {
-    subscription?.unsubscribe();
-  };
-}, []);
-
-  const fetchProfile = async (userId: string) => {
+  const fetchProfile = useCallback(async (userId: string) => {
     try {
       const { data, error } = await api.getProfile(userId);
       if (error) throw error;
       setProfile(data);
     } catch (error) {
       console.error('Error fetching profile:', error);
-      // It's often good practice to clear the profile on error
       setProfile(null);
     }
-  };
+  }, []);
 
-  const signIn = async (email: string, password: string) => {
-    try {
-      const { error } = await api.signIn(email, password);
-      if (error) throw error;
-      return { error: null };
-    } catch (error) {
-      return { error: error as Error };
-    }
-  };
+  useEffect(() => {
+    const getInitialSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      setUser(session?.user ?? null);
+      if (session?.user) {
+        await fetchProfile(session.user.id);
+      }
+      setLoading(false);
+    };
 
-  const signUp = async (email: string, password: string, name: string) => {
-    try {
-      const { error } = await api.signUp(email, password, name);
-      if (error) throw error;
-      return { error: null };
-    } catch (error) {
-      return { error: error as Error };
-    }
-  };
+    getInitialSession();
 
-  const signOut = async () => {
-    try {
-      const { error } = await api.signOut();
-      if (error) throw error;
-    } catch (error) {
-      console.error('Error signing out:', error);
-    }
-  };
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      setUser(session?.user ?? null);
+      if (session?.user) {
+        await fetchProfile(session.user.id);
+      } else {
+        setProfile(null);
+      }
+    });
 
-const value = useMemo(() => ({
+    return () => {
+      subscription?.unsubscribe();
+    };
+  }, [fetchProfile]);
+
+  const signIn = useCallback(async (email: string, password: string) => {
+    const { error } = await api.signIn(email, password);
+    return { error };
+  }, []);
+
+  const signUp = useCallback(async (email: string, password: string, name: string) => {
+    const { error } = await api.signUp(email, password, name);
+    return { error };
+  }, []);
+
+  const signOut = useCallback(async () => {
+    await api.signOut();
+    setProfile(null);
+  }, []);
+
+  const value = useMemo(() => ({
     user,
     profile,
     loading,

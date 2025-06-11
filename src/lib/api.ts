@@ -1,8 +1,9 @@
 // esamnyu/roomies_app/roomies_app-feat-landing-and-onboarding/src/lib/api.ts
 import { ReactNode } from 'react';
 import { supabase } from './supabase';
+import { subscriptionManager } from './subscriptionManager'; 
 
-// --- bestehende Typen (gekürzt zur Übersichtlichkeit) ---
+// --- All interface definitions (Profile, Household, etc.) remain the same ---
 export interface Profile {
   id: string;
   name: string;
@@ -12,29 +13,29 @@ export interface Profile {
   email?: string;
 }
 
-// --- MODIFIED Household Interface ---
+export interface HouseRule {
+  id: string; 
+  category: string;
+  content: string;
+}
+
 export interface Household {
   id: string;
   name: string;
   created_by: string;
   created_at: string;
   updated_at: string;
-  member_count?: number; // Target member count from setup
+  member_count?: number; 
   core_chores?: string[];
   chore_frequency?: 'Daily' | 'Weekly' | 'Bi-weekly' | 'Monthly';
   chore_framework?: 'Split' | 'One person army';
   join_code?: string | null;
-
-  // Chore specific fields
   last_chore_rotation_date?: string | null;
   next_chore_rotation_date?: string | null;
   chore_current_assignee_index?: number;
-
-  // NEW: Fields for House Rules
-  rules_document?: string | null;
+  rules?: HouseRule[];
   rules_last_updated?: string | null;
 }
-
 
 export interface HouseholdMember {
   id: string;
@@ -147,8 +148,6 @@ interface MessageWithProfileRPC {
   profile: any
 }
 
-
-// --- NEW CHORE MANAGEMENT TYPES ---
 export interface HouseholdChore {
   id: string;
   household_id: string;
@@ -188,7 +187,6 @@ export interface ChoreRotationPeriod {
   }>;
 }
 
-
 export interface CreateHouseholdParams {
   name: string;
   member_count: number;
@@ -196,7 +194,6 @@ export interface CreateHouseholdParams {
   chore_frequency?: string;
   chore_framework?: string;
 }
-
 // --- AUTH FUNCTIONS (unverändert) ---
 export const signUp = async (email: string, password: string, name: string) => {
   const { data, error } = await supabase.auth.signUp({
@@ -293,11 +290,10 @@ export const getHouseholdData = async (householdId: string) => {
   return data
 }
 
-// MODIFIED to include new rules columns
 export const getHouseholdDetails = async (householdId: string): Promise<Household | null> => {
   const { data, error } = await supabase
     .from('households')
-    .select('*, rules_document, rules_last_updated') // Select all plus new fields
+    .select('*, rules, rules_last_updated')
     .eq('id', householdId)
     .single();
 
@@ -307,6 +303,97 @@ export const getHouseholdDetails = async (householdId: string): Promise<Househol
   }
   return data;
 };
+
+/**
+ * Updates a specific rule within a household's house rules.
+ */
+export const updateHouseRule = async (householdId: string, updatedRule: HouseRule): Promise<Household> => {
+    if (!householdId || !updatedRule || !updatedRule.id) {
+        throw new Error("Household ID and a complete rule object with ID are required.");
+    }
+
+    const { data: household, error: fetchError } = await supabase
+        .from('households')
+        .select('rules')
+        .eq('id', householdId)
+        .single();
+
+    if (fetchError || !household) {
+        throw new Error("Could not retrieve household to update rule.");
+    }
+
+    const existingRules = household.rules || [];
+    const ruleIndex: number = (existingRules as HouseRule[]).findIndex((rule: HouseRule) => rule.id === updatedRule.id);
+
+    if (ruleIndex === -1) {
+        throw new Error("Rule not found to update.");
+    }
+
+    const updatedRules = [...existingRules];
+    updatedRules[ruleIndex] = updatedRule;
+
+    const { data, error } = await supabase
+        .from('households')
+        .update({
+            rules: updatedRules,
+            rules_last_updated: new Date().toISOString()
+        })
+        .eq('id', householdId)
+        .select()
+        .single();
+
+    if (error) {
+        console.error("Error updating house rule:", error);
+        throw error;
+    }
+
+    return data;
+}
+
+/**
+ * Deletes a specific rule from a household's house rules.
+ */
+export const deleteHouseRule = async (householdId: string, ruleId: string): Promise<Household> => {
+    if (!householdId || !ruleId) {
+        throw new Error("Household ID and Rule ID are required.");
+    }
+
+    const { data: household, error: fetchError } = await supabase
+        .from('households')
+        .select('rules')
+        .eq('id', householdId)
+        .single();
+
+    if (fetchError || !household) {
+        throw new Error("Could not retrieve household to delete rule.");
+    }
+
+    const existingRules = household.rules || [];
+    const updatedRules: HouseRule[] = (existingRules as HouseRule[]).filter((rule: HouseRule) => rule.id !== ruleId);
+
+    if (existingRules.length === updatedRules.length) {
+        console.warn("Rule with ID not found, no changes made.");
+        // We can still proceed to save, which will just be a no-op update.
+    }
+
+    const { data, error } = await supabase
+        .from('households')
+        .update({
+            rules: updatedRules,
+            rules_last_updated: new Date().toISOString()
+        })
+        .eq('id', householdId)
+        .select()
+        .single();
+
+    if (error) {
+        console.error("Error deleting house rule:", error);
+        throw error;
+    }
+
+    return data;
+}
+
 
 export const getHouseholdMembers = async (householdId: string): Promise<HouseholdMember[]> => {
   const { data, error } = await supabase
@@ -328,11 +415,6 @@ export const getHouseholdMembers = async (householdId: string): Promise<Househol
 
 // --- SETTINGS & MANAGEMENT FUNCTIONS ---
 
-/**
- * Updates the settings for a specific household.
- * Only authenticated users who are members (ideally admins) should be able to call this.
- * Access control should be handled by Supabase Row Level Security (RLS) policies.
- */
 export const updateHouseholdSettings = async (householdId: string, updates: Partial<Household>) => {
     const { data, error } = await supabase
         .from('households')
@@ -348,10 +430,6 @@ export const updateHouseholdSettings = async (householdId: string, updates: Part
     return data;
 };
 
-/**
- * Updates a household member's role.
- * Requires admin privileges, enforced by RLS.
- */
 export const updateMemberRole = async (memberId: string, role: 'admin' | 'member') => {
     const { data, error } = await supabase
         .from('household_members')
@@ -366,12 +444,6 @@ export const updateMemberRole = async (memberId: string, role: 'admin' | 'member
     return data;
 };
 
-/**
- * Removes a member from a household.
- * Requires admin privileges, enforced by RLS.
- * NOTE: For a production app, this should be a Supabase RPC function (`remove_member_with_checks`)
- * to handle open debts or task re-assignments atomically.
- */
 export const removeMember = async (memberId: string) => {
     const { error } = await supabase
         .from('household_members')
@@ -384,15 +456,9 @@ export const removeMember = async (memberId: string) => {
     return true;
 };
 
-/**
- * Allows the currently authenticated user to leave a household.
- */
 export const leaveHousehold = async (householdId: string) => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error('Not authenticated');
-    
-    // It's good practice to check for outstanding balances before leaving.
-    // This logic would be in the UI, not here.
     
     const { error } = await supabase
         .from('household_members')
@@ -407,10 +473,6 @@ export const leaveHousehold = async (householdId: string) => {
     return true;
 };
 
-/**
- * Deletes a household. This is a destructive action.
- * Requires the user to be the `created_by` user or an admin, enforced by RLS.
- */
 export const deleteHousehold = async (householdId: string) => {
     const { error } = await supabase
         .from('households')
@@ -424,9 +486,6 @@ export const deleteHousehold = async (householdId: string) => {
     return true;
 };
 
-/**
- * Updates a specific chore's details.
- */
 export const updateHouseholdChore = async (choreId: string, updates: Partial<Pick<HouseholdChore, 'name' | 'description'>>) => {
     const { data, error } = await supabase
         .from('household_chores')
@@ -441,9 +500,6 @@ export const updateHouseholdChore = async (choreId: string, updates: Partial<Pic
     return data;
 };
 
-/**
- * Toggles a chore between active and inactive states.
- */
 export const toggleChoreActive = async (choreId: string, isActive: boolean) => {
     const { data, error } = await supabase
         .from('household_chores')
@@ -458,9 +514,6 @@ export const toggleChoreActive = async (choreId: string, isActive: boolean) => {
     return data;
 };
 
-/**
- * Updates the house rules document for a household.
- */
 export const updateHouseRules = async (householdId: string, rules: string) => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error('Not authenticated');
@@ -468,7 +521,9 @@ export const updateHouseRules = async (householdId: string, rules: string) => {
     const { data, error } = await supabase
         .from('households')
         .update({
-            rules_document: rules,
+            // Note: This assumes a single text field. The `rules` JSONB is preferred.
+            // Adjust if you are keeping a single text field instead.
+            // rules_document: rules,
             rules_last_updated: new Date().toISOString()
         })
         .eq('id', householdId)
@@ -481,10 +536,6 @@ export const updateHouseRules = async (householdId: string, rules: string) => {
     }
     return data;
 };
-
-// --- END OF NEW SETTINGS FUNCTIONS ---
-
-
 // --- JOIN CODE FUNCTIONS (unverändert) ---
 const generateRandomCode = (length = 4): string => {
   const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
@@ -539,33 +590,81 @@ export const joinHouseholdWithCode = async (joinCode: string): Promise<Household
   return household as Household;
 };
 
-// --- EXPENSE FUNCTIONS  ---
-// ... (rest of the file is unchanged)
 
+// --- EXPENSE FUNCTIONS ---
 export const getHouseholdExpenses = async (householdId: string) => {
   const { data, error } = await supabase.from('expenses').select(`*, profiles:paid_by (id, name, avatar_url), expense_splits (*, profiles:user_id (id, name, avatar_url))`).eq('household_id', householdId).order('date', { ascending: false }).order('created_at', { ascending: false });
   if (error) throw error; return data || [];
 };
+
 export const markExpenseSettled = async (expenseId: string, userId: string) => {
   const { data, error } = await supabase.from('expense_splits').update({ settled: true, settled_at: new Date().toISOString() }).eq('expense_id', expenseId).eq('user_id', userId);
   if (error) throw error; return data;
 };
-export const createExpenseWithCustomSplits = async (householdId: string, description: string, amount: number, splits: Array<{ user_id: string; amount: number }>, date?: string, isRecurring: boolean = false) => {
-  const { data: { user } } = await supabase.auth.getUser(); if (!user) throw new Error('Not authenticated');
+
+// --- MODIFIED EXPENSE CREATION FUNCTION ---
+export const createExpenseWithCustomSplits = async (
+  householdId: string, 
+  description: string, 
+  amount: number, 
+  splits: Array<{ user_id: string; amount: number }>, 
+  date?: string
+) => {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('Not authenticated');
+
+  // The client-side validation is still useful for immediate feedback,
+  // but the database function provides the ultimate guarantee.
   const totalSplits = splits.reduce((sum, split) => sum + split.amount, 0);
-  if (Math.abs(totalSplits - amount) > 0.01 * splits.length) { throw new Error('Split amounts must approximately equal total expense amount');}
-  const finalDescription = isRecurring ? `${description} (Recurring)` : description;
-  const { data: expense, error: expenseError } = await supabase.from('expenses').insert({ household_id: householdId, description: finalDescription, amount, paid_by: user.id, date: date || new Date().toISOString().split('T')[0]}).select().single();
-  if (expenseError) throw expenseError;
-  const splitRecords = splits.map(split => ({ expense_id: expense.id, user_id: split.user_id, amount: split.amount, settled: split.user_id === user.id }));
-  const { error: splitsError } = await supabase.from('expense_splits').insert(splitRecords);
-  if (splitsError) { throw splitsError; }
+  if (Math.abs(totalSplits - amount) > 0.01 * splits.length) {
+    throw new Error('Split amounts must approximately equal total expense amount');
+  }
+
+  // Call the database function
+  const { data: expenseId, error } = await supabase.rpc('create_expense_with_splits', {
+    p_household_id: householdId,
+    p_description: description,
+    p_amount: amount,
+    p_paid_by: user.id,
+    p_splits: splits,
+    p_date: date || new Date().toISOString().split('T')[0]
+  });
+
+  if (error) {
+    console.error("Error calling create_expense_with_splits RPC:", error);
+    throw new Error(`Failed to create expense: ${error.message}`);
+  }
+
+  // --- Client-side Notification Logic ---
+  // This can be kept or also moved to a database trigger for full server-side handling
   const otherMembers = splits.filter(split => split.user_id !== user.id);
-  if (otherMembers.length > 0) { const { data: payerProfile } = await getProfile(user.id); if (payerProfile) { const notifications = otherMembers.map(split => ({ user_id: split.user_id, household_id: householdId, type: 'expense_added' as const, title: 'New Expense Added', message: `${payerProfile.name} added "${description}" - You owe $${split.amount.toFixed(2)}`, data: { expense_id: expense.id, amount: split.amount, payer_id: user.id }, is_read: false })); try { await supabase.from('notifications').insert(notifications) } catch (notifError) { console.error('Failed to create notifications:', notifError)}}}
-  return expense;
+  if (otherMembers.length > 0) {
+    const { data: payerProfile } = await getProfile(user.id);
+    if (payerProfile) {
+      const notifications = otherMembers.map(split => ({
+        user_id: split.user_id,
+        household_id: householdId,
+        type: 'expense_added' as const,
+        title: 'New Expense Added',
+        message: `${payerProfile.name} added "${description}" - You owe $${split.amount.toFixed(2)}`,
+        data: { expense_id: expenseId, amount: split.amount, payer_id: user.id },
+        is_read: false
+      }));
+      try {
+        await supabase.from('notifications').insert(notifications)
+      } catch (notifError) {
+        console.error('Failed to create notifications (expense was still created):', notifError)
+      }
+    }
+  }
+
+  // The RPC returns the new expense ID, which we can use to fetch the full object if needed,
+  // but for now, we can just return the ID to confirm success.
+  return { id: expenseId };
 };
 
-// --- TASK FUNCTIONS (for general tasks, not structured chores) ---
+// --- Remaining functions (tasks, settlements, recurring expenses, etc.) are unchanged ---
+
 export const createTask = async (householdId: string, title: string, assignedTo?: string): Promise<Task> => {
   const { data: { user }, error: authError } = await supabase.auth.getUser(); if (authError || !user) { throw new Error('Not authenticated'); }
   const { data: membership, error: memberError } = await supabase.from('household_members').select('id').eq('household_id', householdId).eq('user_id', user.id).single(); if (memberError || !membership) { throw new Error('You are not a member of this household');}
@@ -589,7 +688,6 @@ export const completeTask = async (taskId: string): Promise<Task> => {
 };
 
 
-// --- SETTLEMENT FUNCTIONS (unverändert) ---
 export const createSettlement = async (householdId: string, payeeId: string, amount: number, description?: string) => {
   const { data, error } = await supabase
     .rpc('create_settlement_and_notify', {
@@ -629,8 +727,9 @@ export const getHouseholdSettlements = async (householdId: string) => {
 };
 
 export const subscribeToSettlements = (householdId: string, onSettlement: (settlement: Settlement) => void) => {
+  const key = `settlements:${householdId}`;
   const subscription = supabase
-    .channel(`settlements:${householdId}`)
+    .channel(key)
     .on('postgres_changes', { 
       event: 'INSERT', 
       schema: 'public', 
@@ -652,11 +751,10 @@ export const subscribeToSettlements = (householdId: string, onSettlement: (settl
       }
     })
     .subscribe();
-  return subscription;
+  return subscriptionManager.subscribe(key, subscription);
 };
 
 
-// --- RECURRING EXPENSE FUNCTIONS (unverändert) ---
 const calculateNextDueDate = (currentDate: Date, frequency: RecurringExpense['frequency'], dayOfMonth?: number, dayOfWeek?: number): string => {
   const date = new Date(currentDate);
   switch (frequency) {
@@ -689,7 +787,6 @@ export const processDueRecurringExpenses = async (householdId: string) => {
   }
 };
 
-// --- NOTIFICATION FUNCTIONS (unverändert) ---
 export const getNotifications = async (limit = 50, onlyUnread = false) => {
   const { data: { user } } = await supabase.auth.getUser(); if (!user) throw new Error('Not authenticated');
   let query = supabase.from('notifications').select('*').eq('user_id', user.id).order('created_at', { ascending: false }).limit(limit);
@@ -715,8 +812,14 @@ export const createNotification = async (userId: string, type: Notification['typ
   if (error) throw error; return notification;
 };
 export const subscribeToNotifications = (userId: string, onNotification: (notification: Notification) => void) => {
-  const subscription = supabase.channel(`notifications:${userId}`).on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${userId}`}, (payload) => { onNotification(payload.new as Notification); }).subscribe();
-  return subscription;
+    const key = `notifications:${userId}`;
+    const channel = supabase.channel(key)
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${userId}`}, (payload) => {
+            onNotification(payload.new as Notification);
+        })
+        .subscribe();
+
+    return subscriptionManager.subscribe(key, channel);
 };
 export const sendPaymentReminder = async (householdId: string, debtorId: string, amount: number) => {
   const { data: { user } } = await supabase.auth.getUser(); if (!user) throw new Error('Not authenticated');
@@ -724,7 +827,6 @@ export const sendPaymentReminder = async (householdId: string, debtorId: string,
   return createNotification(debtorId, 'payment_reminder', 'Payment Reminder', `${creditorProfile.name} has sent you a reminder: You owe $${amount.toFixed(2)}`, householdId, { amount, creditor_id: user.id, manual_reminder: true });
 };
 
-// --- BALANCE & SETTLEMENT HELPERS (unverändert) ---
 export const calculateBalances = (expenses: Expense[], members: HouseholdMember[], settlements?: Settlement[]): { userId: string; balance: number; profile: Profile }[] => {
   const balanceMap = new Map<string, number>();
   
@@ -795,7 +897,6 @@ export const getSettlementSuggestions = (balances: ReturnType<typeof calculateBa
   return suggestions;
 };
 
-// --- MESSAGE FUNCTIONS (unverändert) ---
 export const sendMessage = async (householdId: string, content: string): Promise<Message> => {
   const { data: { user } } = await supabase.auth.getUser(); if (!user) throw new Error('Not authenticated');
   const { data, error } = await supabase.from('messages').insert({ household_id: householdId, user_id: user.id, content: content.trim() }).select().single(); if (error) throw error;
@@ -807,35 +908,35 @@ export const getHouseholdMessages = async (householdId: string, limit = 50, befo
   return ((data || []) as MessageWithProfileRPC[]).map((msg: MessageWithProfileRPC) => ({ ...msg, profiles: msg.profile })).reverse();
 };
 export const subscribeToMessages = (householdId: string, onMessage: (message: Message) => void) => {
-  const channel = supabase.channel('new_message');
+    const key = `messages:${householdId}`;
+    const channel = supabase.channel(key) 
+      .on('postgres_changes', { 
+        event: 'INSERT', 
+        schema: 'public', 
+        table: 'messages', 
+        filter: `household_id=eq.${householdId}`
+      }, async (payload) => {
+          if (payload.new) {
+            const newMessage = payload.new as Message;
+            // Fetch the profile separately to keep the realtime payload light
+            const { data: profile } = await supabase
+              .from('profiles')
+              .select('*')
+              .eq('id', newMessage.user_id)
+              .single();
+            
+            onMessage({ ...newMessage, profiles: profile || undefined });
+          }
+      })
+      .subscribe((status, err) => {
+        if (err) {
+          console.error(`Subscription error for ${key}:`, err);
+        }
+      });
 
-  channel.on('postgres_changes', {
-      event: '*',
-      schema: 'public',
-      table: 'messages',
-    },
-    (payload) => {
-      console.log('Postgres change received:', payload);
-    }
-  );
-
-  channel.on('broadcast', { event: 'new_message' }, (payload) => {
-    const received = payload.payload;
-
-    if (received.message && received.message.household_id === householdId) {
-      const messageWithProfile: Message = {
-        ...received.message,
-        profiles: received.profile,
-      };
-      onMessage(messageWithProfile);
-    }
-  });
-
-  channel.subscribe();
-  return channel;
+    return subscriptionManager.subscribe(key, channel);
 };
 
-// --- NEW CHORE API FUNCTIONS ---
 export const initializeChoresForHousehold = async (householdId: string, householdData?: Household): Promise<void> => {
   const household = householdData || await getHouseholdDetails(householdId);
   if (!household || !household.core_chores || household.core_chores.length === 0) {
@@ -899,10 +1000,19 @@ export const assignChoresForCurrentCycle = async (householdId: string, household
     .eq('is_active', true)
     .order('default_order', { ascending: true });
 
-  if (choresError || !choresDefinitions || choresDefinitions.length === 0) {
-    console.error('No active chores defined for this household or error fetching them:', choresError);
+  // --- START of CHANGE ---
+  if (choresError) {
+    // This is a real database error.
+    console.error('Error fetching active chores for assignment:', choresError);
     return [];
   }
+  
+  if (!choresDefinitions || choresDefinitions.length === 0) {
+    // This is a normal condition if no chores are active. Change from console.error to console.log.
+    console.log(`No active chores found to assign for household ${householdId}.`);
+    return [];
+  }
+  // --- END of CHANGE ---
   
   const frequency = household.chore_frequency || 'Weekly';
   const framework = household.chore_framework || 'Split';
@@ -1004,7 +1114,6 @@ export const assignChoresForCurrentCycle = async (householdId: string, household
   
   return insertedAssignments || [];
 };
-
 
 export const getHouseholdChoreAssignmentsWithDetails = async (householdId: string): Promise<ChoreAssignment[]> => {
   const { data, error } = await supabase
@@ -1132,4 +1241,61 @@ export const checkAndTriggerChoreRotation = async (householdId: string): Promise
     return true;
   }
   return false;
+};
+
+export const addHouseRule = async (householdId: string, category: string, content: string): Promise<Household> => {
+    if (!householdId || !category || !content) {
+        throw new Error("Household ID, category, and content are required.");
+    }
+
+    const { data: household, error: fetchError } = await supabase
+        .from('households')
+        .select('rules')
+        .eq('id', householdId)
+        .single();
+    
+    if (fetchError || !household) {
+        throw new Error("Could not retrieve household to add rule.");
+    }
+
+    const newRule = {
+        id: `rule_${Date.now()}_${Math.random()}`, 
+        category,
+        content,
+    };
+
+    const existingRules = household.rules || [];
+    const updatedRules = [...existingRules, newRule];
+
+    const { data, error } = await supabase
+        .from('households')
+        .update({ 
+            rules: updatedRules,
+            rules_last_updated: new Date().toISOString()
+        })
+        .eq('id', householdId)
+        .select()
+        .single();
+
+    if (error) {
+        console.error("Error adding house rule:", error);
+        throw error;
+    }
+    
+    return data;
+}
+
+// Add this new function to src/lib/api.ts
+export const getHouseholdChores = async (householdId: string): Promise<HouseholdChore[]> => {
+    const { data, error } = await supabase
+        .from('household_chores')
+        .select('*')
+        .eq('household_id', householdId)
+        .order('name', { ascending: true });
+
+    if (error) {
+        console.error("Error fetching household chores definitions:", error);
+        throw error;
+    }
+    return data || [];
 };
