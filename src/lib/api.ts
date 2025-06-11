@@ -1,7 +1,6 @@
-// esamnyu/roomies_app/roomies_app-feat-landing-and-onboarding/src/lib/api.ts
-import { ReactNode } from 'react';
+// src/lib/api.ts
 import { supabase } from './supabase';
-import { subscriptionManager } from './subscriptionManager'; 
+import { subscriptionManager } from './subscriptionManager';
 
 // --- All interface definitions (Profile, Household, etc.) remain the same ---
 export interface Profile {
@@ -14,7 +13,7 @@ export interface Profile {
 }
 
 export interface HouseRule {
-  id: string; 
+  id: string;
   category: string;
   content: string;
 }
@@ -25,7 +24,7 @@ export interface Household {
   created_by: string;
   created_at: string;
   updated_at: string;
-  member_count?: number; 
+  member_count?: number;
   core_chores?: string[];
   chore_frequency?: 'Daily' | 'Weekly' | 'Bi-weekly' | 'Monthly';
   chore_framework?: 'Split' | 'One person army';
@@ -117,6 +116,7 @@ export interface Notification {
   type: 'expense_added' | 'payment_reminder' | 'task_assigned' | 'task_completed' | 'settlement_recorded' | 'recurring_expense_added' | 'member_joined' | 'member_left' | 'household_invitation' | 'message_sent' | 'chore_assigned' | 'chore_reminder' | 'chore_completed' | 'chore_missed';
   title: string;
   message: string;
+  // A more specific type would be ideal here in a real app, like a discriminated union based on `type`.
   data: any;
   is_read: boolean;
   read_at: string | null;
@@ -145,7 +145,7 @@ interface MessageWithProfileRPC {
   deleted: boolean
   created_at: string
   updated_at: string
-  profile: any
+  profile: Profile; // Changed from any to Profile
 }
 
 export interface HouseholdChore {
@@ -459,7 +459,7 @@ export const removeMember = async (memberId: string) => {
 export const leaveHousehold = async (householdId: string) => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error('Not authenticated');
-    
+
     const { error } = await supabase
         .from('household_members')
         .delete()
@@ -478,7 +478,7 @@ export const deleteHousehold = async (householdId: string) => {
         .from('households')
         .delete()
         .eq('id', householdId);
-    
+
     if (error) {
         console.error("Error deleting household:", error);
         throw error;
@@ -514,6 +514,8 @@ export const toggleChoreActive = async (choreId: string, isActive: boolean) => {
     return data;
 };
 
+// This function seems outdated, preferring the JSONB `rules` field.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export const updateHouseRules = async (householdId: string, rules: string) => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error('Not authenticated');
@@ -604,10 +606,10 @@ export const markExpenseSettled = async (expenseId: string, userId: string) => {
 
 // --- MODIFIED EXPENSE CREATION FUNCTION ---
 export const createExpenseWithCustomSplits = async (
-  householdId: string, 
-  description: string, 
-  amount: number, 
-  splits: Array<{ user_id: string; amount: number }>, 
+  householdId: string,
+  description: string,
+  amount: number,
+  splits: Array<{ user_id: string; amount: number }>,
   date?: string
 ) => {
   const { data: { user } } = await supabase.auth.getUser();
@@ -669,7 +671,7 @@ export const createTask = async (householdId: string, title: string, assignedTo?
   const { data: { user }, error: authError } = await supabase.auth.getUser(); if (authError || !user) { throw new Error('Not authenticated'); }
   const { data: membership, error: memberError } = await supabase.from('household_members').select('id').eq('household_id', householdId).eq('user_id', user.id).single(); if (memberError || !membership) { throw new Error('You are not a member of this household');}
   if (assignedTo) { const { data: assigneeMember, error: assigneeError } = await supabase.from('household_members').select('id').eq('household_id', householdId).eq('user_id', assignedTo).single(); if (assigneeError || !assigneeMember) { throw new Error('Assigned user is not a member of this household'); } }
-  const taskData: any = { household_id: householdId, title, completed: false }; if (assignedTo) { taskData.assigned_to = assignedTo; }
+  const taskData: Partial<Task> = { household_id: householdId, title, completed: false }; if (assignedTo) { taskData.assigned_to = assignedTo; } // Changed 'any' to 'Partial<Task>'
   const { data: insertedTask, error: insertError } = await supabase.from('tasks').insert(taskData).select('*').single(); if (insertError) { console.error('Supabase error creating task:', insertError); throw insertError; }
   if (insertedTask.assigned_to) { const { data: taskWithProfile, error: fetchError } = await supabase.from('tasks').select(`*, profiles:assigned_to (id, name, avatar_url)`).eq('id', insertedTask.id).single(); if (fetchError) { console.error('Error fetching task with profile:', fetchError); return insertedTask; } return taskWithProfile; }
   return insertedTask;
@@ -707,7 +709,7 @@ export const createSettlement = async (householdId: string, payeeId: string, amo
     console.error("Error creating settlement:", error);
     throw error;
   }
-  
+
   return data;
 };
 export const getHouseholdSettlements = async (householdId: string) => {
@@ -721,7 +723,7 @@ export const getHouseholdSettlements = async (householdId: string) => {
     .eq('household_id', householdId)
     .order('created_at', { ascending: false })
     .limit(50);
-  
+
   if (error) throw error;
   return data || [];
 };
@@ -730,10 +732,10 @@ export const subscribeToSettlements = (householdId: string, onSettlement: (settl
   const key = `settlements:${householdId}`;
   const subscription = supabase
     .channel(key)
-    .on('postgres_changes', { 
-      event: 'INSERT', 
-      schema: 'public', 
-      table: 'settlements', 
+    .on('postgres_changes', {
+      event: 'INSERT',
+      schema: 'public',
+      table: 'settlements',
       filter: `household_id=eq.${householdId}`
     }, async (payload) => {
       if (payload.new) {
@@ -755,7 +757,7 @@ export const subscribeToSettlements = (householdId: string, onSettlement: (settl
 };
 
 
-const calculateNextDueDate = (currentDate: Date, frequency: RecurringExpense['frequency'], dayOfMonth?: number, dayOfWeek?: number): string => {
+const calculateNextDueDate = (currentDate: Date, frequency: RecurringExpense['frequency'], dayOfMonth?: number): string => {
   const date = new Date(currentDate);
   switch (frequency) {
     case 'weekly': date.setDate(date.getDate() + 7); break;
@@ -766,10 +768,10 @@ const calculateNextDueDate = (currentDate: Date, frequency: RecurringExpense['fr
   }
   return date.toISOString().split('T')[0];
 };
-export const createRecurringExpense = async (householdId: string, description: string, amount: number, frequency: RecurringExpense['frequency'], startDate: Date, dayOfMonth?: number, dayOfWeek?: number) => {
+export const createRecurringExpense = async (householdId: string, description: string, amount: number, frequency: RecurringExpense['frequency'], startDate: Date, dayOfMonth?: number) => {
   const { data: { user } } = await supabase.auth.getUser(); if (!user) throw new Error('Not authenticated');
-  const nextDueDate = calculateNextDueDate(startDate, frequency, dayOfMonth, dayOfWeek);
-  const { data, error } = await supabase.from('recurring_expenses').insert({ household_id: householdId, description, amount, frequency, day_of_month: dayOfMonth, day_of_week: dayOfWeek, next_due_date: nextDueDate, created_by: user.id, is_active: true }).select().single();
+  const nextDueDate = calculateNextDueDate(startDate, frequency, dayOfMonth);
+  const { data, error } = await supabase.from('recurring_expenses').insert({ household_id: householdId, description, amount, frequency, day_of_month: dayOfMonth, next_due_date: nextDueDate, created_by: user.id, is_active: true }).select().single();
   if (error) throw error; return data;
 };
 export const getHouseholdRecurringExpenses = async (householdId: string) => {
@@ -829,19 +831,19 @@ export const sendPaymentReminder = async (householdId: string, debtorId: string,
 
 export const calculateBalances = (expenses: Expense[], members: HouseholdMember[], settlements?: Settlement[]): { userId: string; balance: number; profile: Profile }[] => {
   const balanceMap = new Map<string, number>();
-  
+
   members.forEach(member => {
     if (member.user_id && !member.user_id.startsWith('placeholder_')) {
       balanceMap.set(member.user_id, 0);
     }
   });
-  
+
   expenses.forEach(expense => {
     if (!expense.paid_by || !balanceMap.has(expense.paid_by)) return;
-    
+
     const payerBalance = balanceMap.get(expense.paid_by) || 0;
     balanceMap.set(expense.paid_by, payerBalance + expense.amount);
-    
+
     expense.expense_splits?.forEach(split => {
       if (!split.settled && split.user_id && balanceMap.has(split.user_id)) {
         const currentBalance = balanceMap.get(split.user_id) || 0;
@@ -849,23 +851,23 @@ export const calculateBalances = (expenses: Expense[], members: HouseholdMember[
       }
     });
   });
-  
+
   if (settlements) {
     settlements.forEach(settlement => {
       if (!settlement.payer_id || !settlement.payee_id || settlement.amount <= 0) return;
-      
+
       if (balanceMap.has(settlement.payer_id)) {
         const payerBalance = balanceMap.get(settlement.payer_id) || 0;
         balanceMap.set(settlement.payer_id, payerBalance - settlement.amount);
       }
-      
+
       if (balanceMap.has(settlement.payee_id)) {
         const payeeBalance = balanceMap.get(settlement.payee_id) || 0;
         balanceMap.set(settlement.payee_id, payeeBalance + settlement.amount);
       }
     });
   }
-  
+
   return Array.from(balanceMap.entries())
     .map(([userId, balance]) => {
       const member = members.find(m => m.user_id === userId);
@@ -909,11 +911,11 @@ export const getHouseholdMessages = async (householdId: string, limit = 50, befo
 };
 export const subscribeToMessages = (householdId: string, onMessage: (message: Message) => void) => {
     const key = `messages:${householdId}`;
-    const channel = supabase.channel(key) 
-      .on('postgres_changes', { 
-        event: 'INSERT', 
-        schema: 'public', 
-        table: 'messages', 
+    const channel = supabase.channel(key)
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'messages',
         filter: `household_id=eq.${householdId}`
       }, async (payload) => {
           if (payload.new) {
@@ -924,7 +926,7 @@ export const subscribeToMessages = (householdId: string, onMessage: (message: Me
               .select('*')
               .eq('id', newMessage.user_id)
               .single();
-            
+
             onMessage({ ...newMessage, profiles: profile || undefined });
           }
       })
@@ -987,7 +989,7 @@ export const assignChoresForCurrentCycle = async (householdId: string, household
   if (members.length === 0) {
       if(household.member_count && household.member_count > 0) {
           console.log("No members yet, chore assignment skipped or will use placeholders.");
-          return []; 
+          return [];
       } else {
           throw new Error('No members in household to assign chores to.');
       }
@@ -1006,17 +1008,17 @@ export const assignChoresForCurrentCycle = async (householdId: string, household
     console.error('Error fetching active chores for assignment:', choresError);
     return [];
   }
-  
+
   if (!choresDefinitions || choresDefinitions.length === 0) {
     // This is a normal condition if no chores are active. Change from console.error to console.log.
     console.log(`No active chores found to assign for household ${householdId}.`);
     return [];
   }
   // --- END of CHANGE ---
-  
+
   const frequency = household.chore_frequency || 'Weekly';
   const framework = household.chore_framework || 'Split';
-  
+
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
@@ -1028,7 +1030,7 @@ export const assignChoresForCurrentCycle = async (householdId: string, household
   }
 
 
-  let dueDate = new Date(cycleStartDate);
+  const dueDate = new Date(cycleStartDate);
   switch (frequency) {
     case 'Daily': dueDate.setDate(cycleStartDate.getDate() + 1); break;
     case 'Weekly': dueDate.setDate(cycleStartDate.getDate() + 7); break;
@@ -1039,13 +1041,13 @@ export const assignChoresForCurrentCycle = async (householdId: string, household
   dueDate.setHours(23, 59, 59, 999);
 
   const newAssignments: Omit<ChoreAssignment, 'id' | 'created_at' | 'updated_at'>[] = [];
-  
+
   const targetMemberCount = household.member_count || members.length;
   const memberIdsForAssignment: string[] = members.map(m => m.user_id);
   for (let i = members.length; i < targetMemberCount; i++) {
       memberIdsForAssignment.push(`placeholder_${i + 1}`);
   }
-  
+
   let currentAssigneeIndex = household.chore_current_assignee_index ?? 0;
   if(currentAssigneeIndex >= memberIdsForAssignment.length) currentAssigneeIndex = 0;
 
@@ -1101,17 +1103,17 @@ export const assignChoresForCurrentCycle = async (householdId: string, household
 
   const { error: updateHouseholdError } = await supabase
     .from('households')
-    .update({ 
+    .update({
         last_chore_rotation_date: cycleStartDate.toISOString().split('T')[0],
         next_chore_rotation_date: dueDate.toISOString().split('T')[0],
-        chore_current_assignee_index: currentAssigneeIndex 
+        chore_current_assignee_index: currentAssigneeIndex
     })
     .eq('id', householdId);
 
   if (updateHouseholdError) {
     console.error('Error updating household rotation dates:', updateHouseholdError);
   }
-  
+
   return insertedAssignments || [];
 };
 
@@ -1140,10 +1142,10 @@ export const markChoreAssignmentComplete = async (assignmentId: string, userId: 
 
   const { data, error } = await supabase
     .from('chore_assignments')
-    .update({ 
-      status: 'completed', 
+    .update({
+      status: 'completed',
       completed_at: new Date().toISOString(),
-      completed_by_user_id: userId 
+      completed_by_user_id: userId
     })
     .eq('id', assignmentId)
     .select(`
@@ -1152,7 +1154,7 @@ export const markChoreAssignmentComplete = async (assignmentId: string, userId: 
       assigned_profile:profiles (id, name, avatar_url)
     `)
     .single();
-  
+
   if (error) {
     console.error("Error marking chore complete:", error);
     throw error;
@@ -1211,7 +1213,7 @@ export const getChoreRotationUIData = async (
     console.error("Error fetching current chore assignments for UI data:", error);
     throw error;
   }
-  
+
   return {
     currentAssignments: currentAssignments || [],
     householdInfo,
@@ -1253,13 +1255,13 @@ export const addHouseRule = async (householdId: string, category: string, conten
         .select('rules')
         .eq('id', householdId)
         .single();
-    
+
     if (fetchError || !household) {
         throw new Error("Could not retrieve household to add rule.");
     }
 
     const newRule = {
-        id: `rule_${Date.now()}_${Math.random()}`, 
+        id: `rule_${Date.now()}_${Math.random()}`,
         category,
         content,
     };
@@ -1269,7 +1271,7 @@ export const addHouseRule = async (householdId: string, category: string, conten
 
     const { data, error } = await supabase
         .from('households')
-        .update({ 
+        .update({
             rules: updatedRules,
             rules_last_updated: new Date().toISOString()
         })
@@ -1281,7 +1283,7 @@ export const addHouseRule = async (householdId: string, category: string, conten
         console.error("Error adding house rule:", error);
         throw error;
     }
-    
+
     return data;
 }
 

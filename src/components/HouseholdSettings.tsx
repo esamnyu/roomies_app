@@ -6,7 +6,7 @@ import { useAuth } from './AuthProvider';
 import * as api from '@/lib/api';
 import type { Household, HouseholdMember, HouseRule } from '@/lib/api';
 import { toast } from 'react-hot-toast';
-import { Loader2, User, KeyRound, Trash2, Shield, LogOut, AlertTriangle, Plus, Edit3 } from 'lucide-react';
+import { Loader2, Trash2, Shield, LogOut, AlertTriangle, Plus, Edit3 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 
 interface HouseholdSettingsProps {
@@ -138,9 +138,9 @@ const EditRuleModal: React.FC<{
   );
 };
 
-const RuleCard: React.FC<{ 
-  rule: HouseRule; 
-  isAdmin: boolean; 
+const RuleCard: React.FC<{
+  rule: HouseRule;
+  isAdmin: boolean;
   onEdit: (rule: HouseRule) => void;
   onDelete: (ruleId: string) => void;
 }> = ({ rule, isAdmin, onEdit, onDelete }) => {
@@ -171,7 +171,7 @@ export const HouseholdSettings: React.FC<HouseholdSettingsProps> = ({ household,
   const [memberCount, setMemberCount] = useState(household.member_count || 1);
   const [choreFramework, setChoreFramework] = useState(household.chore_framework || 'Split');
   const [choreFrequency, setChoreFrequency] = useState(household.chore_frequency || 'Weekly');
-  
+
   const [isSavingDetails, setIsSavingDetails] = useState(false);
   const [showAddRuleModal, setShowAddRuleModal] = useState(false);
   const [showEditRuleModal, setShowEditRuleModal] = useState(false);
@@ -204,9 +204,9 @@ export const HouseholdSettings: React.FC<HouseholdSettingsProps> = ({ household,
 
   const handleRuleAdded = () => {
     setShowAddRuleModal(false);
-    onUpdate(); 
+    onUpdate();
   };
-  
+
   const handleOpenEditModal = (rule: HouseRule) => {
     setRuleToEdit(rule);
     setShowEditRuleModal(true);
@@ -253,13 +253,13 @@ export const HouseholdSettings: React.FC<HouseholdSettingsProps> = ({ household,
         }
     }
   }
-  
+
   const handleLeaveHousehold = async () => {
     if (window.confirm("Are you sure you want to leave this household? This action cannot be undone.")) {
         try {
             await api.leaveHousehold(household.id);
             toast.success("You have left the household.");
-            window.location.reload(); 
+            window.location.reload();
         } catch(error) {
             toast.error("Failed to leave household: " + (error instanceof Error ? error.message : ""));
         }
@@ -267,10 +267,10 @@ export const HouseholdSettings: React.FC<HouseholdSettingsProps> = ({ household,
   }
 
   const handleDeleteHousehold = async () => {
-     if (window.confirm(`DANGER: Are you sure you want to permanently delete "${household.name}"? All data will be lost.`)) {
+     if (window.confirm(`DANGER: Are you sure you want to permanently delete '${household.name}'? All data will be lost.`)) {
         try {
             await api.deleteHousehold(household.id);
-            toast.success(`Household "${household.name}" has been deleted.`);
+            toast.success(`Household '${household.name}' has been deleted.`);
             window.location.reload();
         } catch(error) {
              toast.error("Failed to delete household: " + (error instanceof Error ? error.message : ""));
@@ -285,7 +285,7 @@ export const HouseholdSettings: React.FC<HouseholdSettingsProps> = ({ household,
   return (
     <>
       <div className="space-y-8">
-        <SettingsCard 
+        <SettingsCard
           title="Household Details"
           footer={ isAdmin &&
             <Button onClick={handleUpdateHouseholdDetails} disabled={isSavingDetails}>
@@ -303,7 +303,7 @@ export const HouseholdSettings: React.FC<HouseholdSettingsProps> = ({ household,
           </div>
         </SettingsCard>
 
-        <SettingsCard 
+        <SettingsCard
           title="Chore Configuration"
           footer={ isAdmin &&
             <Button onClick={handleUpdateHouseholdDetails} disabled={isSavingDetails}>
@@ -327,10 +327,10 @@ export const HouseholdSettings: React.FC<HouseholdSettingsProps> = ({ household,
                   <option value="Monthly">Monthly</option>
               </select>
           </div>
-          <p className="text-xs text-secondary-foreground opacity-70">To add, edit, or remove specific chores, please visit the main "Chores" tab.</p>
+          <p className="text-xs text-secondary-foreground opacity-70">To add, edit, or remove specific chores, please visit the main &quot;Chores&quot; tab.</p>
         </SettingsCard>
 
-        <SettingsCard 
+        <SettingsCard
           title="House Rules"
           footer={
             isAdmin && (
@@ -348,12 +348,12 @@ export const HouseholdSettings: React.FC<HouseholdSettingsProps> = ({ household,
             ) : (
               <div className="text-center py-4">
                 <p className="text-sm text-secondary-foreground">No house rules have been added yet.</p>
-                {isAdmin && <p className="text-xs text-secondary-foreground opacity-70 mt-1">Click "Add New Rule" to get started.</p>}
+                {isAdmin && <p className="text-xs text-secondary-foreground opacity-70 mt-1">Click &quot;Add New Rule&quot; to get started.</p>}
               </div>
             )}
           </div>
         </SettingsCard>
-        
+
         <SettingsCard title="Member Management">
           <div className="divide-y divide-border">
               {members.map(member => (
@@ -400,7 +400,7 @@ export const HouseholdSettings: React.FC<HouseholdSettingsProps> = ({ household,
       </div>
 
       {showAddRuleModal && (
-        <AddRuleModal 
+        <AddRuleModal
           householdId={household.id}
           onClose={() => setShowAddRuleModal(false)}
           onRuleAdded={handleRuleAdded}

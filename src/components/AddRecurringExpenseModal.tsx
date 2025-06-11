@@ -13,10 +13,13 @@ interface AddRecurringExpenseModalProps {
   onExpenseAdded: () => void;
 }
 
+// Define the frequency type to avoid using 'any'
+type FrequencyType = 'monthly' | 'weekly' | 'biweekly' | 'quarterly' | 'yearly';
+
 export const AddRecurringExpenseModal: React.FC<AddRecurringExpenseModalProps> = ({ householdId, onClose, onExpenseAdded }) => {
     const [description, setDescription] = useState('');
     const [amount, setAmount] = useState('');
-    const [frequency, setFrequency] = useState<'monthly' | 'weekly' | 'biweekly' | 'quarterly' | 'yearly'>('monthly');
+    const [frequency, setFrequency] = useState<FrequencyType>('monthly');
     const [dayOfMonth, setDayOfMonth] = useState('1');
     const [submitting, setSubmitting] = useState(false);
 
@@ -24,18 +27,22 @@ export const AddRecurringExpenseModal: React.FC<AddRecurringExpenseModalProps> =
       if (!description || !amount || !householdId) return;
       setSubmitting(true);
       try {
-        await api.createRecurringExpense(householdId, description, parseFloat(amount), frequency, new Date(), 
+        await api.createRecurringExpense(householdId, description, parseFloat(amount), frequency, new Date(),
           (frequency === 'monthly' || frequency === 'quarterly' || frequency === 'yearly') ? parseInt(dayOfMonth) : undefined
         );
         onExpenseAdded();
         onClose();
         toast.success('Recurring expense added!');
-      } catch (error) { 
-        console.error('Error creating recurring expense:', error); 
-        toast.error('Failed to create recurring expense'); 
-      } finally { 
-        setSubmitting(false); 
+      } catch (error) {
+        console.error('Error creating recurring expense:', error);
+        toast.error('Failed to create recurring expense');
+      } finally {
+        setSubmitting(false);
       }
+    };
+
+    const handleFrequencyChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+        setFrequency(e.target.value as FrequencyType);
     };
 
     const inputStyles = "mt-1 block w-full px-3 py-2 border border-input rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-ring sm:text-sm";
@@ -55,7 +62,7 @@ export const AddRecurringExpenseModal: React.FC<AddRecurringExpenseModalProps> =
             </div>
             <div>
               <label className="block text-sm font-medium text-foreground">Frequency</label>
-              <select className={inputStyles} value={frequency} onChange={(e) => setFrequency(e.target.value as any)}>
+              <select className={inputStyles} value={frequency} onChange={handleFrequencyChange}>
                 <option value="weekly">Weekly</option>
                 <option value="biweekly">Bi-weekly</option>
                 <option value="monthly">Monthly</option>

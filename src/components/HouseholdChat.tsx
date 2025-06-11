@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Send, Loader2 } from 'lucide-react';
 import { useAuth } from './AuthProvider';
 import * as api from '@/lib/api';
-import { subscriptionManager } from '@/lib/subscriptionManager'; // Corrected import
+import { subscriptionManager } from '@/lib/subscriptionManager';
 import type { Message } from '@/lib/api';
 import { Button } from '@/components/ui/Button';
 import { toast } from 'react-hot-toast';
@@ -15,7 +15,7 @@ interface HouseholdChatProps {
 export const HouseholdChat: React.FC<HouseholdChatProps> = ({ householdId }) => {
   const { user } = useAuth();
   const [messages, setMessages] = useState<Message[]>([]);
-  const [newMessage, setNewMessage] = useState(''); // Re-added this state
+  const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -28,7 +28,7 @@ export const HouseholdChat: React.FC<HouseholdChatProps> = ({ householdId }) => 
     setMessages(prev => {
       const exists = prev.some(m => m.id === incomingMessage.id);
       if (exists) return prev;
-      
+
       const updated = [...prev, incomingMessage];
       return updated.slice(-100); // Only keep the last 100 messages
     });
@@ -48,14 +48,14 @@ export const HouseholdChat: React.FC<HouseholdChatProps> = ({ householdId }) => 
         setLoading(false);
       }
     };
-    
+
     loadAndSubscribe();
 
     const subscriptionKey = `messages:${householdId}`;
-    const subscription = api.subscribeToMessages(householdId, handleNewMessage);
+    // The 'subscription' variable was removed as it was unused.
+    api.subscribeToMessages(householdId, handleNewMessage);
 
     return () => {
-      // Use the correctly imported subscriptionManager
       subscriptionManager.unsubscribe(subscriptionKey);
     };
   }, [householdId, handleNewMessage]);
@@ -98,7 +98,7 @@ export const HouseholdChat: React.FC<HouseholdChatProps> = ({ householdId }) => 
     } else if (isYesterday) {
       return 'Yesterday ' + date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
     } else {
-      return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + 
+      return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) +
              ' ' + date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
     }
   };

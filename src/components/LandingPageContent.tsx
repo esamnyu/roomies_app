@@ -16,10 +16,10 @@ export const LandingPageContent: React.FC<{ onSignIn: () => void; onSignUp: () =
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 20);
     const handleMouseMove = (e: MouseEvent) => setMousePos({ x: e.clientX, y: e.clientY });
-    
+
     window.addEventListener('scroll', handleScroll);
     window.addEventListener('mousemove', handleMouseMove);
-    
+
     return () => {
       window.removeEventListener('scroll', handleScroll);
       window.removeEventListener('mousemove', handleMouseMove);
@@ -59,7 +59,7 @@ export const LandingPageContent: React.FC<{ onSignIn: () => void; onSignUp: () =
       gradient: "from-orange-400 to-red-400"
     }
   ];
-  
+
   const testimonials = [
       {
         image: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?q=80&w=1888&auto=format&fit=crop",
@@ -83,14 +83,10 @@ export const LandingPageContent: React.FC<{ onSignIn: () => void; onSignUp: () =
 
   return (
     <div className="relative flex size-full min-h-screen flex-col bg-[#0a0a0a] text-white group/design-root overflow-x-hidden font-sans">
-      {/* --- START of CHANGE --- */}
       <div className="fixed inset-0 -z-10">
-        {/* Animated Shimmer Layer */}
         <div className="absolute inset-0 animate-shimmer bg-[linear-gradient(110deg,#0a0a0a,45%,#1e293b,55%,#0a0a0a)] bg-[length:200%_100%] opacity-25" />
-        
-        {/* Your existing layers */}
         <div className="absolute inset-0 bg-gradient-to-br from-emerald-900/20 via-transparent to-purple-900/20" />
-        <div 
+        <div
           className="absolute inset-0 opacity-40 transition-opacity"
           style={{
             background: `radial-gradient(circle at ${mousePos.x}px ${mousePos.y}px, rgba(30, 224, 192, 0.15) 0%, transparent 40%)`,
@@ -98,10 +94,8 @@ export const LandingPageContent: React.FC<{ onSignIn: () => void; onSignUp: () =
         />
         <div className="absolute inset-0 bg-[url('data:image/svg+xml,%3Csvg%20width=%2260%22%20height=%2260%22%20xmlns=%22http://www.w3.org/2000/svg%22%3E%3Cdefs%3E%3Cpattern%20id=%22grid%22%20width=%2260%22%20height=%2260%22%20patternUnits=%22userSpaceOnUse%22%3E%3Cpath%20d=%22M%2060%200%20L%200%200%200%2060%22%20fill=%22none%22%20stroke=%22rgba(255,255,255,0.03)%22%20stroke-width=%221%22/%3E%3C/pattern%3E%3C/defs%3E%3Crect%20width=%22100%25%22%20height=%22100%25%22%20fill=%22url(%23grid)%22/%3E%3C/svg%3E')]" />
       </div>
-      {/* --- END of CHANGE --- */}
 
       <div className="layout-container flex h-full grow flex-col">
-        {/* Header and Main content... */}
         <header className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${scrolled ? 'bg-black/80 backdrop-blur-xl shadow-2xl' : 'bg-transparent'}`}>
           <div className="flex items-center justify-between whitespace-nowrap px-10 py-4">
             <div className="flex items-center gap-4 group cursor-pointer">
@@ -127,15 +121,15 @@ export const LandingPageContent: React.FC<{ onSignIn: () => void; onSignUp: () =
                   <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-[#1ee0c0] transition-all group-hover:w-full"></span>
                 </a>
               </nav>
-              <Button 
-                onClick={onSignIn} 
-                variant="outline" 
+              <Button
+                onClick={onSignIn}
+                variant="outline"
                 className="border-gray-600 text-gray-200 hover:border-[#1ee0c0] hover:text-[#1ee0c0] hover:bg-white/5 transition-all duration-300"
               >
                 Login
               </Button>
-              <Button 
-                onClick={onSignUp} 
+              <Button
+                onClick={onSignUp}
                 className="bg-gradient-to-r from-[#1ee0c0] to-[#0fa89d] text-black font-semibold hover:shadow-[0_0_20px_rgba(30,224,192,0.5)] transform hover:scale-105 transition-all duration-300"
               >
                 <span className="truncate">Sign Up Free</span>
@@ -146,7 +140,7 @@ export const LandingPageContent: React.FC<{ onSignIn: () => void; onSignUp: () =
 
         <main className="px-4 sm:px-10 md:px-20 lg:px-40 flex flex-1 justify-center pt-20">
           <div className="layout-content-container flex flex-col max-w-[960px] flex-1">
-            
+
             <section className="container mx-auto">
               <div className="flex flex-col gap-8 py-10 lg:flex-row items-center min-h-[80vh]">
                 <div className="flex flex-col gap-6 lg:w-1/2 text-center lg:text-left animate-fade-in-up">
@@ -194,7 +188,7 @@ export const LandingPageContent: React.FC<{ onSignIn: () => void; onSignUp: () =
               </div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 {features.map((feature, index) => (
-                  <div 
+                  <div
                     key={index}
                     className="group relative flex flex-col gap-4 rounded-2xl bg-gradient-to-b from-gray-900/50 to-gray-900/30 backdrop-blur-sm border border-gray-800 p-8 hover:border-gray-700 transition-all duration-500 hover:transform hover:scale-[1.02] animate-fade-in-up"
                     style={{ animationDelay: `${index * 100}ms` }}
@@ -218,7 +212,7 @@ export const LandingPageContent: React.FC<{ onSignIn: () => void; onSignUp: () =
               </h2>
               <div className="flex overflow-x-auto gap-6 pb-6 snap-x snap-mandatory no-scrollbar">
                 {testimonials.map((testimonial, index) => (
-                  <div 
+                  <div
                     key={index}
                     className="flex-shrink-0 w-80 snap-center"
                   >
@@ -235,7 +229,7 @@ export const LandingPageContent: React.FC<{ onSignIn: () => void; onSignUp: () =
                             <p className="text-gray-400 text-sm">{testimonial.role}</p>
                           </div>
                         </div>
-                        <p className="text-gray-300 leading-relaxed italic">"{testimonial.quote}"</p>
+                        <p className="text-gray-300 leading-relaxed italic">&quot;{testimonial.quote}&quot;</p>
                         <div className="flex gap-1 mt-auto">
                           {[...Array(5)].map((_, i) => (
                             <svg key={i} className="w-5 h-5 text-[#1ee0c0]" fill="currentColor" viewBox="0 0 20 20">
@@ -257,7 +251,7 @@ export const LandingPageContent: React.FC<{ onSignIn: () => void; onSignUp: () =
                   Ready to Transform Your Living Space?
                 </h2>
                 <p className="text-gray-400 text-lg max-w-2xl mx-auto">
-                  Join thousands of happy roommates who've discovered the secret to harmonious shared living.
+                  Join thousands of happy roommates who&apos;ve discovered the secret to harmonious shared living.
                 </p>
                 <Button
                   onClick={onSignUp}
@@ -272,7 +266,6 @@ export const LandingPageContent: React.FC<{ onSignIn: () => void; onSignUp: () =
       </div>
 
       <style jsx>{`
-        /* --- START of CHANGE --- */
         @keyframes shimmer {
           from {
             background-position: 200% 0;
@@ -284,7 +277,6 @@ export const LandingPageContent: React.FC<{ onSignIn: () => void; onSignUp: () =
         .animate-shimmer {
           animation: shimmer 10s linear infinite;
         }
-        /* --- END of CHANGE --- */
 
         @keyframes fade-in-up {
           from {

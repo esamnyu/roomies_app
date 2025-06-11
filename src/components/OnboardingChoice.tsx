@@ -18,7 +18,7 @@ export const OnboardingChoice: React.FC<OnboardingChoiceProps> = ({
       <div className="max-w-md w-full bg-white p-8 rounded-lg shadow-lg text-center">
         <h1 className="text-3xl font-bold text-primary mb-4">Welcome to Roomies!</h1>
         <p className="text-foreground mb-8">
-          You're almost there! To get started, you can either create a new household
+          You&apos;re almost there! To get started, you can either create a new household
           or join an existing one if you have an invitation.
         </p>
         <div className="space-y-4">
@@ -39,7 +39,7 @@ export const OnboardingChoice: React.FC<OnboardingChoiceProps> = ({
           </Button>
         </div>
         <p className="text-xs text-secondary-foreground opacity-70 mt-6">
-          If you're joining a household, you'll need an invitation from an existing member.
+          If you&apos;re joining a household, you&apos;ll need an invitation from an existing member.
           Check your pending invitations or ask your household admin.
         </p>
       </div>

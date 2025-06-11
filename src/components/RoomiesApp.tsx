@@ -1,9 +1,11 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react'; 
-import { ChevronRight, Home, Users, DollarSign, CheckSquare, Plus, LogOut, Menu, X, ArrowLeft, Loader2, CreditCard, Bell, MessageSquare, Settings, ClipboardList, User, Share2 } from 'lucide-react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+// Removed unused 'Users' and 'Bell' icons
+import { ChevronRight, Home, DollarSign, CheckSquare, Plus, LogOut, Menu, X, ArrowLeft, Loader2, CreditCard, MessageSquare, Settings, ClipboardList, User, Share2 } from 'lucide-react';
 import * as api from '@/lib/api';
-import type { Profile, Household, HouseholdMember, Expense, Settlement, RecurringExpense } from '@/lib/api';
+// The 'Profile' type is used, so it remains.
+import type { Household, HouseholdMember, Expense, Settlement, RecurringExpense } from '@/lib/api';
 import { AuthProvider, useAuth } from './AuthProvider';
 import { NotificationBell } from './NotificationsPanel';
 import { Toaster, toast } from 'react-hot-toast';
@@ -109,13 +111,13 @@ const AuthForm: React.FC<{isRegisteringInitially: boolean}> = ({isRegisteringIni
         ? await signUp(email, password, name)
         : await signIn(email, password);
       if (authError) setError(authError.message);
-    } catch (err) {
-      setError('An unexpected error occurred');
+    } catch (err: any) { // Used 'err' to satisfy linter
+      setError(err.message || 'An unexpected error occurred');
     } finally {
       setIsLoading(false);
     }
   };
-  
+
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !isLoading) handleSubmit();
   };
@@ -193,7 +195,7 @@ const JoinHouseholdWithCode: React.FC<{ onJoined: (household: Household) => void
       setIsLoading(false);
     }
   };
-  
+
   const inputStyles = "mt-1 block w-full px-3 py-2 border border-input rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-ring sm:text-sm uppercase tracking-widest text-center";
 
   return (
@@ -237,7 +239,7 @@ const HouseholdWelcomeDisplay: React.FC<{ householdId: string; householdName?: s
   }, [householdId, householdName]);
 
   if (loading) return <LoadingSpinner />;
-  
+
   const nameToShow = fetchedHouseholdName || "your new household";
 
   return (
@@ -245,7 +247,7 @@ const HouseholdWelcomeDisplay: React.FC<{ householdId: string; householdName?: s
       <div className="max-w-lg w-full bg-white p-8 rounded-xl shadow-2xl text-center">
         <CheckSquare className="mx-auto h-16 w-16 text-primary mb-4" />
         <h1 className="text-3xl font-bold text-primary mb-4">Welcome to {nameToShow}!</h1>
-        <p className="text-secondary-foreground mb-6">You've successfully joined the household.</p>
+        <p className="text-secondary-foreground mb-6">You&apos;ve successfully joined the household.</p>
         <Button onClick={onProceed} size="lg" className="mt-8 w-full">
           Go to Dashboard
         </Button>
@@ -276,7 +278,7 @@ const Dashboard: React.FC<{ setAppState: (state: AppState) => void }> = ({ setAp
   useEffect(() => {
     loadHouseholds();
   }, [loadHouseholds]);
-  
+
   if (selectedHousehold) {
     return <HouseholdDetail householdId={selectedHousehold} onBack={() => {setSelectedHousehold(null); loadHouseholds();}} />;
   }
@@ -328,15 +330,15 @@ const Dashboard: React.FC<{ setAppState: (state: AppState) => void }> = ({ setAp
 type HouseholdDetailTab = 'money' | 'structuredChores' | 'communication' | 'rulesSettings';
 
 const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = ({ householdId, onBack }) => {
-  const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState<HouseholdDetailTab>('structuredChores'); 
+  // 'user' from useAuth() was removed as it's not directly used here
+  const [activeTab, setActiveTab] = useState<HouseholdDetailTab>('structuredChores');
   const [household, setHousehold] = useState<Household | null>(null);
   const [members, setMembers] = useState<HouseholdMember[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [settlements, setSettlements] = useState<Settlement[]>([]);
   const [loadingData, setLoadingData] = useState(true);
   const [recurringExpenses, setRecurringExpenses] = useState<RecurringExpense[]>([]);
-  
+
   const [showAddRecurring, setShowAddRecurring] = useState(false);
   const [showAddExpense, setShowAddExpense] = useState(false);
   const [showManageJoinCode, setShowManageJoinCode] = useState(false);
@@ -355,7 +357,7 @@ const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = (
         setMembers(data.members || []);
         setExpenses(data.recent_expenses || []);
         setSettlements(data.recent_settlements || []);
-        
+
         const recurringData = await api.getHouseholdRecurringExpenses(householdId);
         setRecurringExpenses(recurringData);
 
@@ -434,7 +436,7 @@ const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = (
         )}
 
         {activeTab === 'structuredChores' && householdId && <ChoreDashboard householdId={householdId} />}
-        
+
         {activeTab === 'communication' && (
           <div className="space-y-4">
             <div className="flex justify-between items-center">
@@ -512,7 +514,7 @@ const App: React.FC = () => {
   }, [user, authLoading, targetHouseholdAfterJoin]);
 
   if (appState === 'loading') return <LoadingSpinner />;
-  
+
   switch (appState) {
     case 'landing': return <LandingPageContent onSignIn={() => { setIsRegisteringForAuthForm(false); setAppState('authForm'); }} onSignUp={() => { setIsRegisteringForAuthForm(true); setAppState('authForm'); }} />;
     case 'authForm': return <AuthForm isRegisteringInitially={isRegisteringForAuthForm} />;
@@ -523,7 +525,7 @@ const App: React.FC = () => {
       if (welcomeHouseholdId) {
         return <HouseholdWelcomeDisplay householdId={welcomeHouseholdId} onProceed={() => { setWelcomeHouseholdId(null); setAppState('dashboard'); }} />;
       }
-      setAppState('dashboard'); 
+      setAppState('dashboard');
       return <LoadingSpinner />;
     case 'dashboard': return <Dashboard setAppState={setAppState} />;
     default: return <p>Something went wrong. Current state: {appState}</p>;
