@@ -169,7 +169,7 @@ export const LandingPageContent: React.FC<{ onSignIn: () => void; onSignUp: () =
                   <div className="absolute -inset-8 bg-gradient-to-r from-[#1ee0c0]/20 to-purple-600/20 blur-3xl" />
                   <div
                     className="relative w-full bg-center bg-no-repeat aspect-video bg-cover rounded-2xl overflow-hidden transform hover:scale-[1.02] transition-transform duration-500 shadow-2xl"
-                    style={{backgroundImage: 'url("https://images.unsplash.com/photo-1582268611958-ebfd161ef9cf?q=80&w=2070&auto=format&fit=crop")'}}
+                    style={{backgroundImage: `url("https://images.unsplash.com/photo-1582268611958-ebfd161ef9cf?q=80&w=2070&auto=format&fit=crop")`}}
                   >
                     <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
                   </div>

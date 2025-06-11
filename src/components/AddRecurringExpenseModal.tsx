@@ -28,7 +28,7 @@ export const AddRecurringExpenseModal: React.FC<AddRecurringExpenseModalProps> =
       setSubmitting(true);
       try {
         await api.createRecurringExpense(householdId, description, parseFloat(amount), frequency, new Date(),
-          (frequency === 'monthly' || frequency === 'quarterly' || frequency === 'yearly') ? parseInt(dayOfMonth) : undefined
+          (frequency === 'monthly' || frequency === 'quarterly' || frequency === 'yearly') ? parseInt(dayOfMonth, 10) : undefined
         );
         onExpenseAdded();
         onClose();

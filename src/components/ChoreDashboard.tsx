@@ -1,3 +1,4 @@
+// src/components/ChoreDashboard.tsx
 "use client";
 import React, { useState, useEffect, useCallback } from 'react';
 import { CheckCircle, Circle, PlusCircle, RefreshCw, AlertTriangle, Loader2, ClipboardList } from 'lucide-react';
@@ -277,7 +278,7 @@ export const ChoreDashboard: React.FC<ChoreDashboardProps> = ({ householdId }) =
           <Circle className="mx-auto h-12 w-12 text-secondary-foreground/30" />
           <h3 className="mt-2 text-lg font-medium text-foreground">No chores assigned for this cycle</h3>
           <p className="mt-1 text-sm text-secondary-foreground">
-            Click the "Rotate/Refresh" button to assign chores to members.
+            Click the &quot;Rotate/Refresh&quot; button to assign chores to members.
           </p>
            <Button onClick={handleForceRotation} className="mt-4" disabled={isRotating}>
             {isRotating ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <RefreshCw className="h-4 w-4 mr-2" />}

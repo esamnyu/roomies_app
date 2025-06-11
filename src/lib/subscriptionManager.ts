@@ -5,7 +5,7 @@ class SubscriptionManager {
   private subscriptions = new Map<string, RealtimeChannel>();
   private pendingUnsubscribes = new Set<string>();
 
-  subscribe(key: string, channel: RealtimeChannel) {
+  subscribe(key: string, channel: RealtimeChannel): RealtimeChannel | undefined {
     // Prevent rapid unsubscribe/resubscribe cycles by checking pending unsubscribes
     if (this.pendingUnsubscribes.has(key)) {
       this.pendingUnsubscribes.delete(key); // Cancel the pending unsubscribe

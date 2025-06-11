@@ -116,8 +116,7 @@ export interface Notification {
   type: 'expense_added' | 'payment_reminder' | 'task_assigned' | 'task_completed' | 'settlement_recorded' | 'recurring_expense_added' | 'member_joined' | 'member_left' | 'household_invitation' | 'message_sent' | 'chore_assigned' | 'chore_reminder' | 'chore_completed' | 'chore_missed';
   title: string;
   message: string;
-  // A more specific type would be ideal here in a real app, like a discriminated union based on `type`.
-  data: any;
+  data: Record<string, unknown> | null;
   is_read: boolean;
   read_at: string | null;
   created_at: string;
@@ -145,7 +144,7 @@ interface MessageWithProfileRPC {
   deleted: boolean
   created_at: string
   updated_at: string
-  profile: Profile; // Changed from any to Profile
+  profile: Profile;
 }
 
 export interface HouseholdChore {
@@ -809,7 +808,7 @@ export const markAllNotificationsRead = async () => {
   const { error } = await supabase.from('notifications').update({ is_read: true, read_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq('user_id', user.id).eq('is_read', false);
   if (error) throw error;
 };
-export const createNotification = async (userId: string, type: Notification['type'], title: string, message: string, householdId?: string, data?: any) => {
+export const createNotification = async (userId: string, type: Notification['type'], title: string, message: string, householdId?: string, data?: Record<string, unknown>) => {
   const { data: notification, error } = await supabase.from('notifications').insert({ user_id: userId, household_id: householdId, type, title, message, data: data || {} }).select().single();
   if (error) throw error; return notification;
 };

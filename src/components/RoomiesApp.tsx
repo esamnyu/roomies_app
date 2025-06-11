@@ -1,10 +1,9 @@
+// src/components/RoomiesApp.tsx
 "use client";
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-// Removed unused 'Users' and 'Bell' icons
 import { ChevronRight, Home, DollarSign, CheckSquare, Plus, LogOut, Menu, X, ArrowLeft, Loader2, CreditCard, MessageSquare, Settings, ClipboardList, User, Share2 } from 'lucide-react';
 import * as api from '@/lib/api';
-// The 'Profile' type is used, so it remains.
 import type { Household, HouseholdMember, Expense, Settlement, RecurringExpense } from '@/lib/api';
 import { AuthProvider, useAuth } from './AuthProvider';
 import { NotificationBell } from './NotificationsPanel';
@@ -330,7 +329,6 @@ const Dashboard: React.FC<{ setAppState: (state: AppState) => void }> = ({ setAp
 type HouseholdDetailTab = 'money' | 'structuredChores' | 'communication' | 'rulesSettings';
 
 const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = ({ householdId, onBack }) => {
-  // 'user' from useAuth() was removed as it's not directly used here
   const [activeTab, setActiveTab] = useState<HouseholdDetailTab>('structuredChores');
   const [household, setHousehold] = useState<Household | null>(null);
   const [members, setMembers] = useState<HouseholdMember[]>([]);

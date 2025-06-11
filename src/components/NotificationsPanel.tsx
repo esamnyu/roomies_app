@@ -1,6 +1,6 @@
 // src/components/NotificationsPanel.tsx
 "use client";
-import React, { useState, useEffect, SetStateAction, Dispatch } from 'react';
+import React, { useState, useEffect, SetStateAction, Dispatch, useCallback } from 'react';
 import { Bell, X, Check, DollarSign, CheckSquare, Users, CreditCard, Calendar, AlertCircle } from 'lucide-react';
 import * as api from '@/lib/api';
 import type { Notification } from '@/lib/api';
@@ -23,11 +23,28 @@ export const NotificationsPanel: React.FC<NotificationsPanelProps> = ({
   const [loading, setLoading] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
 
+  const loadNotifications = useCallback(async () => {
+    try {
+      setLoading(true);
+      const [notificationsData, count] = await Promise.all([
+        api.getNotifications(50),
+        api.getUnreadNotificationCount()
+      ]);
+      setNotifications(notificationsData);
+      setUnreadCount(count);
+      onNotificationCountChange(count);
+    } catch (error) {
+      console.error('Error loading notifications:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, [onNotificationCountChange]);
+
   useEffect(() => {
     if (user && isOpen) {
       loadNotifications();
     }
-  }, [user, isOpen]);
+  }, [user, isOpen, loadNotifications]);
 
   useEffect(() => {
     if (!user) return;
@@ -47,26 +64,9 @@ export const NotificationsPanel: React.FC<NotificationsPanelProps> = ({
     });
 
     return () => {
-      subscription.unsubscribe();
+      subscription?.unsubscribe();
     };
   }, [user, onNotificationCountChange]);
-
-  const loadNotifications = async () => {
-    try {
-      setLoading(true);
-      const [notificationsData, count] = await Promise.all([
-        api.getNotifications(50),
-        api.getUnreadNotificationCount()
-      ]);
-      setNotifications(notificationsData);
-      setUnreadCount(count);
-      onNotificationCountChange(count);
-    } catch (error) {
-      console.error('Error loading notifications:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const markAsRead = async (notificationId: string) => {
     try {

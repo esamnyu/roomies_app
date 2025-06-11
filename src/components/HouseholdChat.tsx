@@ -1,3 +1,4 @@
+// src/components/HouseholdChat.tsx
 "use client";
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Send, Loader2 } from 'lucide-react';
@@ -52,7 +53,6 @@ export const HouseholdChat: React.FC<HouseholdChatProps> = ({ householdId }) => 
     loadAndSubscribe();
 
     const subscriptionKey = `messages:${householdId}`;
-    // The 'subscription' variable was removed as it was unused.
     api.subscribeToMessages(householdId, handleNewMessage);
 
     return () => {
