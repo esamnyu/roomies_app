@@ -1,9 +1,14 @@
+// src/components/RoomiesApp.tsx
 "use client";
 
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { ChevronRight, Home, DollarSign, CheckSquare, Plus, LogOut, Menu, X, ArrowLeft, Loader2, CreditCard, MessageSquare, Settings, ClipboardList, User, Share2 } from 'lucide-react';
-import * as api from '@/lib/api';
-import type { Household, HouseholdMember, Expense, Settlement, RecurringExpense } from '@/lib/api';
+
+import { getHouseholdRecurringExpenses } from '@/lib/api/expenses';
+import { getHouseholdData, getHouseholdDetails, getUserHouseholds, joinHouseholdWithCode } from '@/lib/api/households';
+import { calculateBalances, getSettlementSuggestions } from '@/lib/api/settlements';
+import type { Household, HouseholdMember, Expense, Settlement, RecurringExpense } from '@/lib/types/types';
+
 import { AuthProvider, useAuth } from './AuthProvider';
 import { NotificationBell } from './NotificationsPanel';
 import { Toaster, toast } from 'react-hot-toast';
@@ -186,7 +191,7 @@ const JoinHouseholdWithCode: React.FC<{ onJoined: (household: Household) => void
     setError('');
     setIsLoading(true);
     try {
-      const household = await api.joinHouseholdWithCode(joinCode);
+      const household = await joinHouseholdWithCode(joinCode);
       toast.success(`Successfully joined ${household.name}!`);
       onJoined(household);
     } catch (err) {
@@ -230,7 +235,7 @@ const HouseholdWelcomeDisplay: React.FC<{ householdId: string; householdName?: s
   useEffect(() => {
     if (!householdName && householdId) {
       setLoading(true);
-      api.getHouseholdDetails(householdId)
+      getHouseholdDetails(householdId)
         .then(details => {
           if (details) setFetchedHouseholdName(details.name);
           else toast.error("Could not fetch household details.");
@@ -249,7 +254,7 @@ const HouseholdWelcomeDisplay: React.FC<{ householdId: string; householdName?: s
       <div className="max-w-lg w-full bg-white p-8 rounded-xl shadow-2xl text-center">
         <CheckSquare className="mx-auto h-16 w-16 text-primary mb-4" />
         <h1 className="text-3xl font-bold text-primary mb-4">Welcome to {nameToShow}!</h1>
-        <p className="text-secondary-foreground mb-6">You've successfully joined the household.</p>
+        <p className="text-secondary-foreground mb-6">You&apos;ve successfully joined the household.</p>
         <Button onClick={onProceed} size="lg" className="mt-8 w-full">
           Go to Dashboard
         </Button>
@@ -267,7 +272,7 @@ const Dashboard: React.FC<{ setAppState: (state: AppState) => void }> = ({ setAp
   const loadHouseholds = useCallback(async () => {
     try {
       setLoadingHouseholds(true);
-      const data = await api.getUserHouseholds();
+      const data = await getUserHouseholds();
       setHouseholds(data);
     } catch (error) {
       console.error('Error loading households:', error);
@@ -366,7 +371,7 @@ const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = (
     
     try {
       console.log(`Fetching data for household: ${householdId}`);
-      const data = await api.getHouseholdData(householdId);
+      const data = await getHouseholdData(householdId);
       
       if (data.household) {
         setHousehold(data.household);
@@ -376,7 +381,7 @@ const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = (
       setExpenses(data.recent_expenses || []);
       setSettlements(data.recent_settlements || []);
 
-      const recurringData = await api.getHouseholdRecurringExpenses(householdId);
+      const recurringData = await getHouseholdRecurringExpenses(householdId);
       setRecurringExpenses(recurringData);
 
       if (showToast) {
@@ -401,8 +406,8 @@ const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = (
   }, [householdId, refreshData]);
 
 
-  const balances = useMemo(() => api.calculateBalances(expenses, members, settlements), [expenses, members, settlements]);
-  const settlementSuggestions = useMemo(() => api.getSettlementSuggestions ? api.getSettlementSuggestions(balances) : [], [balances]);
+  const balances = useMemo(() => calculateBalances(expenses, members, settlements), [expenses, members, settlements]);
+  const settlementSuggestions = useMemo(() => getSettlementSuggestions ? getSettlementSuggestions(balances) : [], [balances]);
 
   if (loadingData && !household) return <Layout title="Loading Household..." showBack onBack={onBack}><LoadingSpinner /></Layout>;
 
@@ -513,7 +518,7 @@ const App: React.FC = () => {
         return;
       }
       try {
-        const userHouseholds = await api.getUserHouseholds();
+        const userHouseholds = await getUserHouseholds();
         const queryParams = new URLSearchParams(window.location.search);
         const joinedHouseholdIdParam = queryParams.get('joinedHouseholdId');
         if (joinedHouseholdIdParam) {

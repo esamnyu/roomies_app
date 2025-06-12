@@ -1,9 +1,18 @@
 // src/components/ChoreDashboard.tsx
 "use client";
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { CheckCircle, Circle, PlusCircle, RefreshCw, AlertTriangle, Loader2, ClipboardList } from 'lucide-react';
-import * as api from '@/lib/api';
-import type { ChoreAssignment, Household, HouseholdMember, HouseholdChore } from '@/lib/api';
+import { CheckCircle, Circle, PlusCircle, RefreshCw, AlertTriangle, Loader2, ClipboardList, Edit, ToggleLeft, ToggleRight } from 'lucide-react';
+import { 
+  addCustomChoreToHousehold, 
+  assignChoresForCurrentCycle, 
+  checkAndTriggerChoreRotation, 
+  getChoreRotationUIData, 
+  getHouseholdChores, 
+  markChoreAssignmentComplete, 
+  toggleChoreActive, 
+  updateHouseholdChore 
+} from '@/lib/api/chores';
+import type { ChoreAssignment, Household, HouseholdMember, HouseholdChore } from '@/lib/types/types';
 import { useAuth } from './AuthProvider';
 import { toast } from 'react-hot-toast';
 import { Button } from '@/components/ui/Button';
@@ -21,6 +30,7 @@ const getInitials = (name?: string | null) => {
   return name.substring(0, 2);
 };
 
+// (ChoreCard component remains the same)
 const ChoreCard: React.FC<{ 
   assignment: ChoreAssignment; 
   currentUserId: string | undefined;
@@ -86,6 +96,7 @@ const ChoreCard: React.FC<{
   );
 };
 
+// (AddChoreModal component remains the same)
 const AddChoreModal: React.FC<{
     householdId: string;
     onChoreAdded: () => void;
@@ -102,7 +113,7 @@ const AddChoreModal: React.FC<{
         }
         setIsLoading(true);
         try {
-            await api.addCustomChoreToHousehold(householdId, choreName.trim(), choreDescription.trim() || undefined);
+            await addCustomChoreToHousehold(householdId, choreName.trim(), choreDescription.trim() || undefined);
             toast.success(`Chore "${choreName}" added! It will be included in the next rotation.`);
             onChoreAdded();
             onClose();
@@ -124,12 +135,12 @@ const AddChoreModal: React.FC<{
                     <div>
                         <label htmlFor="choreName" className="block text-sm font-medium text-foreground">Chore Name <span className="text-destructive">*</span></label>
                         <input type="text" id="choreName" value={choreName} onChange={(e) => setChoreName(e.target.value)}
-                               className={inputStyles} />
+                               className={inputStyles} placeholder="e.g., Clean the kitchen"/>
                     </div>
                     <div>
                         <label htmlFor="choreDescription" className="block text-sm font-medium text-foreground">Description (Optional)</label>
                         <textarea id="choreDescription" value={choreDescription} onChange={(e) => setChoreDescription(e.target.value)} rows={3}
-                                  className={inputStyles} />
+                                  className={inputStyles} placeholder="e.g., Wipe counters, clean sink, sweep floor"/>
                     </div>
                 </div>
                 <div className="mt-6 flex justify-end space-x-3">
@@ -145,6 +156,104 @@ const AddChoreModal: React.FC<{
     );
 };
 
+// ** NEW COMPONENT **
+const EditChoreModal: React.FC<{
+    chore: HouseholdChore;
+    onChoreUpdated: () => void;
+    onClose: () => void;
+}> = ({ chore, onChoreUpdated, onClose }) => {
+    const [choreName, setChoreName] = useState(chore.name);
+    const [choreDescription, setChoreDescription] = useState(chore.description || '');
+    const [isLoading, setIsLoading] = useState(false);
+
+    const handleSubmit = async () => {
+        if (!choreName.trim()) {
+            toast.error("Chore name is required.");
+            return;
+        }
+        setIsLoading(true);
+        try {
+            await updateHouseholdChore(chore.id, {
+                name: choreName.trim(),
+                description: choreDescription.trim() || undefined
+            });
+            toast.success("Chore updated!");
+            onChoreUpdated();
+        } catch (error) {
+            toast.error("Could not update chore. " + (error instanceof Error ? error.message : ""));
+        } finally {
+            setIsLoading(false);
+        }
+    };
+    
+    const inputStyles = "mt-1 block w-full px-3 py-2 border border-input rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-ring sm:text-sm";
+
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center p-4">
+            <div className="bg-background p-6 rounded-lg shadow-xl w-full max-w-md">
+                <h3 className="text-xl font-semibold mb-4 text-foreground">Edit Chore</h3>
+                <div className="space-y-4">
+                    <div>
+                        <label className="block text-sm font-medium text-foreground">Chore Name <span className="text-destructive">*</span></label>
+                        <input type="text" value={choreName} onChange={(e) => setChoreName(e.target.value)} className={inputStyles} />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-foreground">Description (Optional)</label>
+                        <textarea value={choreDescription} onChange={(e) => setChoreDescription(e.target.value)} rows={3} className={inputStyles} />
+                    </div>
+                </div>
+                <div className="mt-6 flex justify-end space-x-3">
+                    <Button onClick={onClose} disabled={isLoading} variant="secondary">Cancel</Button>
+                    <Button onClick={handleSubmit} disabled={isLoading || !choreName.trim()}>
+                        {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save Changes"}
+                    </Button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+
+// ** NEW COMPONENT **
+const ManageChoresModal: React.FC<{
+    chores: HouseholdChore[];
+    isAdmin: boolean;
+    onClose: () => void;
+    onEdit: (chore: HouseholdChore) => void;
+    onToggleActive: (choreId: string, isActive: boolean) => void;
+}> = ({ chores, isAdmin, onClose, onEdit, onToggleActive }) => {
+    return (
+         <div className="fixed inset-0 bg-black bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center p-4">
+            <div className="bg-background p-6 rounded-lg shadow-xl w-full max-w-lg">
+                <h3 className="text-xl font-semibold mb-4 text-foreground">Manage All Chores</h3>
+                <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-2">
+                    {chores.map(chore => (
+                        <div key={chore.id} className="flex items-center justify-between p-3 bg-secondary rounded-md">
+                            <div>
+                                <p className={`font-medium ${chore.is_active ? 'text-foreground' : 'text-secondary-foreground line-through'}`}>{chore.name}</p>
+                                <p className="text-xs text-secondary-foreground">{chore.description}</p>
+                            </div>
+                            {isAdmin && (
+                                <div className="flex items-center space-x-3 flex-shrink-0">
+                                    <button onClick={() => onToggleActive(chore.id, !chore.is_active)} title={chore.is_active ? 'Deactivate' : 'Activate'}>
+                                        {chore.is_active ? <ToggleRight className="h-6 w-6 text-primary"/> : <ToggleLeft className="h-6 w-6 text-secondary-foreground"/>}
+                                    </button>
+                                     <Button variant="outline" size="sm" onClick={() => onEdit(chore)}>
+                                        <Edit className="h-4 w-4"/>
+                                    </Button>
+                                </div>
+                            )}
+                        </div>
+                    ))}
+                </div>
+                 <div className="mt-6 flex justify-end">
+                    <Button onClick={onClose}>Done</Button>
+                </div>
+            </div>
+        </div>
+    )
+}
+
 
 export const ChoreDashboard: React.FC<ChoreDashboardProps> = ({ householdId }) => {
   const { user } = useAuth();
@@ -154,10 +263,13 @@ export const ChoreDashboard: React.FC<ChoreDashboardProps> = ({ householdId }) =
   const [allChores, setAllChores] = useState<HouseholdChore[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRotating, setIsRotating] = useState(false);
-  const [showAddChoreModal, setShowAddChoreModal] = useState(false);
   const [isLoadingCompletion, setIsLoadingCompletion] = useState(false);
-  
-  // Add refs to prevent multiple rotation checks
+
+  // Modal states
+  const [showAddChoreModal, setShowAddChoreModal] = useState(false);
+  const [showManageChoresModal, setShowManageChoresModal] = useState(false);
+  const [choreToEdit, setChoreToEdit] = useState<HouseholdChore | null>(null);
+
   const hasCheckedRotation = useRef(false);
   const lastHouseholdId = useRef<string | null>(null);
 
@@ -165,22 +277,19 @@ export const ChoreDashboard: React.FC<ChoreDashboardProps> = ({ householdId }) =
     if (showLoading) setIsLoading(true);
     
     try {
-      // Only check rotation once per household load, not on every data fetch
       if (!hasCheckedRotation.current || lastHouseholdId.current !== householdId) {
         hasCheckedRotation.current = true;
         lastHouseholdId.current = householdId;
-        
-        // Check for rotation, but don't let it fail the whole load
         try {
-          await api.checkAndTriggerChoreRotation(householdId);
+          await checkAndTriggerChoreRotation(householdId);
         } catch (rotationError) {
           console.error('Rotation check failed, continuing with data load:', rotationError);
         }
       }
       
       const [choreData, householdChores] = await Promise.all([
-        api.getChoreRotationUIData(householdId),
-        api.getHouseholdChores(householdId)
+        getChoreRotationUIData(householdId),
+        getHouseholdChores(householdId)
       ]);
       
       setAssignments(choreData.currentAssignments);
@@ -196,17 +305,16 @@ export const ChoreDashboard: React.FC<ChoreDashboardProps> = ({ householdId }) =
   }, [householdId]);
 
   useEffect(() => {
-    // Reset the rotation check flag when household changes
     if (lastHouseholdId.current !== householdId) {
       hasCheckedRotation.current = false;
     }
     fetchData();
-  }, [fetchData, householdId]); // <-- Add householdId to dependency array
+  }, [fetchData, householdId]);
 
   const handleForceRotation = async () => {
     setIsRotating(true);
     try {
-      await api.assignChoresForCurrentCycle(householdId);
+      await assignChoresForCurrentCycle(householdId);
       toast.success("Chore rotation processed!");
       await fetchData(false);
     } catch (error) {
@@ -221,7 +329,7 @@ export const ChoreDashboard: React.FC<ChoreDashboardProps> = ({ householdId }) =
     if (!user) return;
     setIsLoadingCompletion(true);
     try {
-      await api.markChoreAssignmentComplete(assignmentId, user.id);
+      await markChoreAssignmentComplete(assignmentId, user.id);
       toast.success('Chore marked as complete!');
       setAssignments(prev => prev.map(a => a.id === assignmentId ? {...a, status: 'completed', completed_at: new Date().toISOString(), completed_by_user_id: user.id } : a));
     } catch (error) {
@@ -232,10 +340,27 @@ export const ChoreDashboard: React.FC<ChoreDashboardProps> = ({ householdId }) =
     }
   };
 
+  const handleOpenEditChore = (chore: HouseholdChore) => {
+      setChoreToEdit(chore);
+      setShowManageChoresModal(false); // Close manage modal before opening edit
+  }
+
+  const handleToggleChoreActive = async (choreId: string, newStatus: boolean) => {
+    try {
+        await toggleChoreActive(choreId, newStatus);
+        toast.success(`Chore ${newStatus ? 'activated' : 'deactivated'}.`);
+        setAllChores(prev => prev.map(c => c.id === choreId ? {...c, is_active: newStatus} : c));
+    } catch (error) {
+        toast.error("Failed to update chore status.");
+    }
+  }
+
   if (isLoading) {
     return <div className="flex justify-center items-center p-10"><Loader2 className="h-8 w-8 animate-spin text-primary" /> <p className="ml-2">Loading chores...</p></div>;
   }
   
+  const currentUserRole = members.find(m => m.user_id === user?.id)?.role;
+  const isAdmin = currentUserRole === 'admin';
   const activeMembersCount = members.filter(m => !m.user_id?.startsWith('placeholder_')).length;
   const targetMemberCount = household?.member_count || 0;
   const hasDefinedChores = allChores.length > 0;
@@ -257,9 +382,11 @@ export const ChoreDashboard: React.FC<ChoreDashboardProps> = ({ householdId }) =
             )}
         </div>
         <div className="flex items-center space-x-3">
-          <Button onClick={() => setShowAddChoreModal(true)} variant="secondary" size="sm">
-            <PlusCircle className="h-4 w-4 mr-2" /> Add Chore
-          </Button>
+            {isAdmin && (
+                <Button onClick={() => setShowManageChoresModal(true)} variant="secondary" size="sm">
+                    <ClipboardList className="h-4 w-4 mr-2" /> Manage Chores
+                </Button>
+            )}
           <Button onClick={handleForceRotation} disabled={isRotating} variant="secondary" size="sm" title="Manually trigger next chore rotation">
             {isRotating ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <RefreshCw className="h-4 w-4 mr-2" />}
             Rotate/Refresh
@@ -288,7 +415,7 @@ export const ChoreDashboard: React.FC<ChoreDashboardProps> = ({ householdId }) =
           <ClipboardList className="mx-auto h-12 w-12 text-secondary-foreground/30" />
           <h3 className="mt-2 text-lg font-medium text-foreground">No chores have been created yet</h3>
           <p className="mt-1 text-sm text-secondary-foreground">
-            Click the button below to add your first chore to the household.
+             Click the &quot;Manage Chores&quot; button to add your first one.
           </p>
            <Button onClick={() => setShowAddChoreModal(true)} className="mt-4">
             <PlusCircle className="h-4 w-4 mr-2" /> Add a Chore
@@ -342,11 +469,32 @@ export const ChoreDashboard: React.FC<ChoreDashboardProps> = ({ householdId }) =
         </>
       )}
 
-      {showAddChoreModal && (
+      {/* --- Modals --- */}
+      {isAdmin && showManageChoresModal && (
+        <ManageChoresModal 
+            chores={allChores}
+            isAdmin={isAdmin}
+            onClose={() => setShowManageChoresModal(false)}
+            onEdit={handleOpenEditChore}
+            onToggleActive={handleToggleChoreActive}
+        />
+      )}
+      {isAdmin && choreToEdit && (
+        <EditChoreModal 
+            chore={choreToEdit}
+            onClose={() => setChoreToEdit(null)}
+            onChoreUpdated={() => {
+                setChoreToEdit(null);
+                fetchData(false);
+            }}
+        />
+      )}
+      {isAdmin && showAddChoreModal && (
           <AddChoreModal
               householdId={householdId}
               onClose={() => setShowAddChoreModal(false)}
               onChoreAdded={() => {
+                  setShowAddChoreModal(false);
                   fetchData(false);
               }}
           />

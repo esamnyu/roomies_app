@@ -2,8 +2,14 @@
 "use client";
 import React, { useState, useEffect, SetStateAction, Dispatch, useCallback, useRef } from 'react';
 import { Bell, X, Check, DollarSign, CheckSquare, Users, CreditCard, Calendar, AlertCircle } from 'lucide-react';
-import * as api from '@/lib/api';
-import type { Notification } from '@/lib/api';
+import { 
+  getNotifications, 
+  getUnreadNotificationCount, 
+  markAllNotificationsRead, 
+  markNotificationsRead, 
+  subscribeToNotifications 
+} from '@/lib/api/notifications';
+import type { Notification } from '@/lib/types/types';
 import { useAuth } from './AuthProvider';
 import { Button } from '@/components/ui/Button';
 import { subscriptionManager } from '@/lib/subscriptionManager';
@@ -28,8 +34,8 @@ export const NotificationsPanel: React.FC<NotificationsPanelProps> = ({
     try {
       setLoading(true);
       const [notificationsData, count] = await Promise.all([
-        api.getNotifications(50),
-        api.getUnreadNotificationCount()
+        getNotifications(50),
+        getUnreadNotificationCount()
       ]);
       setNotifications(notificationsData);
       onNotificationCountChange(count);
@@ -56,7 +62,7 @@ export const NotificationsPanel: React.FC<NotificationsPanelProps> = ({
       );
       onNotificationCountChange((prev) => Math.max(0, prev - 1));
       
-      await api.markNotificationsRead([notificationId]);
+      await markNotificationsRead([notificationId]);
     } catch (error) {
       console.error('Error marking notification as read:', error);
       // Revert on error
@@ -72,7 +78,7 @@ export const NotificationsPanel: React.FC<NotificationsPanelProps> = ({
       );
       onNotificationCountChange(0);
 
-      await api.markAllNotificationsRead();
+      await markAllNotificationsRead();
     } catch (error) {
       console.error('Error marking all notifications as read:', error);
       // Revert on error
@@ -221,9 +227,9 @@ export const NotificationBell: React.FC = () => {
       hasSubscribedRef.current = true;
       console.log("Setting up notification subscription at NotificationBell level for user:", user.id);
       
-      api.getUnreadNotificationCount().then(setUnreadCount).catch(console.error);
+      getUnreadNotificationCount().then(setUnreadCount).catch(console.error);
       
-      const subscription = api.subscribeToNotifications(user.id, handleNewNotification);
+      const subscription = subscribeToNotifications(user.id, handleNewNotification);
 
       return () => {
         console.log('Cleaning up notification subscription at NotificationBell level');

@@ -3,8 +3,17 @@
 
 import React, { useState, useEffect } from 'react';
 import { useAuth } from './AuthProvider';
-import * as api from '@/lib/api';
-import type { Household, HouseholdMember, HouseRule } from '@/lib/api';
+import { 
+  updateHouseholdSettings, 
+  deleteHousehold, 
+  leaveHousehold, 
+  removeMember, 
+  updateMemberRole,
+  addHouseRule,
+  updateHouseRule,
+  deleteHouseRule
+} from '@/lib/api/households';
+import type { Household, HouseholdMember, HouseRule } from '@/lib/types/types';
 import { toast } from 'react-hot-toast';
 import { Loader2, Trash2, Shield, LogOut, AlertTriangle, Plus, Edit3 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
@@ -47,7 +56,7 @@ const AddRuleModal: React.FC<{
     }
     setIsSaving(true);
     try {
-      await api.addHouseRule(householdId, category.trim(), content.trim());
+      await addHouseRule(householdId, category.trim(), content.trim());
       toast.success("New rule added!");
       onRuleAdded();
     } catch (error) {
@@ -101,7 +110,7 @@ const EditRuleModal: React.FC<{
     }
     setIsSaving(true);
     try {
-      await api.updateHouseRule(householdId, { ...rule, category, content });
+      await updateHouseRule(householdId, { ...rule, category, content });
       toast.success("Rule updated!");
       onRuleUpdated();
     } catch (error) {
@@ -187,7 +196,7 @@ export const HouseholdSettings: React.FC<HouseholdSettingsProps> = ({ household,
   const handleUpdateHouseholdDetails = async () => {
     setIsSavingDetails(true);
     try {
-      await api.updateHouseholdSettings(household.id, {
+      await updateHouseholdSettings(household.id, {
         name,
         member_count: memberCount,
         chore_framework: choreFramework,
@@ -221,7 +230,7 @@ export const HouseholdSettings: React.FC<HouseholdSettingsProps> = ({ household,
   const handleDeleteRule = async (ruleId: string) => {
     if (window.confirm("Are you sure you want to delete this rule permanently?")) {
       try {
-        await api.deleteHouseRule(household.id, ruleId);
+        await deleteHouseRule(household.id, ruleId);
         toast.success("Rule deleted.");
         onUpdate();
       } catch (error) {
@@ -233,7 +242,7 @@ export const HouseholdSettings: React.FC<HouseholdSettingsProps> = ({ household,
   const handleRemoveMember = async (memberToRemove: HouseholdMember) => {
     if (window.confirm(`Are you sure you want to remove ${memberToRemove.profiles?.name} from the household?`)) {
         try {
-            await api.removeMember(memberToRemove.id);
+            await removeMember(memberToRemove.id);
             toast.success(`${memberToRemove.profiles?.name} has been removed.`);
             onUpdate();
         } catch (error) {
@@ -245,7 +254,7 @@ export const HouseholdSettings: React.FC<HouseholdSettingsProps> = ({ household,
   const handlePromoteMember = async (memberToPromote: HouseholdMember) => {
     if (window.confirm(`Are you sure you want to make ${memberToPromote.profiles?.name} an admin?`)) {
         try {
-            await api.updateMemberRole(memberToPromote.id, 'admin');
+            await updateMemberRole(memberToPromote.id, 'admin');
             toast.success(`${memberToPromote.profiles?.name} is now an admin.`);
             onUpdate();
         } catch (error) {
@@ -257,7 +266,7 @@ export const HouseholdSettings: React.FC<HouseholdSettingsProps> = ({ household,
   const handleLeaveHousehold = async () => {
     if (window.confirm("Are you sure you want to leave this household? This action cannot be undone.")) {
         try {
-            await api.leaveHousehold(household.id);
+            await leaveHousehold(household.id);
             toast.success("You have left the household.");
             window.location.reload();
         } catch(error) {
@@ -269,7 +278,7 @@ export const HouseholdSettings: React.FC<HouseholdSettingsProps> = ({ household,
   const handleDeleteHousehold = async () => {
      if (window.confirm(`DANGER: Are you sure you want to permanently delete '${household.name}'? All data will be lost.`)) {
         try {
-            await api.deleteHousehold(household.id);
+            await deleteHousehold(household.id);
             toast.success(`Household '${household.name}' has been deleted.`);
             window.location.reload();
         } catch(error) {
