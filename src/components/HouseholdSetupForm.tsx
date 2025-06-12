@@ -8,6 +8,7 @@ import { createHousehold } from '@/lib/api/households';
 import type { CreateHouseholdParams } from '@/lib/types/types';
 import { Button } from '@/components/ui/Button';
 import { Loader2 } from 'lucide-react';
+import { Input } from '@/components/ui/Input';
 
 interface HouseholdSetupFormProps {
   onHouseholdCreated: (householdId: string) => void;
@@ -87,7 +88,7 @@ export const HouseholdSetupForm: React.FC<HouseholdSetupFormProps> = ({ onHouseh
     coreChores.includes(option.value)
   );
 
-  const inputStyles = "mt-1 block w-full px-3 py-2 border border-input rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-ring sm:text-sm";
+  const selectStyles = "mt-1 flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50";
 
   return (
     <div className="max-w-lg mx-auto p-6 bg-white rounded-lg shadow-md">
@@ -98,13 +99,13 @@ export const HouseholdSetupForm: React.FC<HouseholdSetupFormProps> = ({ onHouseh
           <label htmlFor="householdName" className="block text-sm font-medium text-foreground">
             Household Name <span className="text-destructive">*</span>
           </label>
-          <input
+          <Input
             type="text"
             id="householdName"
             value={householdName}
             onChange={(e) => setHouseholdName(e.target.value)}
             required
-            className={inputStyles}
+            className="mt-1"
             placeholder="e.g., The Cozy Corner, Apartment 10B"
           />
         </div>
@@ -113,14 +114,14 @@ export const HouseholdSetupForm: React.FC<HouseholdSetupFormProps> = ({ onHouseh
           <label htmlFor="memberCount" className="block text-sm font-medium text-foreground">
             Target Number of Members <span className="text-destructive">*</span>
           </label>
-          <input
+          <Input
             type="number"
             id="memberCount"
             value={memberCount}
             onChange={(e) => setMemberCount(parseInt(e.target.value, 10))}
             min="1"
             required
-            className={inputStyles}
+            className="mt-1"
           />
         </div>
         
@@ -149,7 +150,7 @@ export const HouseholdSetupForm: React.FC<HouseholdSetupFormProps> = ({ onHouseh
             id="choreFrequency"
             value={choreFrequency}
             onChange={(e) => setChoreFrequency(e.target.value)}
-            className={inputStyles}
+            className={selectStyles}
           >
             <option value="Weekly">Weekly</option>
             <option value="Bi-weekly">Bi-weekly</option>
@@ -167,7 +168,7 @@ export const HouseholdSetupForm: React.FC<HouseholdSetupFormProps> = ({ onHouseh
             value={choreFramework}
             onChange={(e) => setChoreFramework(e.target.value)}
             required
-            className={inputStyles}
+            className={selectStyles}
           >
             <option value="Split">Split</option>
             <option value="One person army">One person army</option>

@@ -7,6 +7,7 @@ import * as api from '@/lib/api';
 import { toast } from 'react-hot-toast';
 import type { HouseholdMember } from '@/lib/types/types';
 import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
 
 interface AddTaskModalProps {
   householdId: string;
@@ -37,8 +38,6 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({ householdId, members
       }
     };
 
-    const inputStyles = "mt-1 block w-full px-3 py-2 border border-input rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-ring sm:text-sm";
-
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
         <div className="bg-background rounded-lg p-6 max-w-md w-full">
@@ -46,11 +45,11 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({ householdId, members
           <div className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-foreground">Task</label>
-              <input type="text" className={inputStyles} value={title} onChange={(e) => setTitle(e.target.value)} />
+              <Input type="text" className="mt-1" value={title} onChange={(e) => setTitle(e.target.value)} />
             </div>
             <div>
               <label className="block text-sm font-medium text-foreground">Assign to (optional)</label>
-              <select className={inputStyles} value={assignedTo} onChange={(e) => setAssignedTo(e.target.value)}>
+              <select className="mt-1 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50" value={assignedTo} onChange={(e) => setAssignedTo(e.target.value)}>
                 <option value="">Unassigned</option>
                 {members.map(member => (
                   <option key={member.user_id} value={member.user_id}>{member.profiles?.name}</option>

@@ -17,6 +17,7 @@ import type { Household, HouseholdMember, HouseRule } from '../lib/types/types';
 import { toast } from 'react-hot-toast';
 import { Loader2, Trash2, Shield, LogOut, AlertTriangle, Plus, Edit3 } from 'lucide-react';
 import { Button } from './ui/Button';
+import { Input } from './ui/Input';
 
 interface HouseholdSettingsProps {
   household: Household;
@@ -66,7 +67,7 @@ const AddRuleModal: React.FC<{
     }
   };
 
-  const inputStyles = "mt-1 block w-full px-3 py-2 border border-input rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-ring sm:text-sm";
+  const textareaStyles = "mt-1 flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50";
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
@@ -75,11 +76,11 @@ const AddRuleModal: React.FC<{
         <div className="space-y-4">
           <div>
             <label htmlFor="category" className="block text-sm font-medium text-foreground">Category</label>
-            <input type="text" id="category" value={category} onChange={e => setCategory(e.target.value)} className={inputStyles} placeholder="e.g., Cleanliness, Guests" />
+            <Input type="text" id="category" value={category} onChange={e => setCategory(e.target.value)} className="mt-1" placeholder="e.g., Cleanliness, Guests" />
           </div>
           <div>
             <label htmlFor="content" className="block text-sm font-medium text-foreground">Rule Content</label>
-            <textarea id="content" value={content} onChange={e => setContent(e.target.value)} className={inputStyles} rows={3} placeholder="Describe the rule..."></textarea>
+            <textarea id="content" value={content} onChange={e => setContent(e.target.value)} className={textareaStyles} rows={3} placeholder="Describe the rule..."></textarea>
           </div>
         </div>
         <div className="mt-6 flex justify-end space-x-3">
@@ -120,7 +121,7 @@ const EditRuleModal: React.FC<{
     }
   };
 
-  const inputStyles = "mt-1 block w-full px-3 py-2 border border-input rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-ring sm:text-sm";
+  const textareaStyles = "mt-1 flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50";
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
@@ -129,11 +130,11 @@ const EditRuleModal: React.FC<{
         <div className="space-y-4">
           <div>
             <label htmlFor="edit-category" className="block text-sm font-medium text-foreground">Category</label>
-            <input type="text" id="edit-category" value={category} onChange={e => setCategory(e.target.value)} className={inputStyles} />
+            <Input type="text" id="edit-category" value={category} onChange={e => setCategory(e.target.value)} className="mt-1" />
           </div>
           <div>
             <label htmlFor="edit-content" className="block text-sm font-medium text-foreground">Rule Content</label>
-            <textarea id="edit-content" value={content} onChange={e => setContent(e.target.value)} className={inputStyles} rows={3}></textarea>
+            <textarea id="edit-content" value={content} onChange={e => setContent(e.target.value)} className={textareaStyles} rows={3}></textarea>
           </div>
         </div>
         <div className="mt-6 flex justify-end space-x-3">
@@ -292,7 +293,8 @@ export const HouseholdSettings: React.FC<HouseholdSettingsProps> = ({ household,
 
   const currentUserRole = members.find(m => m.user_id === user?.id)?.role;
   const isAdmin = currentUserRole === 'admin';
-  const inputStyles = "mt-1 block w-full px-3 py-2 border border-input rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-ring sm:text-sm disabled:opacity-50 disabled:bg-secondary";
+  const selectStyles = "mt-1 flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50";
+
 
   return (
     <>
@@ -307,11 +309,11 @@ export const HouseholdSettings: React.FC<HouseholdSettingsProps> = ({ household,
         >
           <div>
             <label htmlFor="householdName" className="block text-sm font-medium text-foreground">Household Name</label>
-            <input type="text" id="householdName" value={name} onChange={e => setName(e.target.value)} className={inputStyles} disabled={!isAdmin} />
+            <Input type="text" id="householdName" value={name} onChange={e => setName(e.target.value)} className="mt-1" disabled={!isAdmin} />
           </div>
           <div>
             <label htmlFor="memberCount" className="block text-sm font-medium text-foreground">Target Member Count</label>
-            <input type="number" id="memberCount" min="1" value={memberCount} onChange={e => setMemberCount(parseInt(e.target.value, 10))} className={inputStyles} disabled={!isAdmin} />
+            <Input type="number" id="memberCount" min="1" value={memberCount} onChange={e => setMemberCount(parseInt(e.target.value, 10))} className="mt-1" disabled={!isAdmin} />
           </div>
         </SettingsCard>
 
@@ -325,14 +327,14 @@ export const HouseholdSettings: React.FC<HouseholdSettingsProps> = ({ household,
         >
           <div>
               <label htmlFor="choreFramework" className="block text-sm font-medium text-foreground">Chore Framework</label>
-              <select id="choreFramework" value={choreFramework} onChange={e => setChoreFramework(e.target.value as 'Split' | 'One person army')} className={inputStyles} disabled={!isAdmin}>
+              <select id="choreFramework" value={choreFramework} onChange={e => setChoreFramework(e.target.value as 'Split' | 'One person army')} className={selectStyles} disabled={!isAdmin}>
                   <option value="Split">Split - Chores are divided among members each cycle.</option>
                   <option value="One person army">One Person Army - One member does all chores for a cycle.</option>
               </select>
           </div>
           <div>
               <label htmlFor="choreFrequency" className="block text-sm font-medium text-foreground">Chore Frequency</label>
-              <select id="choreFrequency" value={choreFrequency} onChange={e => setChoreFrequency(e.target.value as 'Daily' | 'Weekly' | 'Bi-weekly' | 'Monthly')} className={inputStyles} disabled={!isAdmin}>
+              <select id="choreFrequency" value={choreFrequency} onChange={e => setChoreFrequency(e.target.value as 'Daily' | 'Weekly' | 'Bi-weekly' | 'Monthly')} className={selectStyles} disabled={!isAdmin}>
                   <option value="Daily">Daily</option>
                   <option value="Weekly">Weekly</option>
                   <option value="Bi-weekly">Bi-weekly</option>
@@ -408,12 +410,12 @@ export const HouseholdSettings: React.FC<HouseholdSettingsProps> = ({ household,
                              <label htmlFor="deleteConfirm" className="block text-sm font-medium text-foreground">
                                 Type <span className="font-bold text-destructive">{household.name}</span> to confirm:
                             </label>
-                             <input
+                             <Input
                                 type="text"
                                 id="deleteConfirm"
                                 value={deleteConfirmName}
                                 onChange={(e) => setDeleteConfirmName(e.target.value)}
-                                className={inputStyles}
+                                className="mt-1"
                                 placeholder="Household name"
                             />
                         </div>

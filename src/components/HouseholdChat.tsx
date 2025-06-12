@@ -8,6 +8,7 @@ import { subscriptionManager } from '@/lib/subscriptionManager';
 import type { Message } from '@/lib/types/types';
 import { Button } from '@/components/ui/Button';
 import { toast } from 'react-hot-toast';
+import { Input } from '@/components/ui/Input';
 
 interface HouseholdChatProps {
   householdId: string;
@@ -158,13 +159,13 @@ export const HouseholdChat: React.FC<HouseholdChatProps> = ({ householdId }) => 
 
       <div className="border-t border-border p-4">
         <div className="flex space-x-2">
-          <input
+          <Input
             type="text"
             value={newMessage}
             onChange={(e) => setNewMessage(e.target.value)}
             onKeyPress={handleKeyPress}
             placeholder="Type a message..."
-            className="flex-1 px-4 py-2 border border-input rounded-full focus:outline-none focus:ring-1 focus:ring-ring"
+            className="flex-1 rounded-full"
             disabled={sending}
           />
           <Button
