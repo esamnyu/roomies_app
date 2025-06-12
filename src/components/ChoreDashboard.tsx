@@ -30,6 +30,7 @@ const getInitials = (name?: string | null) => {
   return name.substring(0, 2);
 };
 
+// (ChoreCard component remains the same)
 const ChoreCard: React.FC<{
   assignment: ChoreAssignment;
   currentUserId: string | undefined;
@@ -95,6 +96,7 @@ const ChoreCard: React.FC<{
   );
 };
 
+// (AddChoreModal component remains the same)
 const AddChoreModal: React.FC<{
     householdId: string;
     onChoreAdded: () => void;
@@ -154,6 +156,7 @@ const AddChoreModal: React.FC<{
     );
 };
 
+// ** NEW COMPONENT **
 const EditChoreModal: React.FC<{
     chore: HouseholdChore;
     onChoreUpdated: () => void;
@@ -211,14 +214,14 @@ const EditChoreModal: React.FC<{
 };
 
 
+// ** NEW COMPONENT **
 const ManageChoresModal: React.FC<{
     chores: HouseholdChore[];
     isAdmin: boolean;
     onClose: () => void;
-    onAddChore: () => void;
     onEdit: (chore: HouseholdChore) => void;
     onToggleActive: (choreId: string, isActive: boolean) => void;
-}> = ({ chores, isAdmin, onClose, onAddChore, onEdit, onToggleActive }) => {
+}> = ({ chores, isAdmin, onClose, onEdit, onToggleActive }) => {
     return (
          <div className="fixed inset-0 bg-black bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center p-4">
             <div className="bg-background p-6 rounded-lg shadow-xl w-full max-w-lg">
@@ -243,11 +246,7 @@ const ManageChoresModal: React.FC<{
                         </div>
                     ))}
                 </div>
-                 <div className="mt-6 flex justify-between items-center">
-                    <Button onClick={onAddChore} variant="outline">
-                        <PlusCircle className="h-4 w-4 mr-2"/>
-                        Add Chore
-                    </Button>
+                 <div className="mt-6 flex justify-end">
                     <Button onClick={onClose}>Done</Button>
                 </div>
             </div>
@@ -343,20 +342,15 @@ export const ChoreDashboard: React.FC<ChoreDashboardProps> = ({ householdId }) =
 
   const handleOpenEditChore = (chore: HouseholdChore) => {
       setChoreToEdit(chore);
-      setShowManageChoresModal(false);
+      setShowManageChoresModal(false); // Close manage modal before opening edit
   }
-
-  const handleOpenAddChoreFromManager = () => {
-    setShowManageChoresModal(false);
-    setShowAddChoreModal(true);
-  };
 
   const handleToggleChoreActive = async (choreId: string, newStatus: boolean) => {
     try {
         await toggleChoreActive(choreId, newStatus);
         toast.success(`Chore ${newStatus ? 'activated' : 'deactivated'}.`);
         setAllChores(prev => prev.map(c => c.id === choreId ? {...c, is_active: newStatus} : c));
-    } catch (error) {
+    } catch (_error) {
         toast.error("Failed to update chore status.");
     }
   }
@@ -481,7 +475,6 @@ export const ChoreDashboard: React.FC<ChoreDashboardProps> = ({ householdId }) =
             chores={allChores}
             isAdmin={isAdmin}
             onClose={() => setShowManageChoresModal(false)}
-            onAddChore={handleOpenAddChoreFromManager}
             onEdit={handleOpenEditChore}
             onToggleActive={handleToggleChoreActive}
         />
