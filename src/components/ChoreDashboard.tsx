@@ -30,7 +30,6 @@ const getInitials = (name?: string | null) => {
   return name.substring(0, 2);
 };
 
-// (ChoreCard component remains the same)
 const ChoreCard: React.FC<{
   assignment: ChoreAssignment;
   currentUserId: string | undefined;
@@ -96,7 +95,6 @@ const ChoreCard: React.FC<{
   );
 };
 
-// (AddChoreModal component remains the same)
 const AddChoreModal: React.FC<{
     householdId: string;
     onChoreAdded: () => void;
@@ -156,7 +154,6 @@ const AddChoreModal: React.FC<{
     );
 };
 
-// ** NEW COMPONENT **
 const EditChoreModal: React.FC<{
     chore: HouseholdChore;
     onChoreUpdated: () => void;
@@ -212,8 +209,6 @@ const EditChoreModal: React.FC<{
         </div>
     );
 };
-
-<<<<<<< Updated upstream
 
 const ManageChoresModal: React.FC<{
     chores: HouseholdChore[];
@@ -342,7 +337,6 @@ export const ChoreDashboard: React.FC<ChoreDashboardProps> = ({ householdId }) =
     } catch (error) {
       console.error('Error marking chore complete:', error);
       toast.error('Could not mark chore as complete. Reverting.');
-      // Revert to the original state on error
       setAssignments(originalAssignments);
     } finally {
         setIsLoadingCompletion(false);
@@ -351,7 +345,7 @@ export const ChoreDashboard: React.FC<ChoreDashboardProps> = ({ householdId }) =
 
   const handleOpenEditChore = (chore: HouseholdChore) => {
       setChoreToEdit(chore);
-      setShowManageChoresModal(false); // Close manage modal before opening edit
+      setShowManageChoresModal(false);
   }
 
   const handleToggleChoreActive = async (choreId: string, newStatus: boolean) => {
@@ -364,16 +358,10 @@ export const ChoreDashboard: React.FC<ChoreDashboardProps> = ({ householdId }) =
     try {
         await toggleChoreActive(choreId, newStatus);
         toast.success(`Chore ${newStatus ? 'activated' : 'deactivated'}.`);
-<<<<<<< Updated upstream
-        setAllChores(prev => prev.map(c => c.id === choreId ? {...c, is_active: newStatus} : c));
-    } catch (_error) {
-        toast.error("Failed to update chore status.");
-=======
     } catch (error) {
         toast.error("Failed to update chore status. Reverting.");
         setAllChores(originalChores);
         console.error("Failed to toggle chore active status:", error);
->>>>>>> Stashed changes
     }
   }
 
