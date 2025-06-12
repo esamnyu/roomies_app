@@ -16,7 +16,7 @@ import type { ChoreAssignment, Household, HouseholdMember, HouseholdChore } from
 import { useAuth } from './AuthProvider';
 import { toast } from 'react-hot-toast';
 import { Button } from '@/components/ui/Button';
-
+//yes, this is a client component
 interface ChoreDashboardProps {
   householdId: string;
 }
