@@ -3,9 +3,9 @@
 
 import React, { useState, useEffect } from 'react';
 import { Loader2 } from 'lucide-react';
-import * as api from '@/lib/api';
+import { createSettlement } from '@/lib/api/settlements';
 import { toast } from 'react-hot-toast';
-import type { HouseholdMember, Profile } from '@/lib/api';
+import type { HouseholdMember, Profile } from '@/lib/types/types';
 import { useAuth } from './AuthProvider';
 import { Button } from '@/components/ui/Button';
 
@@ -56,7 +56,7 @@ export const SettleUpModal: React.FC<SettleUpModalProps> = ({ householdId, membe
     
       setSubmitting(true);
       try {
-        await api.createSettlement(householdId, payeeId, amount, description);
+        await createSettlement(householdId, payeeId, amount, description);
         onSettlementCreated();
         onClose();
         toast.success('Settlement recorded!');

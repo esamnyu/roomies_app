@@ -4,7 +4,8 @@
 import React, { useState } from 'react';
 import Select, { MultiValue } from 'react-select';
 import { useAuth } from './AuthProvider';
-import * as api from '@/lib/api';
+import { createHousehold } from '@/lib/api/households';
+import type { CreateHouseholdParams } from '@/lib/types/types';
 import { Button } from '@/components/ui/Button';
 import { Loader2 } from 'lucide-react';
 
@@ -58,14 +59,14 @@ export const HouseholdSetupForm: React.FC<HouseholdSetupFormProps> = ({ onHouseh
     setError(null);
 
     try {
-      const params: api.CreateHouseholdParams = {
+      const params: CreateHouseholdParams = {
         name: householdName,
         member_count: memberCount,
         core_chores: coreChores,
         chore_frequency: choreFrequency || undefined,
         chore_framework: choreFramework.trim() || undefined,
       };
-      const newHousehold = await api.createHousehold(params);
+      const newHousehold = await createHousehold(params);
       if (newHousehold) {
         onHouseholdCreated(newHousehold.id);
       }
@@ -184,3 +185,8 @@ export const HouseholdSetupForm: React.FC<HouseholdSetupFormProps> = ({ onHouseh
     </div>
   );
 };
+// src/components/HouseholdSetupForm.tsx
+// This component allows users to set up their household with a name, member count, core chores, chore frequency, and chore framework.
+// It uses a form to collect the necessary information and calls the `createHousehold` API function to create the household.
+// It also handles validation and displays any errors that occur during the creation process.
+// src/components/HouseholdSetupForm.tsx
