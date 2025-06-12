@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { ChevronRight, Home, DollarSign, CheckSquare, Plus, LogOut, Menu, X, ArrowLeft, Loader2, CreditCard, MessageSquare, Settings, ClipboardList, User, Share2 } from 'lucide-react';
 import * as api from '@/lib/api';
 import type { Household, HouseholdMember, Expense, Settlement, RecurringExpense } from '@/lib/api';
@@ -249,7 +249,7 @@ const HouseholdWelcomeDisplay: React.FC<{ householdId: string; householdName?: s
       <div className="max-w-lg w-full bg-white p-8 rounded-xl shadow-2xl text-center">
         <CheckSquare className="mx-auto h-16 w-16 text-primary mb-4" />
         <h1 className="text-3xl font-bold text-primary mb-4">Welcome to {nameToShow}!</h1>
-        <p className="text-secondary-foreground mb-6">You&apos;ve successfully joined the household.</p>
+        <p className="text-secondary-foreground mb-6">You've successfully joined the household.</p>
         <Button onClick={onProceed} size="lg" className="mt-8 w-full">
           Go to Dashboard
         </Button>
@@ -346,34 +346,60 @@ const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = (
   const [currentJoinCode, setCurrentJoinCode] = useState<string | null | undefined>(undefined);
   const [showSettleUp, setShowSettleUp] = useState(false);
 
+  // --- FIX: Add refs to prevent re-fetching loops ---
+  const isLoadingRef = useRef(false);
+  const prevHouseholdIdRef = useRef<string | null>(null);
+
   const refreshData = useCallback(async (showToast = false) => {
     if (!householdId) return;
-    setLoadingData(true);
+
+    // Prevent concurrent data loading
+    if (isLoadingRef.current) {
+      console.log('Skipping refreshData call: already loading.');
+      return;
+    }
+
+    isLoadingRef.current = true;
+    if (!showToast) {
+       setLoadingData(true);
+    }
+    
     try {
-        const data = await api.getHouseholdData(householdId);
-        if (data.household) {
-          setHousehold(data.household);
-          setCurrentJoinCode(data.household.join_code);
-        }
-        setMembers(data.members || []);
-        setExpenses(data.recent_expenses || []);
-        setSettlements(data.recent_settlements || []);
+      console.log(`Fetching data for household: ${householdId}`);
+      const data = await api.getHouseholdData(householdId);
+      
+      if (data.household) {
+        setHousehold(data.household);
+        setCurrentJoinCode(data.household.join_code);
+      }
+      setMembers(data.members || []);
+      setExpenses(data.recent_expenses || []);
+      setSettlements(data.recent_settlements || []);
 
-        const recurringData = await api.getHouseholdRecurringExpenses(householdId);
-        setRecurringExpenses(recurringData);
+      const recurringData = await api.getHouseholdRecurringExpenses(householdId);
+      setRecurringExpenses(recurringData);
 
-        if(showToast) toast.success("Data refreshed!");
+      if (showToast) {
+        toast.success("Data refreshed!");
+      }
     } catch (error) {
       console.error('Error loading household data:', error);
       toast.error('Failed to load household data.');
     } finally {
       setLoadingData(false);
+      isLoadingRef.current = false;
     }
   }, [householdId]);
 
   useEffect(() => {
-    refreshData();
-  }, [refreshData]);
+    // --- FIX: Only fetch data if the householdId has actually changed ---
+    if (prevHouseholdIdRef.current !== householdId) {
+      console.log(`Household ID changed from ${prevHouseholdIdRef.current} to ${householdId}. Fetching new data.`);
+      prevHouseholdIdRef.current = householdId;
+      refreshData();
+    }
+  }, [householdId, refreshData]);
+
 
   const balances = useMemo(() => api.calculateBalances(expenses, members, settlements), [expenses, members, settlements]);
   const settlementSuggestions = useMemo(() => api.getSettlementSuggestions ? api.getSettlementSuggestions(balances) : [], [balances]);
@@ -456,12 +482,12 @@ const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = (
           </div>
         )}
 
-        {activeTab === 'rulesSettings' && household && ( <HouseholdSettings household={household} members={members} onUpdate={() => refreshData()} />)}
+        {activeTab === 'rulesSettings' && household && ( <HouseholdSettings household={household} members={members} onUpdate={() => refreshData(true)} />)}
       </div>
 
-      {showAddExpense && <AddExpenseModal householdId={householdId} members={members} onClose={() => setShowAddExpense(false)} onExpenseAdded={() => refreshData()} />}
-      {showSettleUp && <SettleUpModal householdId={householdId} members={members} settlementSuggestions={settlementSuggestions} onClose={() => setShowSettleUp(false)} onSettlementCreated={() => refreshData()} />}
-      {showAddRecurring && <AddRecurringExpenseModal householdId={householdId} onClose={() => setShowAddRecurring(false)} onExpenseAdded={() => refreshData()} />}
+      {showAddExpense && <AddExpenseModal householdId={householdId} members={members} onClose={() => setShowAddExpense(false)} onExpenseAdded={() => refreshData(true)} />}
+      {showSettleUp && <SettleUpModal householdId={householdId} members={members} settlementSuggestions={settlementSuggestions} onClose={() => setShowSettleUp(false)} onSettlementCreated={() => refreshData(true)} />}
+      {showAddRecurring && <AddRecurringExpenseModal householdId={householdId} onClose={() => setShowAddRecurring(false)} onExpenseAdded={() => refreshData(true)} />}
       {showManageJoinCode && householdId && <ManageJoinCodeModal householdId={householdId} currentCode={currentJoinCode} onClose={() => setShowManageJoinCode(false)} onCodeRefreshed={(newCode) => { setCurrentJoinCode(newCode); if (household) setHousehold({...household, join_code: newCode }); }} />}
     </Layout>
   );

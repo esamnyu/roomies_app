@@ -1,6 +1,6 @@
 // src/components/ChoreDashboard.tsx
 "use client";
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { CheckCircle, Circle, PlusCircle, RefreshCw, AlertTriangle, Loader2, ClipboardList } from 'lucide-react';
 import * as api from '@/lib/api';
 import type { ChoreAssignment, Household, HouseholdMember, HouseholdChore } from '@/lib/api';
@@ -151,19 +151,36 @@ export const ChoreDashboard: React.FC<ChoreDashboardProps> = ({ householdId }) =
   const [assignments, setAssignments] = useState<ChoreAssignment[]>([]);
   const [household, setHousehold] = useState<Household | null>(null);
   const [members, setMembers] = useState<HouseholdMember[]>([]);
-  const [allChores, setAllChores] = useState<HouseholdChore[]>([]); // New state
+  const [allChores, setAllChores] = useState<HouseholdChore[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRotating, setIsRotating] = useState(false);
   const [showAddChoreModal, setShowAddChoreModal] = useState(false);
   const [isLoadingCompletion, setIsLoadingCompletion] = useState(false);
+  
+  // Add refs to prevent multiple rotation checks
+  const hasCheckedRotation = useRef(false);
+  const lastHouseholdId = useRef<string | null>(null);
 
   const fetchData = useCallback(async (showLoading = true) => {
     if (showLoading) setIsLoading(true);
+    
     try {
-      await api.checkAndTriggerChoreRotation(householdId);
+      // Only check rotation once per household load, not on every data fetch
+      if (!hasCheckedRotation.current || lastHouseholdId.current !== householdId) {
+        hasCheckedRotation.current = true;
+        lastHouseholdId.current = householdId;
+        
+        // Check for rotation, but don't let it fail the whole load
+        try {
+          await api.checkAndTriggerChoreRotation(householdId);
+        } catch (rotationError) {
+          console.error('Rotation check failed, continuing with data load:', rotationError);
+        }
+      }
+      
       const [choreData, householdChores] = await Promise.all([
         api.getChoreRotationUIData(householdId),
-        api.getHouseholdChores(householdId) // Fetch defined chores
+        api.getHouseholdChores(householdId)
       ]);
       
       setAssignments(choreData.currentAssignments);
@@ -179,8 +196,12 @@ export const ChoreDashboard: React.FC<ChoreDashboardProps> = ({ householdId }) =
   }, [householdId]);
 
   useEffect(() => {
+    // Reset the rotation check flag when household changes
+    if (lastHouseholdId.current !== householdId) {
+      hasCheckedRotation.current = false;
+    }
     fetchData();
-  }, [fetchData]);
+  }, [fetchData, householdId]); // <-- Add householdId to dependency array
 
   const handleForceRotation = async () => {
     setIsRotating(true);

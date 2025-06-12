@@ -1,11 +1,12 @@
 // src/components/NotificationsPanel.tsx
 "use client";
-import React, { useState, useEffect, SetStateAction, Dispatch, useCallback } from 'react';
+import React, { useState, useEffect, SetStateAction, Dispatch, useCallback, useRef } from 'react';
 import { Bell, X, Check, DollarSign, CheckSquare, Users, CreditCard, Calendar, AlertCircle } from 'lucide-react';
 import * as api from '@/lib/api';
 import type { Notification } from '@/lib/api';
 import { useAuth } from './AuthProvider';
 import { Button } from '@/components/ui/Button';
+import { subscriptionManager } from '@/lib/subscriptionManager';
 
 interface NotificationsPanelProps {
   isOpen: boolean;
@@ -21,9 +22,9 @@ export const NotificationsPanel: React.FC<NotificationsPanelProps> = ({
   const { user } = useAuth();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(false);
-  const [unreadCount, setUnreadCount] = useState(0);
 
   const loadNotifications = useCallback(async () => {
+    if (!user) return;
     try {
       setLoading(true);
       const [notificationsData, count] = await Promise.all([
@@ -31,14 +32,13 @@ export const NotificationsPanel: React.FC<NotificationsPanelProps> = ({
         api.getUnreadNotificationCount()
       ]);
       setNotifications(notificationsData);
-      setUnreadCount(count);
       onNotificationCountChange(count);
     } catch (error) {
       console.error('Error loading notifications:', error);
     } finally {
       setLoading(false);
     }
-  }, [onNotificationCountChange]);
+  }, [user, onNotificationCountChange]);
 
   useEffect(() => {
     if (user && isOpen) {
@@ -46,53 +46,38 @@ export const NotificationsPanel: React.FC<NotificationsPanelProps> = ({
     }
   }, [user, isOpen, loadNotifications]);
 
-  useEffect(() => {
-    if (!user) return;
-
-    const subscription = api.subscribeToNotifications(user.id, (notification) => {
-      setNotifications((prev) => [notification, ...prev]);
-      
-      setUnreadCount((prevCount) => prevCount + 1);
-      onNotificationCountChange((prevCount) => prevCount + 1);
-
-      if ('Notification' in window && Notification.permission === 'granted') {
-        new Notification(notification.title, {
-          body: notification.message,
-          icon: '/icon.png'
-        });
-      }
-    });
-
-    return () => {
-      subscription?.unsubscribe();
-    };
-  }, [user, onNotificationCountChange]);
-
   const markAsRead = async (notificationId: string) => {
     try {
-      await api.markNotificationsRead([notificationId]);
+      // Optimistic update
+      const originalNotifications = notifications;
       setNotifications((prev) =>
         prev.map((n) =>
-          n.id === notificationId ? { ...n, is_read: true, read_at: new Date().toISOString() } : n
+          n.id === notificationId ? { ...n, is_read: true } : n
         )
       );
-      setUnreadCount((prev) => Math.max(0, prev - 1));
       onNotificationCountChange((prev) => Math.max(0, prev - 1));
+      
+      await api.markNotificationsRead([notificationId]);
     } catch (error) {
       console.error('Error marking notification as read:', error);
+      // Revert on error
+      loadNotifications(); 
     }
   };
 
   const markAllAsRead = async () => {
     try {
-      await api.markAllNotificationsRead();
+      // Optimistic update
       setNotifications((prev) =>
-        prev.map((n) => ({ ...n, is_read: true, read_at: new Date().toISOString() }))
+        prev.map((n) => ({ ...n, is_read: true }))
       );
-      setUnreadCount(0);
       onNotificationCountChange(0);
+
+      await api.markAllNotificationsRead();
     } catch (error) {
       console.error('Error marking all notifications as read:', error);
+      // Revert on error
+      loadNotifications();
     }
   };
 
@@ -138,6 +123,8 @@ export const NotificationsPanel: React.FC<NotificationsPanelProps> = ({
     if (diffDays < 7) return `${diffDays}d ago`;
     return date.toLocaleDateString();
   };
+  
+  const unreadCount = notifications.filter(n => !n.is_read).length;
 
   if (!isOpen) return null;
 
@@ -216,12 +203,38 @@ export const NotificationBell: React.FC = () => {
   const { user } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
+  
+  const hasSubscribedRef = useRef(false);
+
+  const handleNewNotification = useCallback((notification: Notification) => {
+    setUnreadCount(prev => prev + 1);
+    
+    if ('Notification' in window && Notification.permission === 'granted') {
+      new Notification(notification.title, {
+        body: notification.message,
+        icon: '/icon.png'
+      });
+    }
+  }, []);
 
   useEffect(() => {
-    if (user) {
+    if (user?.id && !hasSubscribedRef.current) {
+      hasSubscribedRef.current = true;
+      console.log("Setting up notification subscription at NotificationBell level for user:", user.id);
+      
       api.getUnreadNotificationCount().then(setUnreadCount).catch(console.error);
+      
+      const subscription = api.subscribeToNotifications(user.id, handleNewNotification);
+
+      return () => {
+        console.log('Cleaning up notification subscription at NotificationBell level');
+        subscription?.unsubscribe();
+        hasSubscribedRef.current = false;
+        // Also use subscriptionManager for safety, though direct unsubscribe is better here.
+        subscriptionManager.unsubscribe(`notifications:${user.id}`);
+      };
     }
-  }, [user]);
+  }, [user?.id, handleNewNotification]);
 
   return (
     <>

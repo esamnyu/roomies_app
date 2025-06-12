@@ -938,10 +938,12 @@ export const subscribeToMessages = (householdId: string, onMessage: (message: Me
     return subscriptionManager.subscribe(key, channel);
 };
 
+// --- FIX: Updated chore initialization to be more robust ---
 export const initializeChoresForHousehold = async (householdId: string, householdData?: Household): Promise<void> => {
   const household = householdData || await getHouseholdDetails(householdId);
+  // Gracefully exit if there's nothing to do
   if (!household || !household.core_chores || household.core_chores.length === 0) {
-    console.log(`No core chores to initialize for household ${householdId}`);
+    console.log(`No core chores defined for household ${householdId}, skipping initialization.`);
     return;
   }
 
@@ -953,7 +955,8 @@ export const initializeChoresForHousehold = async (householdId: string, househol
 
   if (fetchError) {
     console.error('Error fetching existing household chores:', fetchError);
-    throw fetchError;
+    // Don't re-throw, allow app to continue
+    return;
   }
 
   const existingChoreNames = existingChores?.map(c => c.name) || [];
@@ -968,12 +971,15 @@ export const initializeChoresForHousehold = async (householdId: string, househol
     }));
 
   if (choresToCreate.length > 0) {
+    console.log(`Initializing ${choresToCreate.length} new core chores for household ${householdId}.`);
     const { error: insertError } = await supabase.from('household_chores').insert(choresToCreate);
     if (insertError) {
       console.error('Error inserting new core chores:', insertError);
-      throw insertError;
+      // Don't re-throw, but log the error
     }
   }
+  
+  // Always attempt to assign chores, even if none were created this time
   await assignChoresForCurrentCycle(householdId, household);
 };
 
@@ -1001,19 +1007,15 @@ export const assignChoresForCurrentCycle = async (householdId: string, household
     .eq('is_active', true)
     .order('default_order', { ascending: true });
 
-  // --- START of CHANGE ---
   if (choresError) {
-    // This is a real database error.
     console.error('Error fetching active chores for assignment:', choresError);
-    return [];
+    return []; // Exit gracefully
   }
 
   if (!choresDefinitions || choresDefinitions.length === 0) {
-    // This is a normal condition if no chores are active. Change from console.error to console.log.
     console.log(`No active chores found to assign for household ${householdId}.`);
-    return [];
+    return []; // Exit gracefully
   }
-  // --- END of CHANGE ---
 
   const frequency = household.chore_frequency || 'Weekly';
   const framework = household.chore_framework || 'Split';
@@ -1220,13 +1222,18 @@ export const getChoreRotationUIData = async (
   };
 };
 
+// --- FIX: Updated rotation check to be more robust ---
 export const checkAndTriggerChoreRotation = async (householdId: string): Promise<boolean> => {
   const household = await getHouseholdDetails(householdId);
-  if (!household) return false;
+  if (!household) {
+      console.warn(`Could not find household ${householdId} to check for chore rotation.`);
+      return false;
+  }
 
   const today = new Date();
   today.setHours(0,0,0,0);
 
+  // If next_chore_rotation_date is in the future, we don't need to do anything.
   if (household.next_chore_rotation_date) {
     const nextRotationDate = new Date(household.next_chore_rotation_date);
     nextRotationDate.setHours(0,0,0,0);
@@ -1237,10 +1244,14 @@ export const checkAndTriggerChoreRotation = async (householdId: string): Promise
       return true;
     }
   } else {
+    // This case handles initial setup or if rotation dates are missing.
     console.log(`Initial chore assignment or re-initialization for household ${householdId}.`);
+    // This will create chores if they don't exist and then assign them.
     await initializeChoresForHousehold(householdId, household);
     return true;
   }
+  
+  console.log(`Chore rotation not yet due for household ${householdId}.`);
   return false;
 };
 
