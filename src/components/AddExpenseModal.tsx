@@ -3,11 +3,11 @@
 
 import React, { useState } from 'react';
 import { Loader2 } from 'lucide-react';
-import * as api from '@/lib/api';
+import { createExpenseWithCustomSplits } from '@/lib/api/expenses';
 import { toast } from 'react-hot-toast';
-import type { HouseholdMember } from '@/lib/api';
+import type { HouseholdMember } from '@/lib/types/types';
 import { useExpenseSplits } from '@/hooks/useExpenseSplits';
-import { ExpenseSplitter } from './ExpenseSplitter';
+import { ExpenseSplitter } from '@/components/ExpenseSplitter';
 import { Button } from '@/components/ui/Button';
 
 interface AddExpenseModalProps {
@@ -36,7 +36,7 @@ export const AddExpenseModal: React.FC<AddExpenseModalProps> = ({ householdId, m
     
     setSubmitting(true);
     try {
-      await api.createExpenseWithCustomSplits(householdId, description, amount, finalSplits);
+      await createExpenseWithCustomSplits(householdId, description, amount, finalSplits);
       toast.success('Expense added!');
       onExpenseAdded();
       onClose();
