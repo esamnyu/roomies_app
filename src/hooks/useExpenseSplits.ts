@@ -1,6 +1,6 @@
 // src/hooks/useExpenseSplits.ts
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import type { HouseholdMember } from '@/lib/api';
+import type { HouseholdMember } from '@/lib/types/types';
 
 export type SplitType = 'equal' | 'custom' | 'percentage';
 

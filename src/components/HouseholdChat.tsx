@@ -5,7 +5,7 @@ import { Send, Loader2 } from 'lucide-react';
 import { useAuth } from './AuthProvider';
 import * as api from '@/lib/api';
 import { subscriptionManager } from '@/lib/subscriptionManager';
-import type { Message } from '@/lib/api';
+import type { Message } from '@/lib/types/types';
 import { Button } from '@/components/ui/Button';
 import { toast } from 'react-hot-toast';
 

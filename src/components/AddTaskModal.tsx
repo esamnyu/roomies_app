@@ -5,7 +5,7 @@ import React, { useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import * as api from '@/lib/api';
 import { toast } from 'react-hot-toast';
-import type { HouseholdMember } from '@/lib/api';
+import type { HouseholdMember } from '@/lib/types/types';
 import { Button } from '@/components/ui/Button';
 
 interface AddTaskModalProps {

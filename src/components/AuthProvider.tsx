@@ -2,7 +2,7 @@
 import React, { createContext, useContext, useEffect, useState, useMemo, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import { User } from '@supabase/supabase-js';
-import type { Profile } from '@/lib/api';
+import type { Profile } from '@/lib/types/types';
 import * as api from '@/lib/api';
 
 interface AuthContextType {
