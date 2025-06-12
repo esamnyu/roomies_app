@@ -16,6 +16,7 @@ import type { ChoreAssignment, Household, HouseholdMember, HouseholdChore } from
 import { useAuth } from './AuthProvider';
 import { toast } from 'react-hot-toast';
 import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
 //yes, this is a client component
 interface ChoreDashboardProps {
   householdId: string;
@@ -123,7 +124,7 @@ const AddChoreModal: React.FC<{
         }
     };
 
-    const inputStyles = "mt-1 block w-full px-3 py-2 border border-input rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-ring sm:text-sm";
+    const textareaStyles = "mt-1 block w-full px-3 py-2 border border-input rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-ring sm:text-sm resize-none";
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center p-4">
@@ -132,13 +133,13 @@ const AddChoreModal: React.FC<{
                 <div className="space-y-4">
                     <div>
                         <label htmlFor="choreName" className="block text-sm font-medium text-foreground">Chore Name <span className="text-destructive">*</span></label>
-                        <input type="text" id="choreName" value={choreName} onChange={(e) => setChoreName(e.target.value)}
-                               className={inputStyles} placeholder="e.g., Clean the kitchen"/>
+                        <Input type="text" id="choreName" value={choreName} onChange={(e) => setChoreName(e.target.value)}
+                               className="mt-1" placeholder="e.g., Clean the kitchen"/>
                     </div>
                     <div>
                         <label htmlFor="choreDescription" className="block text-sm font-medium text-foreground">Description (Optional)</label>
                         <textarea id="choreDescription" value={choreDescription} onChange={(e) => setChoreDescription(e.target.value)} rows={3}
-                                  className={inputStyles} placeholder="e.g., Wipe counters, clean sink, sweep floor"/>
+                                  className={textareaStyles} placeholder="e.g., Wipe counters, clean sink, sweep floor"/>
                     </div>
                 </div>
                 <div className="mt-6 flex justify-end space-x-3">
@@ -183,7 +184,7 @@ const EditChoreModal: React.FC<{
         }
     };
     
-    const inputStyles = "mt-1 block w-full px-3 py-2 border border-input rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-ring sm:text-sm";
+    const textareaStyles = "mt-1 block w-full px-3 py-2 border border-input rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-ring sm:text-sm resize-none";
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center p-4">
@@ -192,11 +193,11 @@ const EditChoreModal: React.FC<{
                 <div className="space-y-4">
                     <div>
                         <label className="block text-sm font-medium text-foreground">Chore Name <span className="text-destructive">*</span></label>
-                        <input type="text" value={choreName} onChange={(e) => setChoreName(e.target.value)} className={inputStyles} />
+                        <Input type="text" value={choreName} onChange={(e) => setChoreName(e.target.value)} className="mt-1" />
                     </div>
                     <div>
                         <label className="block text-sm font-medium text-foreground">Description (Optional)</label>
-                        <textarea value={choreDescription} onChange={(e) => setChoreDescription(e.target.value)} rows={3} className={inputStyles} />
+                        <textarea value={choreDescription} onChange={(e) => setChoreDescription(e.target.value)} rows={3} className={textareaStyles} />
                     </div>
                 </div>
                 <div className="mt-6 flex justify-end space-x-3">

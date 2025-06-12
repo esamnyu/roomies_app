@@ -25,6 +25,7 @@ import { AddRecurringExpenseModal } from './AddRecurringExpenseModal';
 import { SettleUpModal } from './SettleUpModal';
 import { ManageJoinCodeModal } from './ManageJoinCodeModal';
 import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
 
 const Layout: React.FC<{ children: React.ReactNode; title?: string; showBack?: boolean; onBack?: () => void }> = ({
   children,
@@ -129,8 +130,6 @@ const AuthForm: React.FC<{isRegisteringInitially: boolean}> = ({isRegisteringIni
     if (e.key === 'Enter' && !isLoading) handleSubmit();
   };
 
-  const inputStyles = `relative block w-full appearance-none px-3 py-2 border border-input text-foreground placeholder-secondary-foreground/50 focus:z-10 focus:border-ring focus:outline-none focus:ring-ring sm:text-sm`;
-
   return (
     <div className="min-h-screen flex items-center justify-center bg-background py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8">
@@ -146,14 +145,14 @@ const AuthForm: React.FC<{isRegisteringInitially: boolean}> = ({isRegisteringIni
           <div className="rounded-md shadow-sm -space-y-px">
             {isRegistering && (
               <div>
-                <input type="text" required className={`${inputStyles} rounded-t-md`} placeholder="Name" value={name} onChange={(e) => setName(e.target.value)} onKeyPress={handleKeyPress}/>
+                <Input type="text" required className="rounded-b-none" placeholder="Name" value={name} onChange={(e) => setName(e.target.value)} onKeyPress={handleKeyPress}/>
               </div>
             )}
             <div>
-              <input type="email" required className={`${inputStyles} ${isRegistering ? '' : 'rounded-t-md'}`} placeholder="Email address" value={email} onChange={(e) => setEmail(e.target.value)} onKeyPress={handleKeyPress} />
+              <Input type="email" required className={isRegistering ? '' : 'rounded-t-md'} placeholder="Email address" value={email} onChange={(e) => setEmail(e.target.value)} onKeyPress={handleKeyPress} />
             </div>
             <div>
-              <input type="password" required className={`${inputStyles} rounded-b-md`} placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} onKeyPress={handleKeyPress} />
+              <Input type="password" required className="rounded-t-none" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} onKeyPress={handleKeyPress} />
             </div>
           </div>
 
@@ -203,8 +202,6 @@ const JoinHouseholdWithCode: React.FC<{ onJoined: (household: Household) => void
     }
   };
 
-  const inputStyles = "mt-1 block w-full px-3 py-2 border border-input rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-ring sm:text-sm uppercase tracking-widest text-center";
-
   return (
     <div className="max-w-md mx-auto bg-background p-8 rounded-lg shadow-md">
       <h2 className="text-2xl font-bold text-foreground mb-6 text-center">Enter Join Code</h2>
@@ -212,7 +209,7 @@ const JoinHouseholdWithCode: React.FC<{ onJoined: (household: Household) => void
       <div className="space-y-4">
         <div>
           <label htmlFor="joinCode" className="block text-sm font-medium text-foreground">4-Character Code</label>
-          <input type="text" id="joinCode" value={joinCode} onChange={(e) => setJoinCode(e.target.value.toUpperCase().trim())} maxLength={4} className={inputStyles} placeholder="XYZ1" autoCapitalize="characters" autoComplete="off" spellCheck="false" />
+          <Input type="text" id="joinCode" value={joinCode} onChange={(e) => setJoinCode(e.target.value.toUpperCase().trim())} maxLength={4} className="mt-1 uppercase tracking-widest text-center" placeholder="XYZ1" autoCapitalize="characters" autoComplete="off" spellCheck="false" />
         </div>
         {error && <p className="text-destructive text-sm text-center">{error}</p>}
         <Button onClick={handleSubmit} disabled={isLoading || joinCode.length !== 4} className="w-full">

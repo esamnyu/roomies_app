@@ -4,6 +4,7 @@ import React from 'react';
 import type { HouseholdMember } from '@/lib/types/types';
 import type { SplitType } from '@/hooks/useExpenseSplits';
 import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
 
 interface ExpenseSplitterProps {
     members: HouseholdMember[];
@@ -40,7 +41,6 @@ export const ExpenseSplitter: React.FC<ExpenseSplitterProps> = ({
         return split ? split.amount : 0;
     };
 
-    const inputSmStyles = "h-9 w-20 rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50";
     const checkboxStyles = "h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary";
 
     return (
@@ -77,12 +77,12 @@ export const ExpenseSplitter: React.FC<ExpenseSplitterProps> = ({
                                 {splitType === 'custom' && includedMembers.has(member.user_id) && (
                                     <div className="flex items-center">
                                         <span className="text-secondary-foreground mr-1">$</span>
-                                        <input type="number" step="0.01" className={inputSmStyles} value={customSplits[member.user_id] || ''} onChange={(e) => setCustomSplits({ ...customSplits, [member.user_id]: parseFloat(e.target.value) || 0 })}/>
+                                        <Input type="number" step="0.01" className="h-9 w-24" value={customSplits[member.user_id] || ''} onChange={(e) => setCustomSplits({ ...customSplits, [member.user_id]: parseFloat(e.target.value) || 0 })}/>
                                     </div>
                                 )}
                                 {splitType === 'percentage' && includedMembers.has(member.user_id) && (
                                      <div className="flex items-center">
-                                        <input type="number" step="0.01" min="0" max="100" className={`${inputSmStyles} w-16`} value={percentageSplits[member.user_id] || ''} onChange={(e) => setPercentageSplits({ ...percentageSplits, [member.user_id]: parseFloat(e.target.value) || 0 })} />
+                                        <Input type="number" step="0.01" min="0" max="100" className="h-9 w-20" value={percentageSplits[member.user_id] || ''} onChange={(e) => setPercentageSplits({ ...percentageSplits, [member.user_id]: parseFloat(e.target.value) || 0 })} />
                                         <span className="text-secondary-foreground ml-1">%</span>
                                     </div>
                                 )}

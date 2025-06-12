@@ -8,6 +8,7 @@ import { toast } from 'react-hot-toast';
 import type { HouseholdMember, Profile } from '@/lib/types/types';
 import { useAuth } from './AuthProvider';
 import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
 
 interface SettleUpModalProps {
   householdId: string;
@@ -76,7 +77,7 @@ export const SettleUpModal: React.FC<SettleUpModalProps> = ({ householdId, membe
     const myDebts = settlementSuggestions.filter(s => s.from === user?.id);
     const owedToMe = settlementSuggestions.filter(s => s.to === user?.id);
     
-    const inputStyles = "mt-1 block w-full px-3 py-2 border border-input rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-ring sm:text-sm";
+    const selectStyles = "mt-1 flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50";
 
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 overflow-y-auto">
@@ -131,7 +132,7 @@ export const SettleUpModal: React.FC<SettleUpModalProps> = ({ householdId, membe
           <div className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-foreground">Pay to</label>
-              <select className={inputStyles} value={payeeId} onChange={(e) => setPayeeId(e.target.value)}>
+              <select className={selectStyles} value={payeeId} onChange={(e) => setPayeeId(e.target.value)}>
                 <option value="">Select recipient</option>
                 {members.filter(member => member.user_id !== user?.id).map(member => (
                   <option key={member.user_id} value={member.user_id}>{member.profiles?.name}</option>
@@ -140,11 +141,11 @@ export const SettleUpModal: React.FC<SettleUpModalProps> = ({ householdId, membe
             </div>
             <div>
               <label className="block text-sm font-medium text-foreground">Amount</label>
-              <input type="number" step="0.01" className={inputStyles} value={customAmount} onChange={(e) => setCustomAmount(e.target.value)} placeholder="0.00"/>
+              <Input type="number" step="0.01" className="mt-1" value={customAmount} onChange={(e) => setCustomAmount(e.target.value)} placeholder="0.00"/>
             </div>
             <div>
               <label className="block text-sm font-medium text-foreground">Description (optional)</label>
-              <input type="text" className={inputStyles} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Payment for..."/>
+              <Input type="text" className="mt-1" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Payment for..."/>
             </div>
           </div>
 

@@ -6,6 +6,7 @@ import { Loader2 } from 'lucide-react';
 import * as api from '@/lib/api';
 import { toast } from 'react-hot-toast';
 import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
 
 interface AddRecurringExpenseModalProps {
   householdId: string;
@@ -45,8 +46,6 @@ export const AddRecurringExpenseModal: React.FC<AddRecurringExpenseModalProps> =
         setFrequency(e.target.value as FrequencyType);
     };
 
-    const inputStyles = "mt-1 block w-full px-3 py-2 border border-input rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-ring sm:text-sm";
-
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
         <div className="bg-background rounded-lg p-6 max-w-md w-full">
@@ -54,15 +53,15 @@ export const AddRecurringExpenseModal: React.FC<AddRecurringExpenseModalProps> =
           <div className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-foreground">Description</label>
-              <input type="text" placeholder="e.g., Rent" className={inputStyles} value={description} onChange={(e) => setDescription(e.target.value)} />
+              <Input type="text" placeholder="e.g., Rent" className="mt-1" value={description} onChange={(e) => setDescription(e.target.value)} />
             </div>
             <div>
               <label className="block text-sm font-medium text-foreground">Amount</label>
-              <input type="number" step="0.01" className={inputStyles} value={amount} onChange={(e) => setAmount(e.target.value)} />
+              <Input type="number" step="0.01" className="mt-1" value={amount} onChange={(e) => setAmount(e.target.value)} />
             </div>
             <div>
               <label className="block text-sm font-medium text-foreground">Frequency</label>
-              <select className={inputStyles} value={frequency} onChange={handleFrequencyChange}>
+              <select className="mt-1 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50" value={frequency} onChange={handleFrequencyChange}>
                 <option value="weekly">Weekly</option>
                 <option value="biweekly">Bi-weekly</option>
                 <option value="monthly">Monthly</option>
@@ -73,7 +72,7 @@ export const AddRecurringExpenseModal: React.FC<AddRecurringExpenseModalProps> =
             {(frequency === 'monthly' || frequency === 'quarterly' || frequency === 'yearly') && (
               <div>
                 <label className="block text-sm font-medium text-foreground">Day of Month (1-31)</label>
-                <input type="number" min="1" max="31" className={inputStyles} value={dayOfMonth} onChange={(e) => setDayOfMonth(e.target.value)} />
+                <Input type="number" min="1" max="31" className="mt-1" value={dayOfMonth} onChange={(e) => setDayOfMonth(e.target.value)} />
               </div>
             )}
           </div>
