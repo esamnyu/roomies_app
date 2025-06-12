@@ -1,3 +1,4 @@
+// src/components/RoomiesApp.tsx
 "use client";
 
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
@@ -164,7 +165,7 @@ const AuthForm: React.FC<{isRegisteringInitially: boolean}> = ({isRegisteringIni
 
           <div className="text-center">
             <button onClick={() => setIsRegistering(!isRegistering)} className="text-sm text-primary hover:text-primary/80" disabled={isLoading}>
-              {isRegistering ? 'Already have an account? Sign in' : "Don't have an account? Sign up"}
+              {isRegistering ? 'Already have an account? Sign in' : "Don&apos;t have an account? Sign up"}
             </button>
           </div>
         </div>

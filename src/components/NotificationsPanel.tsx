@@ -49,7 +49,6 @@ export const NotificationsPanel: React.FC<NotificationsPanelProps> = ({
   const markAsRead = async (notificationId: string) => {
     try {
       // Optimistic update
-      const originalNotifications = notifications;
       setNotifications((prev) =>
         prev.map((n) =>
           n.id === notificationId ? { ...n, is_read: true } : n
