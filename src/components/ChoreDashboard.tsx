@@ -210,7 +210,10 @@ const EditChoreModal: React.FC<{
     );
 };
 
+<<<<<<< Updated upstream
 
+=======
+>>>>>>> Stashed changes
 const ManageChoresModal: React.FC<{
     chores: HouseholdChore[];
     isAdmin: boolean;
@@ -254,7 +257,6 @@ const ManageChoresModal: React.FC<{
         </div>
     )
 }
-
 
 export const ChoreDashboard: React.FC<ChoreDashboardProps> = ({ householdId }) => {
   const { user } = useAuth();
@@ -328,14 +330,24 @@ export const ChoreDashboard: React.FC<ChoreDashboardProps> = ({ householdId }) =
   
   const handleMarkComplete = async (assignmentId: string) => {
     if (!user) return;
+
+    const originalAssignments = [...assignments];
+    const newAssignments = originalAssignments.map(a => 
+      a.id === assignmentId 
+        ? { ...a, status: 'completed' as const, completed_at: new Date().toISOString(), completed_by_user_id: user.id } 
+        : a
+    );
+    setAssignments(newAssignments);
     setIsLoadingCompletion(true);
+
     try {
       await markChoreAssignmentComplete(assignmentId, user.id);
       toast.success('Chore marked as complete!');
-      setAssignments(prev => prev.map(a => a.id === assignmentId ? {...a, status: 'completed', completed_at: new Date().toISOString(), completed_by_user_id: user.id } : a));
     } catch (error) {
       console.error('Error marking chore complete:', error);
-      toast.error('Could not mark chore as complete.');
+      toast.error('Could not mark chore as complete. Reverting.');
+      // Revert to the original state on error
+      setAssignments(originalAssignments);
     } finally {
         setIsLoadingCompletion(false);
     }
@@ -352,12 +364,25 @@ export const ChoreDashboard: React.FC<ChoreDashboardProps> = ({ householdId }) =
   };
 
   const handleToggleChoreActive = async (choreId: string, newStatus: boolean) => {
+    const originalChores = [...allChores];
+    const newChores = originalChores.map(c => 
+        c.id === choreId ? { ...c, is_active: newStatus } : c
+    );
+    setAllChores(newChores);
+
     try {
         await toggleChoreActive(choreId, newStatus);
         toast.success(`Chore ${newStatus ? 'activated' : 'deactivated'}.`);
+<<<<<<< Updated upstream
         setAllChores(prev => prev.map(c => c.id === choreId ? {...c, is_active: newStatus} : c));
     } catch (error) {
         toast.error("Failed to update chore status.");
+=======
+    } catch (error) {
+        toast.error("Failed to update chore status. Reverting.");
+        setAllChores(originalChores);
+        console.error("Failed to toggle chore active status:", error);
+>>>>>>> Stashed changes
     }
   }
 
@@ -388,6 +413,11 @@ export const ChoreDashboard: React.FC<ChoreDashboardProps> = ({ householdId }) =
             )}
         </div>
         <div className="flex items-center space-x-3">
+            {isAdmin && (
+                <Button onClick={() => setShowAddChoreModal(true)} variant="outline" size="sm">
+                    <PlusCircle className="h-4 w-4 mr-2" /> Add Chore
+                </Button>
+            )}
             {isAdmin && (
                 <Button onClick={() => setShowManageChoresModal(true)} variant="secondary" size="sm">
                     <ClipboardList className="h-4 w-4 mr-2" /> Manage Chores
