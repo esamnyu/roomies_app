@@ -1,6 +1,6 @@
 // src/lib/api/expenses.ts
 import { supabase } from '../supabase';
-import type { Expense, RecurringExpense } from '../types/types';
+import type { RecurringExpense } from '../types/types';
 import { getProfile } from './profile';
 
 // --- EXPENSE FUNCTIONS ---

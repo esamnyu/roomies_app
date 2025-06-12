@@ -1,7 +1,7 @@
 // src/lib/api/messages.ts
 import { supabase } from '../supabase';
 import { subscriptionManager } from '../subscriptionManager';
-import type { Message, MessageWithProfileRPC, Profile } from '../types/types';
+import type { Message, MessageWithProfileRPC } from '../types/types';
 
 
 export const sendMessage = async (householdId: string, content: string): Promise<Message> => {
