@@ -3,20 +3,20 @@
 
 import React, { useState, useEffect } from 'react';
 import { useAuth } from './AuthProvider';
-import { 
-  updateHouseholdSettings, 
-  deleteHousehold, 
-  leaveHousehold, 
-  removeMember, 
+import {
+  updateHouseholdSettings,
+  deleteHousehold,
+  leaveHousehold,
+  removeMember,
   updateMemberRole,
   addHouseRule,
   updateHouseRule,
   deleteHouseRule
-} from '@/lib/api/households';
-import type { Household, HouseholdMember, HouseRule } from '@/lib/types/types';
+} from '../lib/api/households';
+import type { Household, HouseholdMember, HouseRule } from '../lib/types/types';
 import { toast } from 'react-hot-toast';
 import { Loader2, Trash2, Shield, LogOut, AlertTriangle, Plus, Edit3 } from 'lucide-react';
-import { Button } from '@/components/ui/Button';
+import { Button } from './ui/Button';
 
 interface HouseholdSettingsProps {
   household: Household;
@@ -24,8 +24,8 @@ interface HouseholdSettingsProps {
   onUpdate: () => void;
 }
 
-const SettingsCard: React.FC<{ title: string; children: React.ReactNode; footer?: React.ReactNode }> = ({ title, children, footer }) => (
-  <div className="bg-background rounded-lg shadow border border-border">
+const SettingsCard: React.FC<{ title: string; children: React.ReactNode; footer?: React.ReactNode; className?: string }> = ({ title, children, footer, className }) => (
+  <div className={`bg-background rounded-lg shadow border border-border ${className}`}>
     <div className="p-6">
       <h3 className="text-lg font-semibold text-foreground mb-4">{title}</h3>
       <div className="space-y-4">
@@ -180,6 +180,7 @@ export const HouseholdSettings: React.FC<HouseholdSettingsProps> = ({ household,
   const [memberCount, setMemberCount] = useState(household.member_count || 1);
   const [choreFramework, setChoreFramework] = useState(household.chore_framework || 'Split');
   const [choreFrequency, setChoreFrequency] = useState(household.chore_frequency || 'Weekly');
+  const [deleteConfirmName, setDeleteConfirmName] = useState('');
 
   const [isSavingDetails, setIsSavingDetails] = useState(false);
   const [showAddRuleModal, setShowAddRuleModal] = useState(false);
@@ -276,15 +277,17 @@ export const HouseholdSettings: React.FC<HouseholdSettingsProps> = ({ household,
   }
 
   const handleDeleteHousehold = async () => {
-     if (window.confirm(`DANGER: Are you sure you want to permanently delete '${household.name}'? All data will be lost.`)) {
-        try {
-            await deleteHousehold(household.id);
-            toast.success(`Household '${household.name}' has been deleted.`);
-            window.location.reload();
-        } catch(error) {
-             toast.error("Failed to delete household: " + (error instanceof Error ? error.message : ""));
-        }
-     }
+     if (deleteConfirmName !== household.name) {
+        toast.error("The entered name does not match the household name.");
+        return;
+    }
+    try {
+        await deleteHousehold(household.id);
+        toast.success(`Household '${household.name}' has been deleted.`);
+        window.location.reload();
+    } catch(error) {
+         toast.error("Failed to delete household: " + (error instanceof Error ? error.message : ""));
+    }
   }
 
   const currentUserRole = members.find(m => m.user_id === user?.id)?.role;
@@ -388,20 +391,40 @@ export const HouseholdSettings: React.FC<HouseholdSettingsProps> = ({ household,
           </div>
         </SettingsCard>
 
-        <SettingsCard title="Danger Zone">
+        <SettingsCard title="Danger Zone" className="border-destructive/50 ring-1 ring-destructive/20">
             <div className="space-y-4">
                 <div>
-                    <Button onClick={handleLeaveHousehold} variant="destructive" className="w-full sm:w-auto">
+                    <h4 className="font-medium text-foreground">Leave Household</h4>
+                    <p className="text-xs text-secondary-foreground opacity-70 mt-1">You will be removed from the household. This cannot be undone.</p>
+                     <Button onClick={handleLeaveHousehold} variant="destructive" className="mt-2 w-full sm:w-auto">
                         <LogOut className="h-4 w-4 mr-2" /> Leave Household
                     </Button>
-                    <p className="text-xs text-secondary-foreground opacity-70 mt-1">You will be removed from the household. This cannot be undone.</p>
                 </div>
                 {household.created_by === user?.id && (
-                      <div>
-                        <Button onClick={handleDeleteHousehold} variant="destructive" className="w-full sm:w-auto">
-                            <AlertTriangle className="h-4 w-4 mr-2" /> Delete Household
+                    <div className="pt-4 border-t border-border">
+                        <h4 className="font-medium text-foreground">Delete Household</h4>
+                        <p className="text-xs text-secondary-foreground opacity-70 mt-1">This will permanently delete the household and all associated data. This action is irreversible.</p>
+                        <div className="mt-2">
+                             <label htmlFor="deleteConfirm" className="block text-sm font-medium text-foreground">
+                                Type <span className="font-bold text-destructive">{household.name}</span> to confirm:
+                            </label>
+                             <input
+                                type="text"
+                                id="deleteConfirm"
+                                value={deleteConfirmName}
+                                onChange={(e) => setDeleteConfirmName(e.target.value)}
+                                className={inputStyles}
+                                placeholder="Household name"
+                            />
+                        </div>
+                        <Button
+                            onClick={handleDeleteHousehold}
+                            variant="destructive"
+                            className="mt-2 w-full sm:w-auto"
+                            disabled={deleteConfirmName !== household.name}
+                        >
+                            <AlertTriangle className="h-4 w-4 mr-2" /> Delete This Household
                         </Button>
-                        <p className="text-xs text-secondary-foreground opacity-70 mt-1">This will permanently delete the household and all its data. This action is irreversible.</p>
                     </div>
                 )}
             </div>
