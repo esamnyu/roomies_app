@@ -1,6 +1,7 @@
 // src/components/ExpenseSplitter.tsx
 import React from 'react';
-import type { HouseholdMember } from '@/lib/api';
+// Corrected the import path for HouseholdMember below
+import type { HouseholdMember } from '@/lib/types/types';
 import type { SplitType } from '@/hooks/useExpenseSplits';
 import { Button } from '@/components/ui/Button';
 
