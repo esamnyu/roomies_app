@@ -206,25 +206,23 @@ const JoinHouseholdWithCode: React.FC<{ onJoined: (household: Household) => void
   const inputStyles = "mt-1 block w-full px-3 py-2 border border-input rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-ring sm:text-sm uppercase tracking-widest text-center";
 
   return (
-    <Layout title="Join Household">
-      <div className="max-w-md mx-auto bg-background p-8 rounded-lg shadow-md mt-8">
-        <h2 className="text-2xl font-bold text-foreground mb-6 text-center">Enter Join Code</h2>
-        <p className="text-secondary-foreground mb-4 text-center">Ask a member of the household for the 4-character join code.</p>
-        <div className="space-y-4">
-          <div>
-            <label htmlFor="joinCode" className="block text-sm font-medium text-foreground">4-Character Code</label>
-            <input type="text" id="joinCode" value={joinCode} onChange={(e) => setJoinCode(e.target.value.toUpperCase().trim())} maxLength={4} className={inputStyles} placeholder="XYZ1" autoCapitalize="characters" autoComplete="off" spellCheck="false" />
-          </div>
-          {error && <p className="text-destructive text-sm text-center">{error}</p>}
-          <Button onClick={handleSubmit} disabled={isLoading || joinCode.length !== 4} className="w-full">
-            {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Join Household'}
-          </Button>
-          <Button onClick={onCancel} variant="secondary" className="w-full">
-            Cancel
-          </Button>
+    <div className="max-w-md mx-auto bg-background p-8 rounded-lg shadow-md">
+      <h2 className="text-2xl font-bold text-foreground mb-6 text-center">Enter Join Code</h2>
+      <p className="text-secondary-foreground mb-4 text-center">Ask a member of the household for the 4-character join code.</p>
+      <div className="space-y-4">
+        <div>
+          <label htmlFor="joinCode" className="block text-sm font-medium text-foreground">4-Character Code</label>
+          <input type="text" id="joinCode" value={joinCode} onChange={(e) => setJoinCode(e.target.value.toUpperCase().trim())} maxLength={4} className={inputStyles} placeholder="XYZ1" autoCapitalize="characters" autoComplete="off" spellCheck="false" />
         </div>
+        {error && <p className="text-destructive text-sm text-center">{error}</p>}
+        <Button onClick={handleSubmit} disabled={isLoading || joinCode.length !== 4} className="w-full">
+          {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Join Household'}
+        </Button>
+        <Button onClick={onCancel} variant="secondary" className="w-full">
+          Cancel
+        </Button>
       </div>
-    </Layout>
+    </div>
   );
 };
 
@@ -506,6 +504,7 @@ const App: React.FC = () => {
   const [isRegisteringForAuthForm, setIsRegisteringForAuthForm] = useState(false);
   const [welcomeHouseholdId, setWelcomeHouseholdId] = useState<string | null>(null);
   const [targetHouseholdAfterJoin, setTargetHouseholdAfterJoin] = useState<Household | null>(null);
+  const [userHasHouseholds, setUserHasHouseholds] = useState<boolean | null>(null);
 
   useEffect(() => {
     const determineState = async () => {
@@ -519,6 +518,8 @@ const App: React.FC = () => {
       }
       try {
         const userHouseholds = await getUserHouseholds();
+        setUserHasHouseholds(userHouseholds.length > 0);
+        
         const queryParams = new URLSearchParams(window.location.search);
         const joinedHouseholdIdParam = queryParams.get('joinedHouseholdId');
         if (joinedHouseholdIdParam) {
@@ -545,14 +546,48 @@ const App: React.FC = () => {
     determineState();
   }, [user, authLoading, targetHouseholdAfterJoin]);
 
-  if (appState === 'loading') return <LoadingSpinner />;
+  if (appState === 'loading' || (user && userHasHouseholds === null)) return <LoadingSpinner />;
 
   switch (appState) {
     case 'landing': return <LandingPageContent onSignIn={() => { setIsRegisteringForAuthForm(false); setAppState('authForm'); }} onSignUp={() => { setIsRegisteringForAuthForm(true); setAppState('authForm'); }} />;
     case 'authForm': return <AuthForm isRegisteringInitially={isRegisteringForAuthForm} />;
     case 'onboardingChoice': return <OnboardingChoice onCreateHousehold={() => setAppState('householdSetup')} onJoinHousehold={() => setAppState('joinWithCode')} />;
-    case 'householdSetup': return <HouseholdSetupForm onHouseholdCreated={(hid) => { toast.success('Household created!'); setWelcomeHouseholdId(hid); setAppState('householdWelcome'); }} />;
-    case 'joinWithCode': return <JoinHouseholdWithCode onJoined={(household) => { setTargetHouseholdAfterJoin(household); }} onCancel={() => setAppState('onboardingChoice')} />;
+    case 'householdSetup': {
+      const handleCancelSetup = () => {
+        setAppState(userHasHouseholds ? 'dashboard' : 'onboardingChoice');
+      };
+      return (
+        <Layout title="Create Household" showBack onBack={handleCancelSetup}>
+          <div className="flex justify-center">
+              <HouseholdSetupForm
+                onHouseholdCreated={(hid) => {
+                  toast.success('Household created!');
+                  setUserHasHouseholds(true);
+                  setWelcomeHouseholdId(hid);
+                  setAppState('householdWelcome');
+                }}
+                onCancel={handleCancelSetup}
+              />
+          </div>
+        </Layout>
+      );
+    }
+    case 'joinWithCode': {
+      const handleCancelJoin = () => {
+        setAppState(userHasHouseholds ? 'dashboard' : 'onboardingChoice');
+      };
+      return (
+        <Layout title="Join Household" showBack onBack={handleCancelJoin}>
+            <JoinHouseholdWithCode
+              onJoined={(household) => {
+                setUserHasHouseholds(true);
+                setTargetHouseholdAfterJoin(household);
+              }}
+              onCancel={handleCancelJoin}
+            />
+        </Layout>
+      );
+    }
     case 'householdWelcome':
       if (welcomeHouseholdId) {
         return <HouseholdWelcomeDisplay householdId={welcomeHouseholdId} onProceed={() => { setWelcomeHouseholdId(null); setAppState('dashboard'); }} />;

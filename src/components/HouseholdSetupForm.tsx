@@ -11,6 +11,7 @@ import { Loader2 } from 'lucide-react';
 
 interface HouseholdSetupFormProps {
   onHouseholdCreated: (householdId: string) => void;
+  onCancel: () => void;
 }
 
 interface ChoreOptionType {
@@ -18,7 +19,7 @@ interface ChoreOptionType {
   label: string;
 }
 
-export const HouseholdSetupForm: React.FC<HouseholdSetupFormProps> = ({ onHouseholdCreated }) => {
+export const HouseholdSetupForm: React.FC<HouseholdSetupFormProps> = ({ onHouseholdCreated, onCancel }) => {
   const { user } = useAuth();
   const [householdName, setHouseholdName] = useState('');
   const [memberCount, setMemberCount] = useState(2);
@@ -86,7 +87,6 @@ export const HouseholdSetupForm: React.FC<HouseholdSetupFormProps> = ({ onHouseh
     coreChores.includes(option.value)
   );
 
-  // A generic input style to match the design system
   const inputStyles = "mt-1 block w-full px-3 py-2 border border-input rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-ring sm:text-sm";
 
   return (
@@ -174,19 +174,25 @@ export const HouseholdSetupForm: React.FC<HouseholdSetupFormProps> = ({ onHouseh
           </select>
         </div>
 
-        <Button
-          type="submit"
-          disabled={isLoading}
-          className="w-full"
-        >
-          {isLoading ? <Loader2 className="animate-spin" /> : 'Create Household'}
-        </Button>
+        <div className="flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-3 mt-6">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={onCancel}
+              disabled={isLoading}
+              className="w-full sm:w-auto mt-2 sm:mt-0"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              disabled={isLoading}
+              className="w-full sm:w-auto"
+            >
+              {isLoading ? <Loader2 className="animate-spin" /> : 'Create Household'}
+            </Button>
+        </div>
       </form>
     </div>
   );
 };
-// src/components/HouseholdSetupForm.tsx
-// This component allows users to set up their household with a name, member count, core chores, chore frequency, and chore framework.
-// It uses a form to collect the necessary information and calls the `createHousehold` API function to create the household.
-// It also handles validation and displays any errors that occur during the creation process.
-// src/components/HouseholdSetupForm.tsx
