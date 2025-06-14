@@ -101,12 +101,12 @@ export const calculateBalances = (expenses: Expense[], members: HouseholdMember[
 
       if (balanceMap.has(settlement.payer_id)) {
         const payerBalance = balanceMap.get(settlement.payer_id) || 0;
-        balanceMap.set(settlement.payer_id, payerBalance + settlement.amount);
+        balanceMap.set(settlement.payer_id, payerBalance - settlement.amount);
       }
 
       if (balanceMap.has(settlement.payee_id)) {
         const payeeBalance = balanceMap.get(settlement.payee_id) || 0;
-        balanceMap.set(settlement.payee_id, payeeBalance - settlement.amount);
+        balanceMap.set(settlement.payee_id, payeeBalance + settlement.amount);
       }
     });
   }
