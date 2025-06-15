@@ -168,7 +168,7 @@ const AuthForm: React.FC<{isRegisteringInitially: boolean}> = ({isRegisteringIni
 
           <div className="text-center">
             <button onClick={() => setIsRegistering(!isRegistering)} className="text-sm text-primary hover:text-primary/80" disabled={isLoading}>
-              {isRegistering ? 'Already have an account? Sign in' : "Don&apos;t have an account? Sign up"}
+              {isRegistering ? 'Already have an account? Sign in' : "Don't have an account? Sign up"}
             </button>
           </div>
         </div>
@@ -249,7 +249,7 @@ const HouseholdWelcomeDisplay: React.FC<{ householdId: string; householdName?: s
       <div className="max-w-lg w-full bg-white p-8 rounded-xl shadow-2xl text-center">
         <CheckSquare className="mx-auto h-16 w-16 text-primary mb-4" />
         <h1 className="text-3xl font-bold text-primary mb-4">Welcome to {nameToShow}!</h1>
-        <p className="text-secondary-foreground mb-6">You&apos;ve successfully joined the household.</p>
+        <p className="text-secondary-foreground mb-6">You've successfully joined the household.</p>
         <Button onClick={onProceed} size="lg" className="mt-8 w-full">
           Go to Dashboard
         </Button>
@@ -346,16 +346,11 @@ const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = (
   const [currentJoinCode, setCurrentJoinCode] = useState<string | null | undefined>(undefined);
   const [showSettleUp, setShowSettleUp] = useState(false);
 
-  // --- FIX: Add refs to prevent re-fetching loops ---
   const isLoadingRef = useRef(false);
-  const prevHouseholdIdRef = useRef<string | null>(null);
+  const isMountedRef = useRef(true);
 
   const refreshData = useCallback(async (showToast = false) => {
-    if (!householdId) return;
-
-    // Prevent concurrent data loading
-    if (isLoadingRef.current) {
-      console.log('Skipping refreshData call: already loading.');
+    if (isLoadingRef.current || !isMountedRef.current) {
       return;
     }
 
@@ -365,8 +360,9 @@ const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = (
     }
     
     try {
-      console.log(`Fetching data for household: ${householdId}`);
       const data = await getHouseholdData(householdId);
+      
+      if (!isMountedRef.current) return;
       
       if (data.household) {
         setHousehold(data.household);
@@ -377,6 +373,8 @@ const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = (
       setSettlements(data.recent_settlements || []);
 
       const recurringData = await getHouseholdRecurringExpenses(householdId);
+      if (!isMountedRef.current) return;
+      
       setRecurringExpenses(recurringData);
 
       if (showToast) {
@@ -384,25 +382,34 @@ const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = (
       }
     } catch (error) {
       console.error('Error loading household data:', error);
-      toast.error('Failed to load household data.');
+      if (isMountedRef.current) {
+        toast.error('Failed to load household data.');
+      }
     } finally {
-      setLoadingData(false);
+      if (isMountedRef.current) {
+        setLoadingData(false);
+      }
       isLoadingRef.current = false;
     }
   }, [householdId]);
 
   useEffect(() => {
-    // --- FIX: Only fetch data if the householdId has actually changed ---
-    if (prevHouseholdIdRef.current !== householdId) {
-      console.log(`Household ID changed from ${prevHouseholdIdRef.current} to ${householdId}. Fetching new data.`);
-      prevHouseholdIdRef.current = householdId;
-      refreshData();
-    }
+    isMountedRef.current = true;
+    
+    refreshData();
+
+    return () => {
+      isMountedRef.current = false;
+    };
   }, [householdId, refreshData]);
 
 
   const balances = useMemo(() => calculateBalances(expenses, members, settlements), [expenses, members, settlements]);
   const settlementSuggestions = useMemo(() => getSettlementSuggestions ? getSettlementSuggestions(balances) : [], [balances]);
+
+  const handleRefresh = useCallback(() => {
+    refreshData(true);
+  }, [refreshData]);
 
   if (loadingData && !household) return <Layout title="Loading Household..." showBack onBack={onBack}><LoadingSpinner /></Layout>;
 
@@ -482,12 +489,12 @@ const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = (
           </div>
         )}
 
-        {activeTab === 'rulesSettings' && household && ( <HouseholdSettings household={household} members={members} onUpdate={() => refreshData(true)} />)}
+        {activeTab === 'rulesSettings' && household && ( <HouseholdSettings household={household} members={members} onUpdate={handleRefresh} />)}
       </div>
 
-      {showAddExpense && <AddExpenseModal householdId={householdId} members={members} onClose={() => setShowAddExpense(false)} onExpenseAdded={() => refreshData(true)} />}
-      {showSettleUp && <SettleUpModal householdId={householdId} members={members} settlementSuggestions={settlementSuggestions} onClose={() => setShowSettleUp(false)} onSettlementCreated={() => refreshData(true)} />}
-      {showAddRecurring && <AddRecurringExpenseModal householdId={householdId} onClose={() => setShowAddRecurring(false)} onExpenseAdded={() => refreshData(true)} />}
+      {showAddExpense && <AddExpenseModal householdId={householdId} members={members} onClose={() => setShowAddExpense(false)} onExpenseAdded={handleRefresh} />}
+      {showSettleUp && <SettleUpModal householdId={householdId} members={members} settlementSuggestions={settlementSuggestions} onClose={() => setShowSettleUp(false)} onSettlementCreated={handleRefresh} />}
+      {showAddRecurring && <AddRecurringExpenseModal householdId={householdId} onClose={() => setShowAddRecurring(false)} onExpenseAdded={handleRefresh} />}
       {showManageJoinCode && householdId && <ManageJoinCodeModal householdId={householdId} currentCode={currentJoinCode} onClose={() => setShowManageJoinCode(false)} onCodeRefreshed={(newCode) => { setCurrentJoinCode(newCode); if (household) setHousehold({...household, join_code: newCode }); }} />}
     </Layout>
   );

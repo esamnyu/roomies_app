@@ -1,11 +1,11 @@
-// src/components/ChoreDashboard.tsx
 "use client";
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { CheckCircle, Circle, PlusCircle, RefreshCw, AlertTriangle, Loader2, ClipboardList, Edit, ToggleLeft, ToggleRight } from 'lucide-react';
 import {
   addCustomChoreToHousehold,
-  assignChoresForCurrentCycle,
-  checkAndTriggerChoreRotation,
+  // assignChoresForCurrentCycle, // No longer called directly from here
+  isChoreRotationDue,
+  triggerChoreRotation,
   getChoreRotationUIData,
   getHouseholdChores,
   markChoreAssignmentComplete,
@@ -259,29 +259,22 @@ export const ChoreDashboard: React.FC<ChoreDashboardProps> = ({ householdId }) =
   const [isLoading, setIsLoading] = useState(true);
   const [isRotating, setIsRotating] = useState(false);
   const [isLoadingCompletion, setIsLoadingCompletion] = useState(false);
+  const [rotationIsDue, setRotationIsDue] = useState(false);
 
   // Modal states
   const [showAddChoreModal, setShowAddChoreModal] = useState(false);
   const [showManageChoresModal, setShowManageChoresModal] = useState(false);
   const [choreToEdit, setChoreToEdit] = useState<HouseholdChore | null>(null);
 
-  const hasCheckedRotation = useRef(false);
-  const lastHouseholdId = useRef<string | null>(null);
-
   const fetchData = useCallback(async (showLoading = true) => {
     if (showLoading) setIsLoading(true);
     
     try {
-      if (!hasCheckedRotation.current || lastHouseholdId.current !== householdId) {
-        hasCheckedRotation.current = true;
-        lastHouseholdId.current = householdId;
-        try {
-          await checkAndTriggerChoreRotation(householdId);
-        } catch (rotationError) {
-          console.error('Rotation check failed, continuing with data load:', rotationError);
-        }
-      }
+      // [FIX] First, check if rotation is due without triggering it.
+      const rotationStatus = await isChoreRotationDue(householdId);
+      setRotationIsDue(rotationStatus.due);
       
+      // Then, fetch all the UI data as before.
       const [choreData, householdChores] = await Promise.all([
         getChoreRotationUIData(householdId),
         getHouseholdChores(householdId)
@@ -300,16 +293,13 @@ export const ChoreDashboard: React.FC<ChoreDashboardProps> = ({ householdId }) =
   }, [householdId]);
 
   useEffect(() => {
-    if (lastHouseholdId.current !== householdId) {
-      hasCheckedRotation.current = false;
-    }
     fetchData();
-  }, [fetchData, householdId]);
+  }, [fetchData]);
 
   const handleForceRotation = async () => {
     setIsRotating(true);
     try {
-      await assignChoresForCurrentCycle(householdId);
+      await triggerChoreRotation(householdId);
       toast.success("Chore rotation processed!");
       await fetchData(false);
     } catch (error) {
@@ -409,6 +399,28 @@ export const ChoreDashboard: React.FC<ChoreDashboardProps> = ({ householdId }) =
           </Button>
         </div>
       </div>
+      
+      {/* [FIX] Notification bar for when a rotation is due */}
+      {isAdmin && rotationIsDue && (
+        <div className="p-4 bg-blue-50 border-l-4 border-blue-500 text-blue-800 rounded-md shadow">
+            <div className="flex">
+                <div className="flex-shrink-0">
+                    <AlertTriangle className="h-5 w-5" aria-hidden="true" />
+                </div>
+                <div className="ml-3 flex-1 md:flex md:justify-between">
+                    <p className="text-sm">
+                        A new chore rotation is due.
+                    </p>
+                     <p className="mt-3 text-sm md:mt-0 md:ml-6">
+                        <Button onClick={handleForceRotation} disabled={isRotating} size="sm" variant="outline" className="bg-white">
+                            {isRotating ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <RefreshCw className="h-4 w-4 mr-2" />}
+                            Start Next Cycle
+                        </Button>
+                    </p>
+                </div>
+            </div>
+        </div>
+      )}
 
       {activeMembersCount < targetMemberCount && targetMemberCount > 0 && (
         <div className="p-4 bg-accent/10 border-l-4 border-accent text-accent rounded-md">

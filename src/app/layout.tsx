@@ -1,3 +1,4 @@
+import React from 'react';
 import type { Metadata } from "next";
 import { Manrope } from "next/font/google"; // Changed from Geist to Manrope
 import "./globals.css";
@@ -24,7 +25,9 @@ export default function RootLayout({
       <body
         className={`${manrope.variable} font-sans antialiased`} // Use the new font variable
       >
-        {children}
+        <React.StrictMode>
+          {children}
+        </React.StrictMode>
       </body>
     </html>
   );

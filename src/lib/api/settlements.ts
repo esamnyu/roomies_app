@@ -1,15 +1,15 @@
-// src/lib/api/settlements.ts
 import { supabase } from '../supabase';
 import { subscriptionManager } from '../subscriptionManager';
 import type { Settlement, Expense, HouseholdMember, Profile } from '../types/types';
 
-export const createSettlement = async (householdId: string, payeeId: string, amount: number, description?: string) => {
+// This function is updated to accept a single object.
+export const createSettlement = async (settlement: Omit<Settlement, 'id' | 'created_at' | 'payer_profile' | 'payee_profile'>) => {
   const { data, error } = await supabase
     .rpc('create_settlement_and_notify', {
-      p_household_id: householdId,
-      p_payee_id: payeeId,
-      p_amount: amount,
-      p_description: description
+      p_household_id: settlement.household_id,
+      p_payee_id: settlement.payee_id,
+      p_amount: settlement.amount,
+      p_description: settlement.description
     })
     .select(`
       *,

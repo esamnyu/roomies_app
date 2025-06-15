@@ -4,11 +4,13 @@ import type { HouseholdMember } from '@/lib/types/types';
 
 export type SplitType = 'equal' | 'custom' | 'percentage';
 
+const PRECISION_THRESHOLD = 0.01; // Define a constant for precision
+
 // This function corrects for rounding errors to ensure the total split amount equals the expense amount.
 function correctRoundingErrors(splits: Array<{ user_id: string; amount: number }>, totalAmount: number) {
     const currentTotal = splits.reduce((sum, s) => sum + s.amount, 0);
     const difference = totalAmount - currentTotal;
-    if (Math.abs(difference) > 0.001 && splits.length > 0) {
+    if (Math.abs(difference) > (PRECISION_THRESHOLD / 10) && splits.length > 0) { // Use the constant
         const firstSplit = splits.find(s => s.amount > 0);
         if (firstSplit) {
             firstSplit.amount = parseFloat((firstSplit.amount + difference).toFixed(2));
@@ -101,8 +103,9 @@ export function useExpenseSplits(members: HouseholdMember[]) {
 
     const isValid = useMemo(() => {
         if (amount <= 0 || includedMembers.size === 0) return false;
-        if (splitType === 'custom') return Math.abs(totalSplitValue - amount) < 0.01 * includedMembers.size;
-        if (splitType === 'percentage') return Math.abs(totalPercentageValue - 100) < 0.01 * includedMembers.size;
+        // Use the constant for precision checks
+        if (splitType === 'custom') return Math.abs(totalSplitValue - amount) < PRECISION_THRESHOLD * includedMembers.size;
+        if (splitType === 'percentage') return Math.abs(totalPercentageValue - 100) < PRECISION_THRESHOLD * includedMembers.size;
         return true;
     }, [amount, includedMembers.size, splitType, totalSplitValue, totalPercentageValue]);
 
