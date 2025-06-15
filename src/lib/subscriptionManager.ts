@@ -6,15 +6,17 @@ class SubscriptionManager {
   private pendingUnsubscribes = new Set<string>();
 
   subscribe(key: string, channel: RealtimeChannel): RealtimeChannel | undefined {
-    // Prevent rapid unsubscribe/resubscribe cycles by checking pending unsubscribes
-    if (this.pendingUnsubscribes.has(key)) {
-      this.pendingUnsubscribes.delete(key); // Cancel the pending unsubscribe
-      return this.subscriptions.get(key); // Return the existing subscription
+    // Clean up any existing subscription first
+    const existing = this.subscriptions.get(key);
+    if (existing) {
+      console.log(`Cleaning up existing subscription for: ${key}`);
+      existing.unsubscribe();
+      this.subscriptions.delete(key);
     }
 
-    if (this.subscriptions.has(key)) {
-      console.warn(`Subscription with key "${key}" already exists. Returning the existing one.`);
-      return this.subscriptions.get(key);
+    // Cancel any pending unsubscribe
+    if (this.pendingUnsubscribes.has(key)) {
+      this.pendingUnsubscribes.delete(key);
     }
 
     this.subscriptions.set(key, channel);
@@ -25,16 +27,10 @@ class SubscriptionManager {
   unsubscribe(key: string) {
     const sub = this.subscriptions.get(key);
     if (sub) {
-      // Delay the actual unsubscribe to handle fast re-renders gracefully
-      this.pendingUnsubscribes.add(key);
-      setTimeout(() => {
-        if (this.pendingUnsubscribes.has(key)) {
-          sub.unsubscribe();
-          this.subscriptions.delete(key);
-          this.pendingUnsubscribes.delete(key);
-          console.log(`Subscription removed: ${key}`);
-        }
-      }, 150); // A short delay
+      // Immediate unsubscribe without delay
+      sub.unsubscribe();
+      this.subscriptions.delete(key);
+      console.log(`Subscription removed: ${key}`);
     }
   }
 
@@ -47,12 +43,12 @@ class SubscriptionManager {
     this.pendingUnsubscribes.clear();
   }
 
-  /**
-   * For development/debugging purposes.
-   * @returns An array of active subscription keys.
-   */
   getActiveSubscriptions() {
     return Array.from(this.subscriptions.keys());
+  }
+
+  hasSubscription(key: string): boolean {
+    return this.subscriptions.has(key);
   }
 }
 

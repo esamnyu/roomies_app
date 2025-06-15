@@ -1,15 +1,15 @@
-// src/lib/api/settlements.ts
 import { supabase } from '../supabase';
 import { subscriptionManager } from '../subscriptionManager';
 import type { Settlement, Expense, HouseholdMember, Profile } from '../types/types';
 
-export const createSettlement = async (householdId: string, payeeId: string, amount: number, description?: string) => {
+// This function is updated to accept a single object.
+export const createSettlement = async (settlement: Omit<Settlement, 'id' | 'created_at' | 'payer_profile' | 'payee_profile'>) => {
   const { data, error } = await supabase
     .rpc('create_settlement_and_notify', {
-      p_household_id: householdId,
-      p_payee_id: payeeId,
-      p_amount: amount,
-      p_description: description
+      p_household_id: settlement.household_id,
+      p_payee_id: settlement.payee_id,
+      p_amount: settlement.amount,
+      p_description: settlement.description
     })
     .select(`
       *,
@@ -44,7 +44,14 @@ export const getHouseholdSettlements = async (householdId: string) => {
 
 export const subscribeToSettlements = (householdId: string, onSettlement: (settlement: Settlement) => void) => {
   const key = `settlements:${householdId}`;
-  const subscription = supabase
+  
+  // Check if already subscribed
+  if (subscriptionManager.hasSubscription(key)) {
+    console.log(`Already subscribed to ${key}, skipping...`);
+    return;
+  }
+  
+  const channel = supabase
     .channel(key)
     .on('postgres_changes', {
       event: 'INSERT',
@@ -66,8 +73,15 @@ export const subscribeToSettlements = (householdId: string, onSettlement: (settl
         if (data) onSettlement(data);
       }
     })
-    .subscribe();
-  return subscriptionManager.subscribe(key, subscription);
+    .subscribe((status, err) => {
+      if (err) {
+        console.error(`Subscription error for ${key}:`, err);
+      } else {
+        console.log(`Subscription status for ${key}:`, status);
+      }
+    });
+    
+  return subscriptionManager.subscribe(key, channel);
 };
 
 // --- BALANCE & SETTLEMENT CALCULATION HELPERS ---

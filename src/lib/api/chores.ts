@@ -1,8 +1,21 @@
 // src/lib/api/chores.ts
+
 import { supabase } from '../supabase';
-import type { Household, HouseholdChore, ChoreAssignment, HouseholdMember } from '../types/types';
+import type { Household, HouseholdChore, ChoreAssignment, HouseholdMember, Profile } from '../types/types';
 import { getHouseholdDetails, getHouseholdMembers } from './households';
 
+// Helper to check if a user is on vacation
+const isUserOnVacation = (member: HouseholdMember): boolean => {
+    const profile = member.profiles;
+    if (!profile?.vacation_start_date || !profile?.vacation_end_date) {
+        return false;
+    }
+    const now = new Date();
+    const startDate = new Date(profile.vacation_start_date);
+    const endDate = new Date(profile.vacation_end_date);
+    endDate.setHours(23, 59, 59, 999);
+    return now >= startDate && now <= endDate;
+};
 
 export const getHouseholdChores = async (householdId: string): Promise<HouseholdChore[]> => {
     const { data, error } = await supabase
@@ -30,6 +43,19 @@ export const updateHouseholdChore = async (choreId: string, updates: Partial<Pic
         throw error;
     }
     return data;
+};
+
+// **NEW** Function to delete a chore definition
+export const deleteHouseholdChore = async (choreId: string): Promise<void> => {
+    const { error } = await supabase
+        .from('household_chores')
+        .delete()
+        .eq('id', choreId);
+
+    if (error) {
+        console.error('Error deleting chore:', error);
+        throw new Error(error.message);
+    }
 };
 
 export const toggleChoreActive = async (choreId: string, isActive: boolean) => {
@@ -116,14 +142,14 @@ export const assignChoresForCurrentCycle = async (householdId: string, household
   const household = householdOverride || await getHouseholdDetails(householdId);
   if (!household) throw new Error('Household not found');
 
-  const members = await getHouseholdMembers(householdId);
-  if (members.length === 0) {
-      if(household.member_count && household.member_count > 0) {
-          console.log("No members yet, chore assignment skipped or will use placeholders.");
-          return [];
-      } else {
-          throw new Error('No members in household to assign chores to.');
-      }
+  const allMembers = await getHouseholdMembers(householdId);
+  
+  // **FIXED** Filter out members on vacation
+  const availableMembers = allMembers.filter(member => !isUserOnVacation(member));
+
+  if (availableMembers.length === 0) {
+      console.log("No available members to assign chores to (everyone may be on vacation).");
+      return [];
   }
 
   const { data: choresDefinitions, error: choresError } = await supabase
@@ -169,12 +195,8 @@ export const assignChoresForCurrentCycle = async (householdId: string, household
 
   const newAssignments: Omit<ChoreAssignment, 'id' | 'created_at' | 'updated_at'>[] = [];
 
-  const targetMemberCount = household.member_count || members.length;
-  const memberIdsForAssignment: string[] = members.map(m => m.user_id);
-  for (let i = members.length; i < targetMemberCount; i++) {
-      memberIdsForAssignment.push(`placeholder_${i + 1}`);
-  }
-
+  const memberIdsForAssignment: string[] = availableMembers.map(m => m.user_id);
+  
   let currentAssigneeIndex = household.chore_current_assignee_index ?? 0;
   if(currentAssigneeIndex >= memberIdsForAssignment.length) currentAssigneeIndex = 0;
 
@@ -325,11 +347,15 @@ export const getChoreRotationUIData = async (
   };
 };
 
-export const checkAndTriggerChoreRotation = async (householdId: string): Promise<boolean> => {
+/**
+ * [FIXED] This function now only checks if a rotation is due without triggering it.
+ * This prevents side-effects during data fetching.
+ */
+export const isChoreRotationDue = async (householdId: string): Promise<{ due: boolean, household: Household | null }> => {
   const household = await getHouseholdDetails(householdId);
   if (!household) {
       console.warn(`Could not find household ${householdId} to check for chore rotation.`);
-      return false;
+      return { due: false, household: null };
   }
 
   const today = new Date();
@@ -340,16 +366,32 @@ export const checkAndTriggerChoreRotation = async (householdId: string): Promise
     nextRotationDate.setHours(0,0,0,0);
 
     if (today >= nextRotationDate) {
-      console.log(`Chore rotation due for household ${householdId}. Triggering...`);
-      await assignChoresForCurrentCycle(householdId, household);
-      return true;
+      return { due: true, household };
     }
   } else {
-    console.log(`Initial chore assignment or re-initialization for household ${householdId}.`);
-    await initializeChoresForHousehold(householdId, household);
-    return true;
+    // Rotation has never happened, so it's "due"
+    return { due: true, household };
   }
   
-  console.log(`Chore rotation not yet due for household ${householdId}.`);
-  return false;
+  return { due: false, household };
+};
+
+
+/**
+ * [FIXED] This new function explicitly triggers the chore rotation.
+ * It should be called based on a user action, not as a side-effect of rendering.
+ */
+export const triggerChoreRotation = async (householdId: string, householdData?: Household): Promise<void> => {
+    const household = householdData || await getHouseholdDetails(householdId);
+    if (!household) {
+        throw new Error(`Could not find household ${householdId} to trigger rotation.`);
+    }
+
+    if (household.next_chore_rotation_date) {
+        console.log(`Chore rotation due for household ${householdId}. Triggering...`);
+        await assignChoresForCurrentCycle(householdId, household);
+    } else {
+        console.log(`Initial chore assignment or re-initialization for household ${householdId}.`);
+        await initializeChoresForHousehold(householdId, household);
+    }
 };

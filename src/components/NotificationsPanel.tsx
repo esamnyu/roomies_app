@@ -208,8 +208,6 @@ export const NotificationBell: React.FC = () => {
   const { user } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
-  
-  const hasSubscribedRef = useRef(false);
 
   const handleNewNotification = useCallback((notification: Notification) => {
     setUnreadCount(prev => prev + 1);
@@ -223,22 +221,31 @@ export const NotificationBell: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    if (user?.id && !hasSubscribedRef.current) {
-      hasSubscribedRef.current = true;
-      console.log("Setting up notification subscription at NotificationBell level for user:", user.id);
-      
-      getUnreadNotificationCount().then(setUnreadCount).catch(console.error);
-      
-      const subscription = subscribeToNotifications(user.id, handleNewNotification);
+    if (!user?.id) return;
 
-      return () => {
-        console.log('Cleaning up notification subscription at NotificationBell level');
-        subscription?.unsubscribe();
-        hasSubscribedRef.current = false;
-        // Also use subscriptionManager for safety, though direct unsubscribe is better here.
-        subscriptionManager.unsubscribe(`notifications:${user.id}`);
-      };
-    }
+    let mounted = true;
+
+    // Load initial count
+    getUnreadNotificationCount()
+      .then(count => {
+        if (mounted) {
+          setUnreadCount(count);
+        }
+      })
+      .catch(console.error);
+    
+    // Subscribe to new notifications
+    subscribeToNotifications(user.id, (notification) => {
+      if (mounted) {
+        handleNewNotification(notification);
+      }
+    });
+
+    return () => {
+      mounted = false;
+      const subscriptionKey = `notifications:${user.id}`;
+      subscriptionManager.unsubscribe(subscriptionKey);
+    };
   }, [user?.id, handleNewNotification]);
 
   return (

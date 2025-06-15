@@ -1,11 +1,10 @@
-// src/components/SettleUpModal.tsx
 "use client";
 
 import React, { useState, useEffect } from 'react';
 import { Loader2 } from 'lucide-react';
 import { createSettlement } from '@/lib/api/settlements';
 import { toast } from 'react-hot-toast';
-import type { HouseholdMember, Profile } from '@/lib/types/types';
+import type { HouseholdMember, Profile, SettlementSuggestion } from '@/lib/types/types';
 import { useAuth } from './AuthProvider';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -13,14 +12,14 @@ import { Input } from '@/components/ui/Input';
 interface SettleUpModalProps {
   householdId: string;
   members: HouseholdMember[];
-  settlementSuggestions: Array<{ from: string; to: string; amount: number; fromProfile: Profile; toProfile: Profile }>;
+  settlementSuggestions: SettlementSuggestion[];
   onClose: () => void;
   onSettlementCreated: () => void;
 }
 
 export const SettleUpModal: React.FC<SettleUpModalProps> = ({ householdId, members, settlementSuggestions, onClose, onSettlementCreated }) => {
     const { user } = useAuth();
-    const [selectedSuggestion, setSelectedSuggestion] = useState<typeof settlementSuggestions[0] | null>(null);
+    const [selectedSuggestion, setSelectedSuggestion] = useState<SettlementSuggestion | null>(null);
     const [customAmount, setCustomAmount] = useState('');
     const [payeeId, setPayeeId] = useState('');
     const [description, setDescription] = useState('');
@@ -36,7 +35,10 @@ export const SettleUpModal: React.FC<SettleUpModalProps> = ({ householdId, membe
     }, [selectedSuggestion, members]);
 
     const handleSubmit = async () => {
-      if (!payeeId || !customAmount || !householdId) return;
+      if (!payeeId || !customAmount || !householdId || !user) {
+        toast.error("Please ensure a recipient and amount are set.");
+        return;
+      }
     
       const amount = parseFloat(customAmount);
 
@@ -57,7 +59,13 @@ export const SettleUpModal: React.FC<SettleUpModalProps> = ({ householdId, membe
     
       setSubmitting(true);
       try {
-        await createSettlement(householdId, payeeId, amount, description);
+        await createSettlement({
+            household_id: householdId,
+            payer_id: user.id, // The logged-in user is the payer
+            payee_id: payeeId,
+            amount,
+            description,
+        });
         onSettlementCreated();
         onClose();
         toast.success('Settlement recorded!');
@@ -69,7 +77,7 @@ export const SettleUpModal: React.FC<SettleUpModalProps> = ({ householdId, membe
       }
     };
     
-    const getProfileForSuggestion = (suggestion: typeof settlementSuggestions[0], type: 'from' | 'to') => {
+    const getProfileForSuggestion = (suggestion: SettlementSuggestion, type: 'from' | 'to') => {
         const userId = type === 'from' ? suggestion.from : suggestion.to;
         return members.find(m => m.user_id === userId)?.profiles;
     };

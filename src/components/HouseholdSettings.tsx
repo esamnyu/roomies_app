@@ -1,4 +1,3 @@
-// src/components/HouseholdSettings.tsx
 "use client";
 
 import React, { useState, useEffect } from 'react';
@@ -13,7 +12,8 @@ import {
   updateHouseRule,
   deleteHouseRule
 } from '../lib/api/households';
-import type { Household, HouseholdMember, HouseRule } from '../lib/types/types';
+import { getProfile, updateUserProfile } from '../lib/api/profile'; // Import profile functions
+import type { Household, HouseholdMember, HouseRule, Profile } from '../lib/types/types';
 import { toast } from 'react-hot-toast';
 import { Loader2, Trash2, Shield, LogOut, AlertTriangle, Plus, Edit3 } from 'lucide-react';
 import { Button } from './ui/Button';
@@ -183,17 +183,35 @@ export const HouseholdSettings: React.FC<HouseholdSettingsProps> = ({ household,
   const [choreFrequency, setChoreFrequency] = useState(household.chore_frequency || 'Weekly');
   const [deleteConfirmName, setDeleteConfirmName] = useState('');
 
+  // Vacation Mode State
+  const [vacationStart, setVacationStart] = useState('');
+  const [vacationEnd, setVacationEnd] = useState('');
+  const [isSavingVacation, setIsSavingVacation] = useState(false);
+
   const [isSavingDetails, setIsSavingDetails] = useState(false);
   const [showAddRuleModal, setShowAddRuleModal] = useState(false);
   const [showEditRuleModal, setShowEditRuleModal] = useState(false);
   const [ruleToEdit, setRuleToEdit] = useState<HouseRule | null>(null);
 
   useEffect(() => {
+    // Household details
     setName(household.name);
     setMemberCount(household.member_count || 1);
     setChoreFramework(household.chore_framework || 'Split');
     setChoreFrequency(household.chore_frequency || 'Weekly');
-  }, [household]);
+
+    // Fetch user profile for vacation dates
+    const fetchProfile = async () => {
+        if (user) {
+            const profile = await getProfile(user.id);
+            if (profile) {
+                setVacationStart(profile.vacation_start_date?.split('T')[0] || '');
+                setVacationEnd(profile.vacation_end_date?.split('T')[0] || '');
+            }
+        }
+    };
+    fetchProfile();
+  }, [household, user]);
 
   const handleUpdateHouseholdDetails = async () => {
     setIsSavingDetails(true);
@@ -210,6 +228,28 @@ export const HouseholdSettings: React.FC<HouseholdSettingsProps> = ({ household,
       toast.error("Failed to update details: " + (error instanceof Error ? error.message : ""));
     } finally {
       setIsSavingDetails(false);
+    }
+  };
+
+  const handleSaveVacationDates = async () => {
+    if (!user) return;
+    if (vacationStart && vacationEnd && new Date(vacationStart) > new Date(vacationEnd)) {
+        toast.error("Vacation start date cannot be after the end date.");
+        return;
+    }
+
+    setIsSavingVacation(true);
+    try {
+        await updateUserProfile(user.id, {
+            vacation_start_date: vacationStart || null,
+            vacation_end_date: vacationEnd || null,
+        });
+        toast.success("Vacation dates updated successfully!");
+        onUpdate(); // Refresh household data to reflect changes in chore assignments
+    } catch (error) {
+        toast.error("Failed to update vacation dates.");
+    } finally {
+        setIsSavingVacation(false);
     }
   };
 
@@ -315,6 +355,28 @@ export const HouseholdSettings: React.FC<HouseholdSettingsProps> = ({ household,
             <label htmlFor="memberCount" className="block text-sm font-medium text-foreground">Target Member Count</label>
             <Input type="number" id="memberCount" min="1" value={memberCount} onChange={e => setMemberCount(parseInt(e.target.value, 10))} className="mt-1" disabled={!isAdmin} />
           </div>
+        </SettingsCard>
+
+        <SettingsCard title="My Vacation Mode"
+            footer={
+                <Button onClick={handleSaveVacationDates} disabled={isSavingVacation}>
+                    {isSavingVacation ? <Loader2 className="h-4 w-4 animate-spin"/> : 'Save Vacation Dates'}
+                </Button>
+            }
+        >
+            <p className="text-sm text-secondary-foreground">
+                Set your vacation dates here. You will not be assigned chores during this period.
+            </p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label htmlFor="vacation-start" className="block text-sm font-medium">Start Date</label>
+                    <Input id="vacation-start" type="date" value={vacationStart} onChange={e => setVacationStart(e.target.value)} />
+                </div>
+                <div>
+                    <label htmlFor="vacation-end" className="block text-sm font-medium">End Date</label>
+                    <Input id="vacation-end" type="date" value={vacationEnd} onChange={e => setVacationEnd(e.target.value)} />
+                </div>
+            </div>
         </SettingsCard>
 
         <SettingsCard

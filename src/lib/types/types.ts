@@ -7,6 +7,8 @@ export interface Profile {
   created_at: string;
   updated_at: string;
   email?: string;
+  vacation_start_date?: string | null; // Added for vacation mode
+  vacation_end_date?: string | null;   // Added for vacation mode
 }
 
 export interface HouseRule {
@@ -16,7 +18,7 @@ export interface HouseRule {
 }
 
 export interface Household {
-  id: string;
+  id:string;
   name: string;
   created_by: string;
   created_at: string;
@@ -89,6 +91,15 @@ export interface Settlement {
   created_at: string
   payer_profile?: Profile
   payee_profile?: Profile
+}
+
+// Added the missing SettlementSuggestion interface
+export interface SettlementSuggestion {
+    from: string;
+    to: string;
+    amount: number;
+    fromProfile?: Profile | null;
+    toProfile?: Profile | null;
 }
 
 export interface RecurringExpense {
@@ -189,4 +200,4 @@ export interface CreateHouseholdParams {
   core_chores?: string[];
   chore_frequency?: string;
   chore_framework?: string;
-}
+} 

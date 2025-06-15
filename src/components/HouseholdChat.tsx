@@ -38,25 +38,42 @@ export const HouseholdChat: React.FC<HouseholdChatProps> = ({ householdId }) => 
   }, []);
 
   useEffect(() => {
+    let mounted = true;
+    
     const loadAndSubscribe = async () => {
+      if (!mounted) return;
+      
       try {
         setLoading(true);
         const initialMessages = await api.getHouseholdMessages(householdId);
-        setMessages(initialMessages);
-        setTimeout(scrollToBottom, 100);
+        if (mounted) {
+          setMessages(initialMessages);
+          setTimeout(scrollToBottom, 100);
+        }
       } catch (error) {
         console.error('Error loading initial messages:', error);
+        if (mounted) {
+          toast.error('Failed to load messages');
+        }
       } finally {
-        setLoading(false);
+        if (mounted) {
+          setLoading(false);
+        }
       }
     };
 
     loadAndSubscribe();
 
-    const subscriptionKey = `messages:${householdId}`;
-    api.subscribeToMessages(householdId, handleNewMessage);
+    // Subscribe to messages
+    api.subscribeToMessages(householdId, (message) => {
+      if (mounted) {
+        handleNewMessage(message);
+      }
+    });
 
     return () => {
+      mounted = false;
+      const subscriptionKey = `messages:${householdId}`;
       subscriptionManager.unsubscribe(subscriptionKey);
     };
   }, [householdId, handleNewMessage]);
