@@ -1,13 +1,13 @@
 import React from 'react';
 import type { Metadata } from "next";
-import { Manrope } from "next/font/google"; // Changed from Geist to Manrope
+import { Manrope } from "next/font/google";
 import "./globals.css";
 
 // Setup for the new primary font
 const manrope = Manrope({
   subsets: ["latin"],
   display: "swap",
-  variable: "--font-manrope", // Use a variable for consistency
+  variable: "--font-manrope",
 });
 
 export const metadata: Metadata = {
@@ -22,12 +22,8 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body
-        className={`${manrope.variable} font-sans antialiased`} // Use the new font variable
-      >
-        <React.StrictMode>
-          {children}
-        </React.StrictMode>
+      <body className={`${manrope.variable} font-sans antialiased`}>
+        {children}
       </body>
     </html>
   );

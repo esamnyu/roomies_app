@@ -44,7 +44,14 @@ export const getHouseholdSettlements = async (householdId: string) => {
 
 export const subscribeToSettlements = (householdId: string, onSettlement: (settlement: Settlement) => void) => {
   const key = `settlements:${householdId}`;
-  const subscription = supabase
+  
+  // Check if already subscribed
+  if (subscriptionManager.hasSubscription(key)) {
+    console.log(`Already subscribed to ${key}, skipping...`);
+    return;
+  }
+  
+  const channel = supabase
     .channel(key)
     .on('postgres_changes', {
       event: 'INSERT',
@@ -66,8 +73,15 @@ export const subscribeToSettlements = (householdId: string, onSettlement: (settl
         if (data) onSettlement(data);
       }
     })
-    .subscribe();
-  return subscriptionManager.subscribe(key, subscription);
+    .subscribe((status, err) => {
+      if (err) {
+        console.error(`Subscription error for ${key}:`, err);
+      } else {
+        console.log(`Subscription status for ${key}:`, status);
+      }
+    });
+    
+  return subscriptionManager.subscribe(key, channel);
 };
 
 // --- BALANCE & SETTLEMENT CALCULATION HELPERS ---
