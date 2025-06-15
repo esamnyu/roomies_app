@@ -258,6 +258,10 @@ const HouseholdWelcomeDisplay: React.FC<{ householdId: string; householdName?: s
   );
 };
 
+// src/components/RoomiesApp.tsx
+
+// ... (imports and other components remain the same)
+
 const Dashboard: React.FC<{ setAppState: (state: AppState) => void }> = ({ setAppState }) => {
   const { profile } = useAuth();
   const [households, setHouseholds] = useState<Household[]>([]);
@@ -290,9 +294,14 @@ const Dashboard: React.FC<{ setAppState: (state: AppState) => void }> = ({ setAp
       <div className="space-y-6">
         <div className="flex justify-between items-center">
           <h2 className="text-2xl font-bold text-foreground">Your Households</h2>
-          <Button onClick={() => setAppState('householdSetup')}>
-            <Plus className="h-4 w-4 mr-2" /> New Household
-          </Button>
+          <div className="flex items-center space-x-3">
+            <Button onClick={() => setAppState('joinWithCode')} variant="secondary">
+                Join Household
+            </Button>
+            <Button onClick={() => setAppState('householdSetup')}>
+              <Plus className="h-4 w-4 mr-2" /> New Household
+            </Button>
+          </div>
         </div>
 
         {loadingHouseholds ? (
@@ -328,6 +337,8 @@ const Dashboard: React.FC<{ setAppState: (state: AppState) => void }> = ({ setAp
     </Layout>
   );
 };
+
+// ... (rest of the file remains the same)
 
 type HouseholdDetailTab = 'money' | 'structuredChores' | 'communication' | 'rulesSettings';
 
