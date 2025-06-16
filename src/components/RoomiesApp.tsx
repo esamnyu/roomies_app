@@ -427,27 +427,6 @@ const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = (
   return (
     <Layout title={household?.name || 'Household Details'} showBack onBack={onBack}>
       <div className="space-y-6">
-        <div className="bg-background rounded-lg shadow p-6 border border-border">
-          <div className="flex justify-between items-center mb-4">
-            <h3 className="text-lg font-medium text-foreground">Balance Summary</h3>
-            <Button onClick={() => setShowSettleUp(true)} size="sm">
-              <CreditCard className="h-4 w-4 mr-1" />Settle Up
-            </Button>
-          </div>
-          <div className="space-y-2">
-            {balances.length > 0 ? balances.map(balance => (
-              <div key={balance.userId} className="flex justify-between items-center">
-                <span className="text-sm text-secondary-foreground">{balance.profile?.name}</span>
-                <div className="flex items-center space-x-2">
-                  <span className={`text-sm font-medium ${balance.balance >= 0 ? 'text-primary' : 'text-destructive'}`}>
-                    {balance.balance > 0 ? '+' : ''}${Math.abs(balance.balance).toFixed(2)}{balance.balance < 0 && ' owed'}
-                  </span>
-                </div>
-              </div>
-            )) : <p className="text-sm text-secondary-foreground">No balances to show yet. Add some expenses!</p>}
-          </div>
-        </div>
-
         <div className="border-b border-border">
           <nav className="-mb-px flex space-x-4 sm:space-x-8 overflow-x-auto">
             {(['money', 'structuredChores', 'communication', 'rulesSettings'] as HouseholdDetailTab[]).map(tab => (
@@ -464,6 +443,28 @@ const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = (
 
         {activeTab === 'money' && (
            <div className="space-y-6">
+             {/* Balance Summary is now here */}
+             <div className="bg-background rounded-lg shadow p-6 border border-border">
+                <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-lg font-medium text-foreground">Balance Summary</h3>
+                    <Button onClick={() => setShowSettleUp(true)} size="sm">
+                        <CreditCard className="h-4 w-4 mr-1" />Settle Up
+                    </Button>
+                </div>
+                <div className="space-y-2">
+                    {balances.length > 0 ? balances.map(balance => (
+                    <div key={balance.userId} className="flex justify-between items-center">
+                        <span className="text-sm text-secondary-foreground">{balance.profile?.name}</span>
+                        <div className="flex items-center space-x-2">
+                        <span className={`text-sm font-medium ${balance.balance >= 0 ? 'text-primary' : 'text-destructive'}`}>
+                            {balance.balance > 0 ? '+' : ''}${Math.abs(balance.balance).toFixed(2)}{balance.balance < 0 && ' owed'}
+                        </span>
+                        </div>
+                    </div>
+                    )) : <p className="text-sm text-secondary-foreground">No balances to show yet. Add some expenses!</p>}
+                </div>
+             </div>
+
              <div className="bg-secondary rounded-lg p-4">
                <div className="flex justify-between items-center mb-3">
                  <h4 className="text-sm font-medium text-foreground">Recurring Expenses</h4>
