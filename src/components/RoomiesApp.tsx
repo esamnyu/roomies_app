@@ -75,7 +75,7 @@ const Layout: React.FC<{
   title?: string;
   showBack?: boolean;
   onBack?: () => void;
-  showUserMenu?: boolean;
+  isHouseholdView?: boolean;
   onShowProfile?: () => void;
   onShowSettings?: () => void;
 }> = ({
@@ -83,11 +83,11 @@ const Layout: React.FC<{
   title = 'Roomies',
   showBack = false,
   onBack,
-  showUserMenu = false,
+  isHouseholdView = false,
   onShowProfile = () => {},
   onShowSettings = () => {}
 }) => {
-  const { profile, signOut } = useAuth();
+  const { user, signOut } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   return (
@@ -105,26 +105,25 @@ const Layout: React.FC<{
                 <h1 className="text-xl font-semibold text-foreground">{title}</h1>
               </div>
 
-              <div className="hidden md:flex items-center space-x-2">
-                 {profile && (
-                    <>
+              {user && (
+                <div className="flex items-center space-x-2">
+                    <div className="hidden md:flex items-center space-x-2">
                         <NotificationBell />
                         <UserMenu 
                             onProfileClick={onShowProfile} 
                             onSettingsClick={onShowSettings} 
                             onSignOut={signOut} 
-                            householdSelected={showUserMenu} 
+                            householdSelected={isHouseholdView} 
                         />
-                    </>
-                 )}
-              </div>
-
-              <div className="flex items-center md:hidden">
-                 {profile && <NotificationBell />}
-                 <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="ml-2 p-2 rounded-md hover:bg-secondary">
-                    {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-                 </button>
-              </div>
+                    </div>
+                    <div className="flex items-center md:hidden">
+                        <NotificationBell />
+                        <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="ml-2 p-2 rounded-md hover:bg-secondary">
+                            {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+                        </button>
+                    </div>
+                </div>
+              )}
             </div>
           </div>
 
@@ -132,7 +131,9 @@ const Layout: React.FC<{
             <div className="md:hidden border-t border-border">
               <div className="px-4 py-3 space-y-2">
                 <button onClick={()=>{onShowProfile(); setMobileMenuOpen(false);}} className="w-full justify-start flex items-center p-2 rounded-md hover:bg-secondary text-sm font-medium"> <User className="h-4 w-4 mr-2"/> My Profile</button>
-                {showUserMenu && <button onClick={()=>{onShowSettings(); setMobileMenuOpen(false);}} className="w-full justify-start flex items-center p-2 rounded-md hover:bg-secondary text-sm font-medium"> <Settings className="h-4 w-4 mr-2"/> Household Settings</button>}
+                {isHouseholdView && (
+                    <button onClick={()=>{onShowSettings(); setMobileMenuOpen(false);}} className="w-full justify-start flex items-center p-2 rounded-md hover:bg-secondary text-sm font-medium"> <Settings className="h-4 w-4 mr-2"/> Household Settings</button>
+                )}
                 <div className="border-t border-border"/>
                 <Button onClick={signOut} variant="secondary" size="sm" className="w-full justify-start">
                   <LogOut className="h-4 w-4 mr-2" />
@@ -320,10 +321,11 @@ const HouseholdWelcomeDisplay: React.FC<{ householdId: string; householdName?: s
 
 
 const Dashboard: React.FC<{ setAppState: (state: AppState) => void }> = ({ setAppState }) => {
-  const { profile } = useAuth();
+  const { user } = useAuth();
   const [households, setHouseholds] = useState<Household[]>([]);
   const [loadingHouseholds, setLoadingHouseholds] = useState(true);
   const [selectedHousehold, setSelectedHousehold] = useState<string | null>(null);
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
 
   const loadHouseholds = useCallback(async () => {
     try {
@@ -347,7 +349,7 @@ const Dashboard: React.FC<{ setAppState: (state: AppState) => void }> = ({ setAp
   }
 
   return (
-    <Layout title={profile?.name || "My Roomies Dashboard"}>
+    <Layout title={"My Households"} isHouseholdView={false} onShowProfile={()=>setIsProfileModalOpen(true)}>
       <div className="space-y-6">
         <div className="flex justify-between items-center">
           <h2 className="text-2xl font-bold text-foreground">Your Households</h2>
@@ -391,6 +393,7 @@ const Dashboard: React.FC<{ setAppState: (state: AppState) => void }> = ({ setAp
           </div>
         )}
       </div>
+      {user && isProfileModalOpen && <ProfileModal user={user} onClose={()=>setIsProfileModalOpen(false)} onUpdate={()=>{}} />}
     </Layout>
   );
 };
@@ -597,7 +600,7 @@ const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = (
 
   if (loadingData && !household) {
       return (
-          <Layout title="Loading Household..." showBack onBack={onBack} showUserMenu={false}>
+          <Layout title="Loading Household..." showBack onBack={onBack} isHouseholdView={false}>
               <LoadingSpinner />
           </Layout>
       );
@@ -606,9 +609,9 @@ const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = (
   return (
     <Layout
         title={household?.name || 'Household Details'}
-        showBack={onBack}
+        showBack
         onBack={onBack}
-        showUserMenu={true}
+        isHouseholdView={true}
         onShowProfile={() => setIsProfileModalOpen(true)}
         onShowSettings={() => setIsHouseholdSettingsModalOpen(true)}>
       <div className="space-y-6">
