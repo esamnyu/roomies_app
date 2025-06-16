@@ -1,3 +1,4 @@
+// src/components/SettleUpModal.tsx
 "use client";
 
 import React, { useState, useEffect } from 'react';
@@ -35,20 +36,20 @@ export const SettleUpModal: React.FC<SettleUpModalProps> = ({ householdId, membe
     }, [selectedSuggestion, members]);
 
     const handleSubmit = async () => {
+      const amount = parseFloat(customAmount);
+      
       if (!payeeId || !customAmount || !householdId || !user) {
         toast.error("Please ensure a recipient and amount are set.");
         return;
       }
     
-      const amount = parseFloat(customAmount);
-
-      if (amount > 99999999.99) {
-        toast.error('The settlement amount is too large. Please enter a value less than 100 million.');
+      if (isNaN(amount) || amount <= 0) {
+        toast.error('Please enter a valid amount greater than 0');
         return;
       }
 
-      if (isNaN(amount) || amount <= 0) {
-        toast.error('Please enter a valid amount greater than 0');
+      if (amount > 99999999.99) {
+        toast.error('The settlement amount is too large. Please enter a value less than 100 million.');
         return;
       }
     
