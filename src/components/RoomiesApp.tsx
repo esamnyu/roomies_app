@@ -2,12 +2,11 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { ChevronRight, Home, DollarSign, CheckSquare, Plus, LogOut, Menu, X, ArrowLeft, Loader2, CreditCard, MessageSquare, Settings, ClipboardList, User, Share2 } from 'lucide-react';
+import { ChevronRight, Home, DollarSign, CheckSquare, Plus, LogOut, Menu, X, ArrowLeft, Loader2, CreditCard, MessageSquare, Settings, ClipboardList, User, Share2, LifeBuoy, Edit3, Trash2 } from 'lucide-react';
 
-import { getHouseholdRecurringExpenses } from '@/lib/api/expenses';
-import { getHouseholdData, getHouseholdDetails, getUserHouseholds, joinHouseholdWithCode } from '@/lib/api/households';
-import { calculateBalances, getSettlementSuggestions } from '@/lib/api/settlements';
-import type { Household, HouseholdMember, Expense, Settlement, RecurringExpense } from '@/lib/types/types';
+import * as api from '../lib/api';
+import type { Household, HouseholdMember, Expense, Settlement, RecurringExpense, HouseRule, Profile } from '../lib/types/types';
+import { User as SupabaseUser } from '@supabase/supabase-js';
 
 import { AuthProvider, useAuth } from './AuthProvider';
 import { NotificationBell } from './NotificationsPanel';
@@ -19,19 +18,74 @@ import { HouseholdSetupForm } from './HouseholdSetupForm';
 import { OnboardingChoice } from './OnboardingChoice';
 import { HouseholdChat } from './HouseholdChat';
 import { ChoreDashboard } from './ChoreDashboard';
-import { HouseholdSettings } from './HouseholdSettings';
 import { AddExpenseModal } from './AddExpenseModal';
 import { AddRecurringExpenseModal } from './AddRecurringExpenseModal';
 import { SettleUpModal } from './SettleUpModal';
 import { ManageJoinCodeModal } from './ManageJoinCodeModal';
-import { Button } from '@/components/ui/Button';
-import { Input } from '@/components/ui/Input';
+import { Button } from './ui/Button';
+import { Input } from './ui/Input';
+import { ProfileModal } from './ProfileModal';
+import { HouseholdSettingsModal } from './HouseholdSettingsModal';
 
-const Layout: React.FC<{ children: React.ReactNode; title?: string; showBack?: boolean; onBack?: () => void }> = ({
+
+// --- START: SHARED & HELPER COMPONENTS ---
+
+const UserMenu: React.FC<{ onProfileClick: () => void; onSettingsClick: () => void; onSignOut: () => void; householdSelected: boolean; }> = ({ onProfileClick, onSettingsClick, onSignOut, householdSelected }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  return (
+    <div className="relative" ref={menuRef}>
+      <button onClick={() => setIsOpen(!isOpen)} className="p-2 rounded-full hover:bg-secondary">
+        <User className="h-5 w-5" />
+      </button>
+      {isOpen && (
+        <div className="absolute right-0 mt-2 w-56 bg-background rounded-md shadow-lg py-1 z-50 border border-border">
+          <button onClick={() => { onProfileClick(); setIsOpen(false); }} className="w-full text-left px-4 py-2 text-sm text-foreground hover:bg-secondary flex items-center">
+            <User className="h-4 w-4 mr-2" /> My Profile
+          </button>
+          {householdSelected && (
+            <button onClick={() => { onSettingsClick(); setIsOpen(false); }} className="w-full text-left px-4 py-2 text-sm text-foreground hover:bg-secondary flex items-center">
+                <Settings className="h-4 w-4 mr-2" /> Household Settings
+            </button>
+          )}
+          <div className="border-t border-border my-1"></div>
+          <button onClick={onSignOut} className="w-full text-left px-4 py-2 text-sm text-destructive hover:bg-destructive/10 flex items-center">
+            <LogOut className="h-4 w-4 mr-2" /> Logout
+          </button>
+        </div>
+      )}
+    </div>
+  );
+};
+
+
+const Layout: React.FC<{
+  children: React.ReactNode;
+  title?: string;
+  showBack?: boolean;
+  onBack?: () => void;
+  showUserMenu?: boolean;
+  onShowProfile?: () => void;
+  onShowSettings?: () => void;
+}> = ({
   children,
   title = 'Roomies',
   showBack = false,
-  onBack
+  onBack,
+  showUserMenu = false,
+  onShowProfile = () => {},
+  onShowSettings = () => {}
 }) => {
   const { profile, signOut } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -51,20 +105,25 @@ const Layout: React.FC<{ children: React.ReactNode; title?: string; showBack?: b
                 <h1 className="text-xl font-semibold text-foreground">{title}</h1>
               </div>
 
-              <div className="hidden md:flex items-center space-x-4">
-                <NotificationBell />
-                <span className="text-sm text-secondary-foreground">{profile?.name}</span>
-                <Button onClick={signOut} variant="secondary" size="sm">
-                  <LogOut className="h-4 w-4 mr-1" />
-                  Logout
-                </Button>
+              <div className="hidden md:flex items-center space-x-2">
+                 {profile && (
+                    <>
+                        <NotificationBell />
+                        <UserMenu 
+                            onProfileClick={onShowProfile} 
+                            onSettingsClick={onShowSettings} 
+                            onSignOut={signOut} 
+                            householdSelected={showUserMenu} 
+                        />
+                    </>
+                 )}
               </div>
 
               <div className="flex items-center md:hidden">
-                <NotificationBell />
-                <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="ml-2 p-2 rounded-md hover:bg-secondary">
-                  {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-                </button>
+                 {profile && <NotificationBell />}
+                 <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="ml-2 p-2 rounded-md hover:bg-secondary">
+                    {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+                 </button>
               </div>
             </div>
           </div>
@@ -72,11 +131,11 @@ const Layout: React.FC<{ children: React.ReactNode; title?: string; showBack?: b
           {mobileMenuOpen && (
             <div className="md:hidden border-t border-border">
               <div className="px-4 py-3 space-y-2">
-                <div className="flex items-center justify-between">
-                    <span className="text-sm text-secondary-foreground">{profile?.name}</span>
-                </div>
+                <button onClick={()=>{onShowProfile(); setMobileMenuOpen(false);}} className="w-full justify-start flex items-center p-2 rounded-md hover:bg-secondary text-sm font-medium"> <User className="h-4 w-4 mr-2"/> My Profile</button>
+                {showUserMenu && <button onClick={()=>{onShowSettings(); setMobileMenuOpen(false);}} className="w-full justify-start flex items-center p-2 rounded-md hover:bg-secondary text-sm font-medium"> <Settings className="h-4 w-4 mr-2"/> Household Settings</button>}
+                <div className="border-t border-border"/>
                 <Button onClick={signOut} variant="secondary" size="sm" className="w-full justify-start">
-                  <LogOut className="h-4 w-4 mr-1" />
+                  <LogOut className="h-4 w-4 mr-2" />
                   Logout
                 </Button>
               </div>
@@ -91,6 +150,7 @@ const Layout: React.FC<{ children: React.ReactNode; title?: string; showBack?: b
     </>
   );
 };
+
 
 const LoadingSpinner = () => (
   <div className="flex items-center justify-center p-4 min-h-screen bg-background">
@@ -190,7 +250,7 @@ const JoinHouseholdWithCode: React.FC<{ onJoined: (household: Household) => void
     setError('');
     setIsLoading(true);
     try {
-      const household = await joinHouseholdWithCode(joinCode);
+      const household = await api.joinHouseholdWithCode(joinCode);
       toast.success(`Successfully joined ${household.name}!`);
       onJoined(household);
     } catch (err) {
@@ -230,7 +290,7 @@ const HouseholdWelcomeDisplay: React.FC<{ householdId: string; householdName?: s
   useEffect(() => {
     if (!householdName && householdId) {
       setLoading(true);
-      getHouseholdDetails(householdId)
+      api.getHouseholdDetails(householdId)
         .then(details => {
           if (details) setFetchedHouseholdName(details.name);
           else toast.error("Could not fetch household details.");
@@ -258,9 +318,6 @@ const HouseholdWelcomeDisplay: React.FC<{ householdId: string; householdName?: s
   );
 };
 
-// src/components/RoomiesApp.tsx
-
-// ... (imports and other components remain the same)
 
 const Dashboard: React.FC<{ setAppState: (state: AppState) => void }> = ({ setAppState }) => {
   const { profile } = useAuth();
@@ -271,7 +328,7 @@ const Dashboard: React.FC<{ setAppState: (state: AppState) => void }> = ({ setAp
   const loadHouseholds = useCallback(async () => {
     try {
       setLoadingHouseholds(true);
-      const data = await getUserHouseholds();
+      const data = await api.getUserHouseholds();
       setHouseholds(data);
     } catch (error) {
       console.error('Error loading households:', error);
@@ -338,11 +395,146 @@ const Dashboard: React.FC<{ setAppState: (state: AppState) => void }> = ({ setAp
   );
 };
 
-// ... (rest of the file remains the same)
 
-type HouseholdDetailTab = 'money' | 'structuredChores' | 'communication' | 'rulesSettings';
+type HouseholdDetailTab = 'money' | 'structuredChores' | 'communication' | 'rules';
+
+
+const AddRuleModal: React.FC<{
+  householdId: string;
+  onClose: () => void;
+  onRuleAdded: () => void;
+}> = ({ householdId, onClose, onRuleAdded }) => {
+  const [category, setCategory] = useState('');
+  const [content, setContent] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
+
+  const handleSubmit = async () => {
+    if (!category.trim() || !content.trim()) {
+      toast.error("Both category and content are required.");
+      return;
+    }
+    setIsSaving(true);
+    try {
+      await api.addHouseRule(householdId, category.trim(), content.trim());
+      toast.success("New rule added!");
+      onRuleAdded();
+    } catch (error) {
+      toast.error("Failed to add rule: " + (error instanceof Error ? error.message : ""));
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const textareaStyles = "mt-1 flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50";
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+      <div className="bg-background rounded-lg p-6 max-w-md w-full">
+        <h3 className="text-lg font-medium text-foreground mb-4">Add a New House Rule</h3>
+        <div className="space-y-4">
+          <div>
+            <label htmlFor="category" className="block text-sm font-medium text-foreground">Category</label>
+            <Input type="text" id="category" value={category} onChange={e => setCategory(e.target.value)} className="mt-1" placeholder="e.g., Cleanliness, Guests" />
+          </div>
+          <div>
+            <label htmlFor="content" className="block text-sm font-medium text-foreground">Rule Content</label>
+            <textarea id="content" value={content} onChange={e => setContent(e.target.value)} className={textareaStyles} rows={3} placeholder="Describe the rule..."></textarea>
+          </div>
+        </div>
+        <div className="mt-6 flex justify-end space-x-3">
+          <Button onClick={onClose} disabled={isSaving} variant="secondary">Cancel</Button>
+          <Button onClick={handleSubmit} disabled={isSaving || !category || !content}>
+            {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Add Rule'}
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const EditRuleModal: React.FC<{
+  householdId: string;
+  rule: HouseRule;
+  onClose: () => void;
+  onRuleUpdated: () => void;
+}> = ({ householdId, rule, onClose, onRuleUpdated }) => {
+  const [category, setCategory] = useState(rule.category);
+  const [content, setContent] = useState(rule.content);
+  const [isSaving, setIsSaving] = useState(false);
+
+  const handleSubmit = async () => {
+    if (!category.trim() || !content.trim()) {
+      toast.error("Both category and content are required.");
+      return;
+    }
+    setIsSaving(true);
+    try {
+      await api.updateHouseRule(householdId, { ...rule, category, content });
+      toast.success("Rule updated!");
+      onRuleUpdated();
+    } catch (error) {
+      toast.error("Failed to update rule: " + (error instanceof Error ? error.message : ""));
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const textareaStyles = "mt-1 flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50";
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+      <div className="bg-background rounded-lg p-6 max-w-md w-full">
+        <h3 className="text-lg font-medium text-foreground mb-4">Edit House Rule</h3>
+        <div className="space-y-4">
+          <div>
+            <label htmlFor="edit-category" className="block text-sm font-medium text-foreground">Category</label>
+            <Input type="text" id="edit-category" value={category} onChange={e => setCategory(e.target.value)} className="mt-1" />
+          </div>
+          <div>
+            <label htmlFor="edit-content" className="block text-sm font-medium text-foreground">Rule Content</label>
+            <textarea id="edit-content" value={content} onChange={e => setContent(e.target.value)} className={textareaStyles} rows={3}></textarea>
+          </div>
+        </div>
+        <div className="mt-6 flex justify-end space-x-3">
+          <Button onClick={onClose} disabled={isSaving} variant="secondary">Cancel</Button>
+          <Button onClick={handleSubmit} disabled={isSaving || !category || !content}>
+            {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Save Changes'}
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const RuleCard: React.FC<{
+  rule: HouseRule;
+  isAdmin: boolean;
+  onEdit: (rule: HouseRule) => void;
+  onDelete: (ruleId: string) => void;
+}> = ({ rule, isAdmin, onEdit, onDelete }) => {
+  return (
+    <div className="bg-secondary p-4 rounded-lg border border-border">
+      <div className="flex justify-between items-center">
+        <h4 className="text-md font-semibold text-foreground">{rule.category}</h4>
+        {isAdmin && (
+          <div className="flex space-x-2">
+            <button onClick={() => onEdit(rule)} className="text-secondary-foreground hover:text-primary" title="Edit Rule">
+              <Edit3 className="h-4 w-4" />
+            </button>
+            <button onClick={() => onDelete(rule.id)} className="text-secondary-foreground hover:text-destructive" title="Delete Rule">
+              <Trash2 className="h-4 w-4" />
+            </button>
+          </div>
+        )}
+      </div>
+      <p className="mt-2 text-sm text-secondary-foreground whitespace-pre-wrap">{rule.content}</p>
+    </div>
+  );
+};
+
 
 const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = ({ householdId, onBack }) => {
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<HouseholdDetailTab>('structuredChores');
   const [household, setHousehold] = useState<Household | null>(null);
   const [members, setMembers] = useState<HouseholdMember[]>([]);
@@ -354,88 +546,81 @@ const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = (
   const [showAddRecurring, setShowAddRecurring] = useState(false);
   const [showAddExpense, setShowAddExpense] = useState(false);
   const [showManageJoinCode, setShowManageJoinCode] = useState(false);
-  const [currentJoinCode, setCurrentJoinCode] = useState<string | null | undefined>(undefined);
   const [showSettleUp, setShowSettleUp] = useState(false);
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  const [isHouseholdSettingsModalOpen, setIsHouseholdSettingsModalOpen] = useState(false);
+  const [showAddRuleModal, setShowAddRuleModal] = useState(false);
+  const [showEditRuleModal, setShowEditRuleModal] = useState(false);
+  const [ruleToEdit, setRuleToEdit] = useState<HouseRule | null>(null);
 
   const isLoadingRef = useRef(false);
   const isMountedRef = useRef(true);
 
-  const refreshData = useCallback(async (showToast = false) => {
-    if (isLoadingRef.current || !isMountedRef.current) {
-      return;
-    }
+  const isAdmin = useMemo(() => members.find(m => m.user_id === user?.id)?.role === 'admin', [members, user]);
 
+  const refreshData = useCallback(async (showToast = false) => {
+    if (isLoadingRef.current || !isMountedRef.current) return;
     isLoadingRef.current = true;
-    if (!showToast) {
-       setLoadingData(true);
-    }
+    if (!showToast) setLoadingData(true);
     
     try {
-      const data = await getHouseholdData(householdId);
-      
+      const data = await api.getHouseholdData(householdId);
       if (!isMountedRef.current) return;
       
-      if (data.household) {
-        setHousehold(data.household);
-        setCurrentJoinCode(data.household.join_code);
-      }
+      if (data.household) setHousehold(data.household);
       setMembers(data.members || []);
       setExpenses(data.recent_expenses || []);
       setSettlements(data.recent_settlements || []);
 
-      const recurringData = await getHouseholdRecurringExpenses(householdId);
+      const recurringData = await api.getHouseholdRecurringExpenses(householdId);
       if (!isMountedRef.current) return;
       
       setRecurringExpenses(recurringData);
-
-      if (showToast) {
-        toast.success("Data refreshed!");
-      }
+      if (showToast) toast.success("Data refreshed!");
     } catch (error) {
       console.error('Error loading household data:', error);
-      if (isMountedRef.current) {
-        toast.error('Failed to load household data.');
-      }
+      if (isMountedRef.current) toast.error('Failed to load household data.');
     } finally {
-      if (isMountedRef.current) {
-        setLoadingData(false);
-      }
+      if (isMountedRef.current) setLoadingData(false);
       isLoadingRef.current = false;
     }
   }, [householdId]);
 
   useEffect(() => {
     isMountedRef.current = true;
-    
     refreshData();
-
-    return () => {
-      isMountedRef.current = false;
-    };
+    return () => { isMountedRef.current = false; };
   }, [householdId, refreshData]);
 
+  const balances = useMemo(() => api.calculateBalances(expenses, members, settlements), [expenses, members, settlements]);
+  const settlementSuggestions = useMemo(() => api.getSettlementSuggestions ? api.getSettlementSuggestions(balances) : [], [balances]);
 
-  const balances = useMemo(() => calculateBalances(expenses, members, settlements), [expenses, members, settlements]);
-  const settlementSuggestions = useMemo(() => getSettlementSuggestions ? getSettlementSuggestions(balances) : [], [balances]);
-
-  const handleRefresh = useCallback(() => {
-    refreshData(true);
-  }, [refreshData]);
-
-  if (loadingData && !household) return <Layout title="Loading Household..." showBack onBack={onBack}><LoadingSpinner /></Layout>;
+  if (loadingData && !household) {
+      return (
+          <Layout title="Loading Household..." showBack onBack={onBack} showUserMenu={false}>
+              <LoadingSpinner />
+          </Layout>
+      );
+  }
 
   return (
-    <Layout title={household?.name || 'Household Details'} showBack onBack={onBack}>
+    <Layout
+        title={household?.name || 'Household Details'}
+        showBack={onBack}
+        onBack={onBack}
+        showUserMenu={true}
+        onShowProfile={() => setIsProfileModalOpen(true)}
+        onShowSettings={() => setIsHouseholdSettingsModalOpen(true)}>
       <div className="space-y-6">
         <div className="border-b border-border">
           <nav className="-mb-px flex space-x-4 sm:space-x-8 overflow-x-auto">
-            {(['money', 'structuredChores', 'communication', 'rulesSettings'] as HouseholdDetailTab[]).map(tab => (
+            {(['money', 'structuredChores', 'communication', 'rules'] as HouseholdDetailTab[]).map(tab => (
               <button key={tab} onClick={() => setActiveTab(tab)} className={`py-2 px-1 sm:px-3 border-b-2 font-medium text-sm whitespace-nowrap ${activeTab === tab ? 'border-primary text-primary' : 'border-transparent text-secondary-foreground hover:text-foreground hover:border-border'}`}>
                 {tab === 'money' && <DollarSign className="inline h-4 w-4 mr-1" />}
                 {tab === 'structuredChores' && <ClipboardList className="inline h-4 w-4 mr-1" />}
                 {tab === 'communication' && <MessageSquare className="inline h-4 w-4 mr-1" />}
-                {tab === 'rulesSettings' && <Settings className="inline h-4 w-4 mr-1" />}
-                {tab === 'money' ? 'Money' : tab === 'structuredChores' ? 'Chores' : tab === 'communication' ? 'Communication' : 'Rules & Settings'}
+                {tab === 'rules' && <LifeBuoy className="inline h-4 w-4 mr-1" />}
+                {tab === 'money' ? 'Money' : tab === 'structuredChores' ? 'Chores' : tab === 'communication' ? 'Communication' : 'Rules'}
               </button>
             ))}
           </nav>
@@ -443,7 +628,6 @@ const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = (
 
         {activeTab === 'money' && (
            <div className="space-y-6">
-             {/* Balance Summary is now here */}
              <div className="bg-background rounded-lg shadow p-6 border border-border">
                 <div className="flex justify-between items-center mb-4">
                     <h3 className="text-lg font-medium text-foreground">Balance Summary</h3>
@@ -456,16 +640,15 @@ const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = (
                     <div key={balance.userId} className="flex justify-between items-center">
                         <span className="text-sm text-secondary-foreground">{balance.profile?.name}</span>
                         <div className="flex items-center space-x-2">
-                        <span className={`text-sm font-medium ${balance.balance >= 0 ? 'text-primary' : 'text-destructive'}`}>
-                            {balance.balance > 0 ? '+' : ''}${Math.abs(balance.balance).toFixed(2)}{balance.balance < 0 && ' owed'}
-                        </span>
+                            <span className={`text-sm font-medium ${balance.balance >= 0 ? 'text-primary' : 'text-destructive'}`}>
+                                {balance.balance > 0 ? '+' : ''}${Math.abs(balance.balance).toFixed(2)}{balance.balance < 0 && ' owed'}
+                            </span>
                         </div>
                     </div>
                     )) : <p className="text-sm text-secondary-foreground">No balances to show yet. Add some expenses!</p>}
                 </div>
              </div>
-
-             <div className="bg-secondary rounded-lg p-4">
+              <div className="bg-secondary rounded-lg p-4">
                <div className="flex justify-between items-center mb-3">
                  <h4 className="text-sm font-medium text-foreground">Recurring Expenses</h4>
                  <Button onClick={() => setShowAddRecurring(true)} variant="outline" size="sm"><Plus className="h-4 w-4 inline mr-1" />Add Recurring</Button>
@@ -487,9 +670,11 @@ const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = (
           <div className="space-y-4">
             <div className="flex justify-between items-center">
                 <h3 className="text-lg font-medium text-foreground">Members</h3>
-                <Button onClick={() => setShowManageJoinCode(true)} variant="secondary" size="sm">
-                    <Share2 className="h-4 w-4 mr-1" /> Manage Join Code
-                </Button>
+                {isAdmin && (
+                    <Button onClick={() => setShowManageJoinCode(true)} variant="secondary" size="sm">
+                        <Share2 className="h-4 w-4 mr-1" /> Manage Join Code
+                    </Button>
+                )}
             </div>
             <div className="space-y-3">
               {loadingData && members.length === 0 ? <LoadingSpinner/> : members.map(member => (<div key={member.id} className="bg-background rounded-lg shadow p-4 border border-border"><div className="flex items-center justify-between"><div className="flex items-center"><div className="h-10 w-10 rounded-full bg-secondary flex items-center justify-center text-secondary-foreground">{member.profiles?.name?.charAt(0).toUpperCase() || <User className="h-5 w-5" />}</div><div className="ml-3"><p className="font-medium text-foreground">{member.profiles?.name}</p><p className="text-xs text-secondary-foreground">{member.role}</p></div></div></div></div>))}
@@ -501,13 +686,44 @@ const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = (
           </div>
         )}
 
-        {activeTab === 'rulesSettings' && household && ( <HouseholdSettings household={household} members={members} onUpdate={handleRefresh} />)}
+        {activeTab === 'rules' && household && (
+           <div className="bg-background rounded-lg shadow border border-border">
+                <div className="p-6">
+                    <div className="flex justify-between items-center mb-4">
+                         <h3 className="text-lg font-semibold text-foreground">House Rules</h3>
+                         {isAdmin && (
+                            <Button onClick={() => setShowAddRuleModal(true)}>
+                                <Plus className="h-4 w-4 mr-2" /> Add New Rule
+                            </Button>
+                         )}
+                    </div>
+                    <div className="space-y-4">
+                        {household.rules && household.rules.length > 0 ? (
+                        household.rules.map((rule) => (
+                            <RuleCard key={rule.id} rule={rule} isAdmin={isAdmin} onEdit={rule => { setRuleToEdit(rule); setShowEditRuleModal(true); }} onDelete={async (id) => { if(window.confirm('Are you sure?')) { await api.deleteHouseRule(householdId, id); refreshData(true) }}} />
+                        ))
+                        ) : (
+                        <div className="text-center py-8">
+                            <p className="text-sm text-secondary-foreground">No house rules have been added yet.</p>
+                            {isAdmin && <p className="text-xs text-secondary-foreground opacity-70 mt-1">Click &quot;Add New Rule&quot; to get started.</p>}
+                        </div>
+                        )}
+                    </div>
+                </div>
+           </div>
+        )}
       </div>
 
-      {showAddExpense && <AddExpenseModal householdId={householdId} members={members} onClose={() => setShowAddExpense(false)} onExpenseAdded={handleRefresh} />}
-      {showSettleUp && <SettleUpModal householdId={householdId} members={members} settlementSuggestions={settlementSuggestions} onClose={() => setShowSettleUp(false)} onSettlementCreated={handleRefresh} />}
-      {showAddRecurring && <AddRecurringExpenseModal householdId={householdId} onClose={() => setShowAddRecurring(false)} onExpenseAdded={handleRefresh} />}
-      {showManageJoinCode && householdId && <ManageJoinCodeModal householdId={householdId} currentCode={currentJoinCode} onClose={() => setShowManageJoinCode(false)} onCodeRefreshed={(newCode) => { setCurrentJoinCode(newCode); if (household) setHousehold({...household, join_code: newCode }); }} />}
+      {showAddExpense && <AddExpenseModal householdId={householdId} members={members} onClose={() => setShowAddExpense(false)} onExpenseAdded={() => refreshData(true)} />}
+      {showSettleUp && <SettleUpModal householdId={householdId} members={members} settlementSuggestions={settlementSuggestions} onClose={() => setShowSettleUp(false)} onSettlementCreated={() => refreshData(true)} />}
+      {showAddRecurring && <AddRecurringExpenseModal householdId={householdId} onClose={() => setShowAddRecurring(false)} onExpenseAdded={() => refreshData(true)} />}
+      {showManageJoinCode && householdId && <ManageJoinCodeModal householdId={householdId} currentCode={household?.join_code} onClose={() => setShowManageJoinCode(false)} onCodeRefreshed={(newCode) => { if(household) setHousehold({...household, join_code: newCode }); }} />}
+      
+      {isProfileModalOpen && user && <ProfileModal user={user} onClose={() => setIsProfileModalOpen(false)} onUpdate={() => refreshData(true)} />}
+      {isHouseholdSettingsModalOpen && household && <HouseholdSettingsModal household={household} members={members} onClose={() => setIsHouseholdSettingsModalOpen(false)} onUpdate={() => refreshData(true)} />}
+      
+      {showAddRuleModal && household && <AddRuleModal householdId={household.id} onClose={() => setShowAddRuleModal(false)} onRuleAdded={() => {setShowAddRuleModal(false); refreshData(true);}} />}
+      {showEditRuleModal && ruleToEdit && household && <EditRuleModal householdId={household.id} rule={ruleToEdit} onClose={() => setRuleToEdit(null)} onRuleUpdated={() => {setRuleToEdit(null); refreshData(true);}} />}
     </Layout>
   );
 };
@@ -533,7 +749,7 @@ const App: React.FC = () => {
         return;
       }
       try {
-        const userHouseholds = await getUserHouseholds();
+        const userHouseholds = await api.getUserHouseholds();
         setUserHasHouseholds(userHouseholds.length > 0);
         
         const queryParams = new URLSearchParams(window.location.search);
@@ -564,16 +780,17 @@ const App: React.FC = () => {
 
   if (appState === 'loading' || (user && userHasHouseholds === null)) return <LoadingSpinner />;
 
+  const handleCancelSetupOrJoin = () => {
+    setAppState(userHasHouseholds ? 'dashboard' : 'onboardingChoice');
+  };
+
   switch (appState) {
     case 'landing': return <LandingPageContent onSignIn={() => { setIsRegisteringForAuthForm(false); setAppState('authForm'); }} onSignUp={() => { setIsRegisteringForAuthForm(true); setAppState('authForm'); }} />;
     case 'authForm': return <AuthForm isRegisteringInitially={isRegisteringForAuthForm} />;
     case 'onboardingChoice': return <OnboardingChoice onCreateHousehold={() => setAppState('householdSetup')} onJoinHousehold={() => setAppState('joinWithCode')} />;
-    case 'householdSetup': {
-      const handleCancelSetup = () => {
-        setAppState(userHasHouseholds ? 'dashboard' : 'onboardingChoice');
-      };
+    case 'householdSetup':
       return (
-        <Layout title="Create Household" showBack onBack={handleCancelSetup}>
+        <Layout title="Create Household" showBack onBack={handleCancelSetupOrJoin}>
           <div className="flex justify-center">
               <HouseholdSetupForm
                 onHouseholdCreated={(hid) => {
@@ -582,28 +799,23 @@ const App: React.FC = () => {
                   setWelcomeHouseholdId(hid);
                   setAppState('householdWelcome');
                 }}
-                onCancel={handleCancelSetup}
+                onCancel={handleCancelSetupOrJoin}
               />
           </div>
         </Layout>
       );
-    }
-    case 'joinWithCode': {
-      const handleCancelJoin = () => {
-        setAppState(userHasHouseholds ? 'dashboard' : 'onboardingChoice');
-      };
+    case 'joinWithCode': 
       return (
-        <Layout title="Join Household" showBack onBack={handleCancelJoin}>
+        <Layout title="Join Household" showBack onBack={handleCancelSetupOrJoin}>
             <JoinHouseholdWithCode
               onJoined={(household) => {
                 setUserHasHouseholds(true);
                 setTargetHouseholdAfterJoin(household);
               }}
-              onCancel={handleCancelJoin}
+              onCancel={handleCancelSetupOrJoin}
             />
         </Layout>
       );
-    }
     case 'householdWelcome':
       if (welcomeHouseholdId) {
         return <HouseholdWelcomeDisplay householdId={welcomeHouseholdId} onProceed={() => { setWelcomeHouseholdId(null); setAppState('dashboard'); }} />;
