@@ -5,7 +5,7 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { ChevronRight, Home, DollarSign, CheckSquare, Plus, LogOut, Menu, X, ArrowLeft, Loader2, CreditCard, MessageSquare, Settings, ClipboardList, User, Share2, LifeBuoy, Edit3, Trash2 } from 'lucide-react';
 
 import * as api from '../lib/api';
-import type { Household, HouseholdMember, Expense, Settlement, RecurringExpense, HouseRule, Profile } from '../lib/types/types';
+import { Household, HouseholdMember, Expense, Settlement, RecurringExpense, HouseRule, Profile } from '../lib/types/types';
 import { User as SupabaseUser } from '@supabase/supabase-js';
 
 import { AuthProvider, useAuth } from './AuthProvider';
@@ -555,6 +555,7 @@ const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = (
   const [showAddRuleModal, setShowAddRuleModal] = useState(false);
   const [showEditRuleModal, setShowEditRuleModal] = useState(false);
   const [ruleToEdit, setRuleToEdit] = useState<HouseRule | null>(null);
+  
 
   const isLoadingRef = useRef(false);
   const isMountedRef = useRef(true);
@@ -598,6 +599,11 @@ const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = (
   const balances = useMemo(() => api.calculateBalances(expenses, members, settlements), [expenses, members, settlements]);
   const settlementSuggestions = useMemo(() => api.getSettlementSuggestions ? api.getSettlementSuggestions(balances) : [], [balances]);
 
+    // New: Calculate the current user's overall balance
+  const currentUserBalance = useMemo(() => {
+    return balances.find(b => b.userId === user?.id)?.balance || 0;
+  }, [balances, user]);
+
   if (loadingData && !household) {
       return (
           <Layout title="Loading Household..." showBack onBack={onBack} isHouseholdView={false}>
@@ -629,28 +635,54 @@ const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = (
           </nav>
         </div>
 
-        {activeTab === 'money' && (
-           <div className="space-y-6">
-             <div className="bg-background rounded-lg shadow p-6 border border-border">
-                <div className="flex justify-between items-center mb-4">
-                    <h3 className="text-lg font-medium text-foreground">Balance Summary</h3>
-                    <Button onClick={() => setShowSettleUp(true)} size="sm">
-                        <CreditCard className="h-4 w-4 mr-1" />Settle Up
-                    </Button>
-                </div>
-                <div className="space-y-2">
-                    {balances.length > 0 ? balances.map(balance => (
-                    <div key={balance.userId} className="flex justify-between items-center">
-                        <span className="text-sm text-secondary-foreground">{balance.profile?.name}</span>
-                        <div className="flex items-center space-x-2">
-                            <span className={`text-sm font-medium ${balance.balance >= 0 ? 'text-primary' : 'text-destructive'}`}>
-                                {balance.balance > 0 ? '+' : ''}${Math.abs(balance.balance).toFixed(2)}{balance.balance < 0 && ' owed'}
-                            </span>
+  {activeTab === 'money' && (
+       <div className="space-y-6">
+         <div className="bg-background rounded-lg shadow p-6 border border-border">
+            <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-medium text-foreground">Balance Summary</h3>
+                <Button onClick={() => setShowSettleUp(true)} size="sm">
+                    <CreditCard className="h-4 w-4 mr-1" />Settle Up
+                </Button>
+            </div>
+            {/* New Overall Summary for the current user */}
+            <div className="mb-4 text-center p-3 bg-secondary rounded-lg">
+                <p className="text-base text-secondary-foreground">
+                    {Math.abs(currentUserBalance) < 0.01 && "You are all settled up."}
+                    {currentUserBalance > 0.01 && `Overall, you are owed `}
+                    {currentUserBalance < -0.01 && `Overall, you owe `}
+                    {Math.abs(currentUserBalance) >= 0.01 && 
+                        <span className={`font-bold ${currentUserBalance > 0 ? 'text-primary' : 'text-destructive'}`}>
+                            ${Math.abs(currentUserBalance).toFixed(2)}
+                        </span>
+                    }
+                </p>
+            </div>
+            {/* Revamped Balances List */}
+            <div className="space-y-1">
+                {balances.length > 0 ? balances.map(balance => {
+                    if (Math.abs(balance.balance) < 0.01) {
+                        return (
+                             <div key={balance.userId} className="flex justify-between items-center text-sm text-secondary-foreground p-2">
+                                <span>{balance.profile?.name} {balance.userId === user?.id && '(You)'}</span>
+                                <span className="italic">is settled up</span>
+                            </div>
+                        );
+                    }
+                    
+                    const isOwed = balance.balance > 0;
+                    
+                    return (
+                        <div key={balance.userId} className={`flex justify-between items-center p-2 rounded-md text-sm ${balance.userId === user?.id ? 'bg-secondary' : ''}`}>
+                            <span className="font-medium text-foreground">{balance.profile?.name} {balance.userId === user?.id && '(You)'}</span>
+                            <div className={`font-medium ${isOwed ? 'text-primary' : 'text-destructive'}`}>
+                                {isOwed ? 'gets back ' : 'owes '}
+                                ${Math.abs(balance.balance).toFixed(2)}
+                            </div>
                         </div>
-                    </div>
-                    )) : <p className="text-sm text-secondary-foreground">No balances to show yet. Add some expenses!</p>}
-                </div>
-             </div>
+                    );
+                }) : <p className="text-sm text-secondary-foreground">No balances to show yet. Add some expenses!</p>}
+            </div>
+         </div>
               <div className="bg-secondary rounded-lg p-4">
                <div className="flex justify-between items-center mb-3">
                  <h4 className="text-sm font-medium text-foreground">Recurring Expenses</h4>
