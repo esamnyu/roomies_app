@@ -9,7 +9,8 @@ import ReactMarkdown from 'react-markdown';
 // IMPORTANT: YOU MUST ADD YOUR GEMINI API KEY HERE
 // Get your key from Google AI Studio: https://aistudio.google.com/app/apikey
 // ====================================================================================
-const API_KEY = 'AIzaSyADw9-lNOWwdLWd6uTpmHr6uuRstbTdJDk'; // <--- PASTE YOUR API KEY HERE
+const API_KEY = process.env.NEXT_PUBLIC_GOOGLE_API_KEY;
+
 
 // --- Component ---
 
