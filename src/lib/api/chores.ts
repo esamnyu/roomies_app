@@ -311,19 +311,134 @@ export const markChoreAssignmentComplete = async (assignmentId: string, userId: 
   return data;
 };
 
+export const generateChoresForDuration = async (householdId: string, monthsToGenerate: number): Promise<ChoreAssignment[]> => {
+    const household = await getHouseholdDetails(householdId);
+    if (!household) throw new Error('Household not found');
+
+    const allMembers = await getHouseholdMembers(householdId);
+    const availableMembers = allMembers.filter(member => !isUserOnVacation(member) && member.profiles);
+    if (availableMembers.length === 0) {
+        console.log("No available members to assign chores to.");
+        return [];
+    }
+
+    const { data: choresDefinitions, error: choresError } = await supabase
+        .from('household_chores')
+        .select('*')
+        .eq('household_id', householdId)
+        .eq('is_active', true)
+        .order('default_order', { ascending: true });
+
+    if (choresError || !choresDefinitions || choresDefinitions.length === 0) {
+        console.log(`No active chores found for household ${householdId}.`);
+        return [];
+    }
+    
+    // Clear all future pending assignments to prevent duplicates
+    const { error: deleteError } = await supabase
+        .from('chore_assignments')
+        .delete()
+        .eq('household_id', householdId)
+        .eq('status', 'pending')
+        .gte('due_date', new Date().toISOString().split('T')[0]);
+
+    if (deleteError) {
+        console.warn("Could not clear old pending assignments:", deleteError);
+    }
+
+    const frequency = household.chore_frequency || 'Weekly';
+    const framework = household.chore_framework || 'Split';
+    let currentAssigneeIndex = household.chore_current_assignee_index ?? 0;
+    
+    let cycleStartDate = new Date();
+    cycleStartDate.setHours(0,0,0,0);
+
+    const endDate = new Date();
+    endDate.setMonth(endDate.getMonth() + monthsToGenerate);
+
+    const allNewAssignments: Omit<ChoreAssignment, 'id' | 'created_at' | 'updated_at'>[] = [];
+
+    while(cycleStartDate < endDate) {
+        const dueDate = new Date(cycleStartDate);
+        switch (frequency) {
+            case 'Daily': dueDate.setDate(cycleStartDate.getDate() + 1); break;
+            case 'Weekly': dueDate.setDate(cycleStartDate.getDate() + 7); break;
+            case 'Bi-weekly': dueDate.setDate(cycleStartDate.getDate() + 14); break;
+            case 'Monthly': dueDate.setMonth(cycleStartDate.getMonth() + 1); break;
+            default: dueDate.setDate(cycleStartDate.getDate() + 7);
+        }
+        dueDate.setHours(23, 59, 59, 999);
+
+        const memberIds = availableMembers.map(m => m.user_id);
+
+        if (framework === 'One person army') {
+            const assigneeUserId = memberIds[currentAssigneeIndex];
+            choresDefinitions.forEach(choreDef => {
+                allNewAssignments.push({
+                    household_chore_id: choreDef.id,
+                    household_id: householdId,
+                    assigned_user_id: assigneeUserId,
+                    cycle_start_date: cycleStartDate.toISOString().split('T')[0],
+                    due_date: dueDate.toISOString().split('T')[0],
+                    status: 'pending',
+                });
+            });
+        } else { // 'Split' framework
+            choresDefinitions.forEach((choreDef, index) => {
+                const assigneeUserId = memberIds[(currentAssigneeIndex + index) % memberIds.length];
+                allNewAssignments.push({
+                    household_chore_id: choreDef.id,
+                    household_id: householdId,
+                    assigned_user_id: assigneeUserId,
+                    cycle_start_date: cycleStartDate.toISOString().split('T')[0],
+                    due_date: dueDate.toISOString().split('T')[0],
+                    status: 'pending',
+                });
+            });
+        }
+        
+        currentAssigneeIndex = (currentAssigneeIndex + 1) % availableMembers.length;
+        cycleStartDate = dueDate;
+        cycleStartDate.setDate(cycleStartDate.getDate() + 1); // Start next cycle the day after the due date
+        cycleStartDate.setHours(0,0,0,0);
+    }
+    
+    if (allNewAssignments.length > 0) {
+        const { data: insertedAssignments, error: insertError } = await supabase
+            .from('chore_assignments')
+            .insert(allNewAssignments)
+            .select();
+            
+        if (insertError) {
+            console.error('Error bulk inserting chore assignments:', insertError);
+            throw insertError;
+        }
+
+        // Update the household's rotation index for the next generation
+        await supabase.from('households').update({ chore_current_assignee_index: currentAssigneeIndex }).eq('id', householdId);
+
+        return insertedAssignments || [];
+    }
+    
+    return [];
+};
+
+
+// MODIFIED: Fetch assignments for the next 6 months to populate the calendar
 export const getChoreRotationUIData = async (
   householdId: string
 ): Promise<{
-  currentAssignments: ChoreAssignment[],
+  allAssignments: ChoreAssignment[],
   householdInfo: Household | null,
   members: HouseholdMember[]
 }> => {
   const householdInfo = await getHouseholdDetails(householdId);
   const members = await getHouseholdMembers(householdId);
 
-  const cycleStartDateToQuery = householdInfo?.last_chore_rotation_date || new Date().toISOString().split('T')[0];
+  const sixMonthsFromNow = new Date();
+  sixMonthsFromNow.setMonth(sixMonthsFromNow.getMonth() + 6);
 
-  const { data: currentAssignments, error } = await supabase
+  const { data: allAssignments, error } = await supabase
     .from('chore_assignments')
     .select(`
       *,
@@ -331,67 +446,20 @@ export const getChoreRotationUIData = async (
       assigned_profile:profiles (id, name, avatar_url)
     `)
     .eq('household_id', householdId)
-    .eq('cycle_start_date', cycleStartDateToQuery)
+    .gte('due_date', new Date().toISOString().split('T')[0])
+    .lte('due_date', sixMonthsFromNow.toISOString().split('T')[0])
     .order('due_date', { ascending: true })
     .order('id', { ascending: true });
-
+    
   if (error) {
-    console.error("Error fetching current chore assignments for UI data:", error);
+    console.error("Error fetching assignments for UI data:", error);
     throw error;
   }
 
   return {
-    currentAssignments: currentAssignments || [],
+    allAssignments: allAssignments || [],
     householdInfo,
     members,
   };
 };
 
-/**
- * [FIXED] This function now only checks if a rotation is due without triggering it.
- * This prevents side-effects during data fetching.
- */
-export const isChoreRotationDue = async (householdId: string): Promise<{ due: boolean, household: Household | null }> => {
-  const household = await getHouseholdDetails(householdId);
-  if (!household) {
-      console.warn(`Could not find household ${householdId} to check for chore rotation.`);
-      return { due: false, household: null };
-  }
-
-  const today = new Date();
-  today.setHours(0,0,0,0);
-
-  if (household.next_chore_rotation_date) {
-    const nextRotationDate = new Date(household.next_chore_rotation_date);
-    nextRotationDate.setHours(0,0,0,0);
-
-    if (today >= nextRotationDate) {
-      return { due: true, household };
-    }
-  } else {
-    // Rotation has never happened, so it's "due"
-    return { due: true, household };
-  }
-  
-  return { due: false, household };
-};
-
-
-/**
- * [FIXED] This new function explicitly triggers the chore rotation.
- * It should be called based on a user action, not as a side-effect of rendering.
- */
-export const triggerChoreRotation = async (householdId: string, householdData?: Household): Promise<void> => {
-    const household = householdData || await getHouseholdDetails(householdId);
-    if (!household) {
-        throw new Error(`Could not find household ${householdId} to trigger rotation.`);
-    }
-
-    if (household.next_chore_rotation_date) {
-        console.log(`Chore rotation due for household ${householdId}. Triggering...`);
-        await assignChoresForCurrentCycle(householdId, household);
-    } else {
-        console.log(`Initial chore assignment or re-initialization for household ${householdId}.`);
-        await initializeChoresForHousehold(householdId, household);
-    }
-};
