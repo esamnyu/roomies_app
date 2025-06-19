@@ -7,6 +7,7 @@ export const createSettlement = async (settlement: Omit<Settlement, 'id' | 'crea
   const { data, error } = await supabase
     .rpc('create_settlement_and_notify', {
       p_household_id: settlement.household_id,
+      p_payer_id: settlement.payer_id,
       p_payee_id: settlement.payee_id,
       p_amount: settlement.amount,
       p_description: settlement.description
@@ -113,14 +114,16 @@ export const calculateBalances = (expenses: Expense[], members: HouseholdMember[
     settlements.forEach(settlement => {
       if (!settlement.payer_id || !settlement.payee_id || settlement.amount <= 0) return;
 
+      // When someone pays, their debt decreases (balance goes UP toward 0)
       if (balanceMap.has(settlement.payer_id)) {
         const payerBalance = balanceMap.get(settlement.payer_id) || 0;
-        balanceMap.set(settlement.payer_id, payerBalance - settlement.amount);
+        balanceMap.set(settlement.payer_id, payerBalance + settlement.amount);
       }
 
+      // When someone receives payment, their credit decreases (balance goes DOWN toward 0)
       if (balanceMap.has(settlement.payee_id)) {
         const payeeBalance = balanceMap.get(settlement.payee_id) || 0;
-        balanceMap.set(settlement.payee_id, payeeBalance + settlement.amount);
+        balanceMap.set(settlement.payee_id, payeeBalance - settlement.amount);
       }
     });
   }

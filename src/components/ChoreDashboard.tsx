@@ -1,9 +1,9 @@
+// src/components/ChoreDashboard.tsx
 "use client";
-import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { CheckCircle, Circle, PlusCircle, RefreshCw, AlertTriangle, Loader2, ClipboardList, Edit, ToggleLeft, ToggleRight } from 'lucide-react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { CheckCircle, Circle, PlusCircle, RefreshCw, AlertTriangle, Loader2, ClipboardList, Edit, ToggleLeft, ToggleRight, Calendar, List, Activity } from 'lucide-react';
 import {
   addCustomChoreToHousehold,
-  // assignChoresForCurrentCycle, // No longer called directly from here
   isChoreRotationDue,
   triggerChoreRotation,
   getChoreRotationUIData,
@@ -12,24 +12,161 @@ import {
   toggleChoreActive,
   updateHouseholdChore
 } from '@/lib/api/chores';
-import type { ChoreAssignment, Household, HouseholdMember, HouseholdChore } from '@/lib/types/types';
+import type { ChoreAssignment, Household, HouseholdMember, HouseholdChore, Profile } from '@/lib/types/types';
 import { useAuth } from './AuthProvider';
 import { toast } from 'react-hot-toast';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
-//yes, this is a client component
-interface ChoreDashboardProps {
-  householdId: string;
-}
+import { supabase } from '@/lib/supabase';
 
+// Utility to get initials from a name
 const getInitials = (name?: string | null) => {
   if (!name) return '?';
   const parts = name.split(' ');
-  if (parts.length > 1) {
-    return parts[0][0] + parts[parts.length - 1][0];
-  }
-  return name.substring(0, 2);
+  return parts.length > 1 ? parts[0][0] + parts[parts.length - 1][0] : name.substring(0, 2);
 };
+
+// --- START: CHILD COMPONENTS ---
+
+const ActivityLog: React.FC<{ assignments: ChoreAssignment[] }> = ({ assignments }) => {
+    const sortedActivities = [...assignments]
+        .filter(a => a.status === 'completed' || (a.status === 'missed' && new Date(a.due_date) < new Date()))
+        .sort((a, b) => new Date(b.completed_at || b.due_date).getTime() - new Date(a.completed_at || a.due_date).getTime())
+        .slice(0, 15);
+
+    return (
+        <div className="bg-white p-4 rounded-2xl shadow-md h-full">
+            <h2 className="text-xl font-semibold mb-4">Activity</h2>
+            {sortedActivities.length === 0 ? (
+                 <div className="flex items-center justify-center h-full">
+                    <p className="text-sm text-gray-500">No recent activity.</p>
+                </div>
+            ) : (
+                <ul className="space-y-3">
+                    {sortedActivities.map((log) => (
+                        <li key={`log-${log.id}`} className="flex items-start space-x-2">
+                            <span className={`mt-1.5 h-2 w-2 flex-shrink-0 rounded-full ${log.status === 'completed' ? 'bg-green-500' : 'bg-red-500'}`}></span>
+                            <span className={`${log.status === 'missed' ? 'text-red-500' : 'text-gray-800'} text-sm`}>
+                                {new Date(log.completed_at || log.due_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} – {log.chore_definition?.name} {log.status === 'completed' ? 'completed' : 'missed'} by {log.assigned_profile?.name || 'N/A'}
+                            </span>
+                        </li>
+                    ))}
+                </ul>
+            )}
+        </div>
+    );
+};
+
+const CalendarDay: React.FC<{ day: Date; chores: ChoreAssignment[]; isToday?: boolean; }> = ({ day, chores, isToday }) => {
+  return (
+      <div className={`border bg-gray-50 p-2 rounded-lg flex flex-col min-h-[100px] ${isToday ? 'border-blue-500 border-2' : ''}`}>
+          <h3 className={`text-sm font-medium mb-1 text-center ${isToday ? 'text-blue-600' : ''}`}>{day.toLocaleDateString('en-US', { weekday: 'short' })}</h3>
+          <div className="space-y-1 flex-grow">
+              {chores.map(chore => (
+                  <div key={chore.id} className="flex items-center justify-between bg-white p-1 rounded-lg shadow-inner text-xs">
+                      <span className="truncate">{chore.chore_definition?.name}</span>
+                      <div className="ml-1 flex-shrink-0 h-5 w-5 bg-gray-300 rounded-full flex items-center justify-center text-xs font-semibold">
+                          {getInitials(chore.assigned_profile?.name)}
+                      </div>
+                  </div>
+              ))}
+          </div>
+      </div>
+  );
+};
+
+const WeeklyChoreCalendar: React.FC<{ assignments: ChoreAssignment[] }> = ({ assignments }) => {
+    const today = new Date();
+    const startOfWeek = new Date(today);
+    startOfWeek.setDate(today.getDate() - (today.getDay() === 0 ? 6 : today.getDay() - 1)); // Monday as start of the week
+
+    const weekDays = Array.from({ length: 7 }).map((_, i) => {
+        const day = new Date(startOfWeek);
+        day.setDate(startOfWeek.getDate() + i);
+        return day;
+    });
+
+    return (
+        <div className="bg-white p-4 rounded-2xl shadow-md">
+            <h2 className="text-xl font-semibold mb-4">Weekly Calendar</h2>
+            <div className="grid grid-cols-7 gap-2 text-center">
+                {weekDays.map((day, idx) => {
+                    const dayString = day.toISOString().split('T')[0];
+                    const choresForDay = assignments.filter(a => a.due_date === dayString);
+                    const isToday = day.toDateString() === new Date().toDateString();
+                    return <CalendarDay key={idx} day={day} chores={choresForDay} isToday={isToday}/>;
+                })}
+            </div>
+        </div>
+    );
+};
+
+const RotationSchedule: React.FC<{ household: Household | null; members: HouseholdMember[]; chores: HouseholdChore[] }> = ({ household, members, chores }) => {
+    const schedule = useMemo(() => {
+        if (!household || members.length === 0 || chores.length === 0 || !household.chore_frequency || !household.next_chore_rotation_date) return [];
+
+        const activeChores = chores.filter(c => c.is_active).sort((a,b) => (a.default_order || 0) - (b.default_order || 0));
+        const activeMembers = members.filter(m => m.profiles && !m.user_id.startsWith('placeholder_'));
+        if (activeMembers.length === 0 || activeChores.length === 0) return [];
+
+        let assigneeIndex = household.chore_current_assignee_index ?? 0;
+        let cycleStart = new Date(household.next_chore_rotation_date + 'T00:00:00');
+
+        const getNextDate = (d: Date) => {
+            const next = new Date(d);
+            switch (household.chore_frequency) {
+                case 'Weekly': next.setDate(d.getDate() + 7); break;
+                case 'Bi-weekly': next.setDate(d.getDate() + 14); break;
+                case 'Monthly': next.setMonth(d.getMonth() + 1); break;
+                default: next.setDate(d.getDate() + 7);
+            }
+            return next;
+        }
+
+        return Array.from({ length: 3 }).map(() => {
+            const periodEnd = getNextDate(cycleStart);
+            periodEnd.setDate(periodEnd.getDate() - 1);
+            const periodLabel = `${cycleStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}–${periodEnd.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
+
+            const currentAssignments = activeChores.map((chore, index) => {
+                const memberIndex = (assigneeIndex + index) % activeMembers.length;
+                return {
+                    choreName: chore.name,
+                    profile: activeMembers[memberIndex]?.profiles
+                };
+            });
+            
+            assigneeIndex = (assigneeIndex + 1) % activeMembers.length;
+            cycleStart = getNextDate(cycleStart);
+
+            return { label: periodLabel, assignments: currentAssignments };
+        });
+    }, [household, members, chores]);
+
+    return (
+        <div className="bg-white p-4 rounded-2xl shadow-md h-full">
+            <h2 className="text-xl font-semibold mb-4">Rotation Schedule</h2>
+            <div className="space-y-4">
+                {schedule.map((week, idx) => (
+                    <div key={idx} className="border-t pt-3">
+                        <h3 className="font-medium mb-2 text-sm">{week.label}</h3>
+                        <div className="flex flex-col space-y-2">
+                            {week.assignments.map((assignment, i) => (
+                                <div key={i} className="flex items-center space-x-3">
+                                    <div className="h-8 w-8 bg-gray-300 rounded-full flex items-center justify-center text-xs font-semibold">
+                                        {getInitials(assignment.profile?.name)}
+                                    </div>
+                                    <span className="text-sm">{assignment.choreName}</span>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+};
+
 
 const ChoreCard: React.FC<{
   assignment: ChoreAssignment;
@@ -42,59 +179,51 @@ const ChoreCard: React.FC<{
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  let statusText = 'Upcoming';
-  let statusColor = 'bg-secondary border-input text-secondary-foreground';
-  let iconColor = 'text-secondary-foreground';
+  let bgColor = 'bg-green-50';
+  if (dueDate < today && assignment.status !== 'completed') bgColor = 'bg-red-50';
+  if (dueDate.getTime() === today.getTime() && assignment.status !== 'completed') bgColor = 'bg-yellow-50';
+  if(assignment.status === 'completed') bgColor = 'bg-gray-100 opacity-70';
 
-  if (assignment.status === 'completed') {
-    statusText = 'Completed';
-    statusColor = 'bg-primary/5 border-primary/20 text-primary opacity-70';
-    iconColor = 'text-primary';
-  } else if (dueDate < today) {
-    statusText = 'Overdue';
-    statusColor = 'bg-destructive/5 border-destructive/20 text-destructive';
-    iconColor = 'text-destructive';
-  } else if (dueDate.getTime() === today.getTime()) {
-    statusText = 'Due Today';
-    statusColor = 'bg-accent/5 border-accent/20 text-accent';
-    iconColor = 'text-accent';
-  }
 
   const isAssignedToCurrentUser = assigned_user_id === currentUserId;
   const memberName = profile?.name || (assigned_user_id?.startsWith('placeholder_') ? `Placeholder ${assigned_user_id.split('_')[1]}` : 'Unassigned');
 
   return (
-    <div className={`p-4 rounded-lg shadow-md border-l-4 ${statusColor} flex flex-col justify-between`}>
+    <div className={`${bgColor} p-5 rounded-2xl shadow-lg flex flex-col justify-between`}>
       <div>
-        <div className="flex justify-between items-start mb-2">
-          <h3 className="text-lg font-semibold text-foreground">{chore?.name || 'Unnamed Chore'}</h3>
-          <div className={`h-8 w-8 rounded-full flex items-center justify-center text-sm font-semibold text-primary-foreground ${profile ? 'bg-primary' : 'bg-secondary'}`}>
+        <div className="flex justify-between items-center mb-4">
+          <div className="flex items-center space-x-2">
+            <span className="text-2xl">{chore?.name}</span>
+          </div>
+          <div className="h-10 w-10 bg-gray-300 rounded-full flex items-center justify-center text-sm font-semibold">
             {getInitials(profile?.name)}
           </div>
         </div>
-        <p className="text-xs text-secondary-foreground mb-1">Assigned to: {memberName}</p>
-        <p className="text-xs text-secondary-foreground">Due: {new Date(assignment.due_date + 'T00:00:00').toLocaleDateString()}</p>
-        <p className={`text-xs font-medium mt-1 ${iconColor}`}>{statusText}</p>
+        <div className="mb-3">
+          <span className="block text-sm text-gray-600">Assigned to: {memberName}</span>
+          <span className="block text-sm text-gray-600">Due: {new Date(assignment.due_date + 'T00:00:00').toLocaleDateString()}</span>
+        </div>
       </div>
       {assignment.status === 'pending' && isAssignedToCurrentUser && (
         <Button
           onClick={() => onMarkComplete(assignment.id)}
           disabled={isLoadingCompletion}
           size="sm"
-          className="mt-3 w-full"
+          className="mt-4 w-full"
         >
           {isLoadingCompletion ? <Loader2 className="h-4 w-4 animate-spin mr-2"/> : <CheckCircle className="h-4 w-4 mr-2"/>}
-          Mark as Done
+          Mark Done
         </Button>
       )}
        {assignment.status === 'completed' && (
-         <div className="mt-3 text-xs text-primary flex items-center">
-            <CheckCircle className="h-4 w-4 mr-1"/> Done {assignment.completed_at ? `on ${new Date(assignment.completed_at).toLocaleDateString()}`:''}
+         <div className="mt-4 text-sm text-green-600 flex items-center">
+            <CheckCircle className="h-5 w-5 mr-1"/> Done
          </div>
        )}
     </div>
   );
 };
+
 
 const AddChoreModal: React.FC<{
     householdId: string;
@@ -248,9 +377,13 @@ const ManageChoresModal: React.FC<{
             </div>
         </div>
     )
-}
+};
 
-export const ChoreDashboard: React.FC<ChoreDashboardProps> = ({ householdId }) => {
+
+// --- END: CHILD COMPONENTS ---
+
+// Main ChoreDashboard Component
+export const ChoreDashboard: React.FC<{ householdId: string; }> = ({ householdId }) => {
   const { user } = useAuth();
   const [assignments, setAssignments] = useState<ChoreAssignment[]>([]);
   const [household, setHousehold] = useState<Household | null>(null);
@@ -259,7 +392,6 @@ export const ChoreDashboard: React.FC<ChoreDashboardProps> = ({ householdId }) =
   const [isLoading, setIsLoading] = useState(true);
   const [isRotating, setIsRotating] = useState(false);
   const [isLoadingCompletion, setIsLoadingCompletion] = useState(false);
-  const [rotationIsDue, setRotationIsDue] = useState(false);
 
   // Modal states
   const [showAddChoreModal, setShowAddChoreModal] = useState(false);
@@ -270,20 +402,19 @@ export const ChoreDashboard: React.FC<ChoreDashboardProps> = ({ householdId }) =
     if (showLoading) setIsLoading(true);
     
     try {
-      // [FIX] First, check if rotation is due without triggering it.
-      const rotationStatus = await isChoreRotationDue(householdId);
-      setRotationIsDue(rotationStatus.due);
-      
-      // Then, fetch all the UI data as before.
-      const [choreData, householdChores] = await Promise.all([
+      const [choreData, householdChores, allAssignmentsData] = await Promise.all([
         getChoreRotationUIData(householdId),
-        getHouseholdChores(householdId)
+        getHouseholdChores(householdId),
+        supabase.from('chore_assignments')
+                .select('*, chore_definition:household_chore_id (*), assigned_profile:profiles (id, name, avatar_url)')
+                .eq('household_id', householdId)
       ]);
       
-      setAssignments(choreData.currentAssignments);
+      setAssignments(allAssignmentsData.data || []);
       setHousehold(choreData.householdInfo);
       setMembers(choreData.members);
       setAllChores(householdChores);
+
     } catch (error) {
       console.error('Error fetching chore data:', error);
       toast.error('Failed to load chore information. '  + (error instanceof Error ? error.message : ""));
@@ -323,7 +454,10 @@ export const ChoreDashboard: React.FC<ChoreDashboardProps> = ({ householdId }) =
     setIsLoadingCompletion(true);
 
     try {
-      await markChoreAssignmentComplete(assignmentId, user.id);
+      const updatedAssignment = await markChoreAssignmentComplete(assignmentId, user.id);
+      if(updatedAssignment){
+          setAssignments(prev => prev.map(a => a.id === assignmentId ? updatedAssignment : a));
+      }
       toast.success('Chore marked as complete!');
     } catch (error) {
       console.error('Error marking chore complete:', error);
@@ -360,144 +494,70 @@ export const ChoreDashboard: React.FC<ChoreDashboardProps> = ({ householdId }) =
     return <div className="flex justify-center items-center p-10"><Loader2 className="h-8 w-8 animate-spin text-primary" /> <p className="ml-2">Loading chores...</p></div>;
   }
   
-  const currentUserRole = members.find(m => m.user_id === user?.id)?.role;
-  const isAdmin = currentUserRole === 'admin';
-  const activeMembersCount = members.filter(m => !m.user_id?.startsWith('placeholder_')).length;
-  const targetMemberCount = household?.member_count || 0;
-  const hasDefinedChores = allChores.length > 0;
+  const isAdmin = members.find(m => m.user_id === user?.id)?.role === 'admin';
+  const currentCycleAssignments = assignments.filter(a => a.cycle_start_date === household?.last_chore_rotation_date);
 
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap justify-between items-center gap-4 p-4 bg-background shadow rounded-lg">
-        <div>
-            <h2 className="text-2xl font-semibold text-foreground">Chore Command Center</h2>
-            {household && (
-                <p className="text-sm text-secondary-foreground">
-                    Framework: {household.chore_framework || 'N/A'} | Frequency: {household.chore_frequency || 'N/A'}
-                </p>
-            )}
-             {household?.next_chore_rotation_date && (
-                <p className="text-xs text-secondary-foreground">
-                    Next rotation: {new Date(household.next_chore_rotation_date + 'T00:00:00').toLocaleDateString()}
-                </p>
-            )}
-        </div>
+        <h2 className="text-3xl font-semibold">Chore Command Center</h2>
         <div className="flex items-center space-x-3">
             {isAdmin && (
-                <Button onClick={() => setShowAddChoreModal(true)} variant="outline" size="sm">
-                    <PlusCircle className="h-4 w-4 mr-2" /> Add Chore
-                </Button>
+              <Button onClick={() => setShowAddChoreModal(true)}>
+                  <PlusCircle className="h-4 w-4 mr-2" /> New Chore
+              </Button>
             )}
-            {isAdmin && (
-                <Button onClick={() => setShowManageChoresModal(true)} variant="secondary" size="sm">
-                    <ClipboardList className="h-4 w-4 mr-2" /> Manage Chores
-                </Button>
-            )}
-          <Button onClick={handleForceRotation} disabled={isRotating} variant="secondary" size="sm" title="Manually trigger next chore rotation">
-            {isRotating ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <RefreshCw className="h-4 w-4 mr-2" />}
-            Rotate/Refresh
-          </Button>
         </div>
       </div>
       
-      {/* [FIX] Notification bar for when a rotation is due */}
-      {isAdmin && rotationIsDue && (
-        <div className="p-4 bg-blue-50 border-l-4 border-blue-500 text-blue-800 rounded-md shadow">
-            <div className="flex">
-                <div className="flex-shrink-0">
-                    <AlertTriangle className="h-5 w-5" aria-hidden="true" />
-                </div>
-                <div className="ml-3 flex-1 md:flex md:justify-between">
-                    <p className="text-sm">
-                        A new chore rotation is due.
-                    </p>
-                     <p className="mt-3 text-sm md:mt-0 md:ml-6">
-                        <Button onClick={handleForceRotation} disabled={isRotating} size="sm" variant="outline" className="bg-white">
-                            {isRotating ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <RefreshCw className="h-4 w-4 mr-2" />}
-                            Start Next Cycle
-                        </Button>
-                    </p>
-                </div>
-            </div>
-        </div>
-      )}
+      {/* Cards View */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {currentCycleAssignments.map(assignment => (
+          <ChoreCard 
+            key={assignment.id} 
+            assignment={assignment} 
+            currentUserId={user?.id}
+            onMarkComplete={handleMarkComplete}
+            isLoadingCompletion={isLoadingCompletion}
+          />
+        ))}
+      </div>
 
-      {activeMembersCount < targetMemberCount && targetMemberCount > 0 && (
-        <div className="p-4 bg-accent/10 border-l-4 border-accent text-accent rounded-md">
-            <div className="flex">
-                <div className="flex-shrink-0">
-                    <AlertTriangle className="h-5 w-5" aria-hidden="true" />
-                </div>
-                <div className="ml-3">
-                    <p className="text-sm">
-                        Waiting for {targetMemberCount - activeMembersCount} more member(s) to join.
-                        Chores for placeholders will rotate to actual members once they join.
-                    </p>
-                </div>
-            </div>
-        </div>
-      )}
-
-      {!hasDefinedChores && !isLoading ? (
-        <div className="text-center py-10 bg-background p-6 rounded-lg shadow">
-          <ClipboardList className="mx-auto h-12 w-12 text-secondary-foreground/30" />
-          <h3 className="mt-2 text-lg font-medium text-foreground">No chores have been created yet</h3>
-          <p className="mt-1 text-sm text-secondary-foreground">
-             Click the &quot;Manage Chores&quot; button to add your first one.
-          </p>
-           <Button onClick={() => setShowAddChoreModal(true)} className="mt-4">
-            <PlusCircle className="h-4 w-4 mr-2" /> Add a Chore
-          </Button>
-        </div>
-      ) : hasDefinedChores && assignments.length === 0 && !isLoading ? (
-        <div className="text-center py-10 bg-background p-6 rounded-lg shadow">
-          <Circle className="mx-auto h-12 w-12 text-secondary-foreground/30" />
-          <h3 className="mt-2 text-lg font-medium text-foreground">No chores assigned for this cycle</h3>
-          <p className="mt-1 text-sm text-secondary-foreground">
-            Click the &quot;Rotate/Refresh&quot; button to assign chores to members.
-          </p>
-           <Button onClick={handleForceRotation} className="mt-4" disabled={isRotating}>
-            {isRotating ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <RefreshCw className="h-4 w-4 mr-2" />}
-            Assign Chores Now
-          </Button>
-        </div>
-      ) : null}
-
-      {hasDefinedChores && assignments.length > 0 && (
-        <>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {assignments.filter(a => a.status === 'pending').map(assignment => (
-              <ChoreCard 
-                key={assignment.id} 
-                assignment={assignment} 
-                currentUserId={user?.id}
-                onMarkComplete={handleMarkComplete}
-                isLoadingCompletion={isLoadingCompletion}
-              />
-            ))}
+      {/* Main Content Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+          <div className="lg:col-span-1">
+              <RotationSchedule household={household} members={members} chores={allChores} />
           </div>
+          <div className="lg:col-span-3">
+              <WeeklyChoreCalendar assignments={assignments} />
+          </div>
+          <div className="lg:col-span-1">
+              <ActivityLog assignments={assignments} />
+          </div>
+      </div>
 
-          {assignments.filter(a => a.status === 'completed').length > 0 && (
-            <div className="mt-8">
-              <h3 className="text-xl font-semibold text-foreground mb-4">Recently Completed</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-              {assignments.filter(a => a.status === 'completed').slice(0,4)
-                  .map(assignment => (
-                  <ChoreCard 
-                      key={assignment.id} 
-                      assignment={assignment} 
-                      currentUserId={user?.id}
-                      onMarkComplete={handleMarkComplete}
-                      isLoadingCompletion={false}
-                  />
-                  ))}
-              </div>
-            </div>
-          )}
-        </>
-      )}
+      {/* Recently Completed Section */}
+      <div>
+        <h3 className="text-2xl font-semibold mb-4">Recently Completed</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {assignments
+                .filter(a => a.status === 'completed')
+                .sort((a,b) => new Date(b.completed_at!).getTime() - new Date(a.completed_at!).getTime())
+                .slice(0, 4)
+                .map(assignment => (
+                    <ChoreCard 
+                        key={`completed-${assignment.id}`} 
+                        assignment={assignment} 
+                        currentUserId={user?.id}
+                        onMarkComplete={handleMarkComplete}
+                        isLoadingCompletion={isLoadingCompletion}
+                    />
+                ))
+            }
+        </div>
+      </div>
 
-      {/* --- Modals --- */}
+      {/* Modals */}
       {isAdmin && showManageChoresModal && (
         <ManageChoresModal 
             chores={allChores}

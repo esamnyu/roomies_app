@@ -45,7 +45,7 @@ export const createExpenseWithCustomSplits = async (
 
   const otherMembers = splits.filter(split => split.user_id !== user.id);
   if (otherMembers.length > 0) {
-    const { data: payerProfile } = await getProfile(user.id);
+    const payerProfile = await getProfile(user.id);
     if (payerProfile) {
       const notifications = otherMembers.map(split => ({
         user_id: split.user_id,

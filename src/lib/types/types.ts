@@ -3,12 +3,12 @@
 export interface Profile {
   id: string;
   name: string;
-  avatar_url?: string;
+  avatar_url?: string | null; // This line has been updated
   created_at: string;
   updated_at: string;
   email?: string;
-  vacation_start_date?: string | null; // Added for vacation mode
-  vacation_end_date?: string | null;   // Added for vacation mode
+  vacation_start_date?: string | null;
+  vacation_end_date?: string | null;
 }
 
 export interface HouseRule {
@@ -200,4 +200,4 @@ export interface CreateHouseholdParams {
   core_chores?: string[];
   chore_frequency?: string;
   chore_framework?: string;
-} 
+}

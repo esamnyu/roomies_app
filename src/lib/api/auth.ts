@@ -24,3 +24,13 @@ export const getSession = async () => {
   const { data: { session }, error } = await supabase.auth.getSession();
   return { session, error };
 };
+
+export const signInWithGoogle = async () => {
+  const { data, error } = await supabase.auth.signInWithOAuth({
+    provider: 'google',
+    options: {
+      redirectTo: window.location.origin,
+    },
+  });
+  return { data, error };
+};

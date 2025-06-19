@@ -12,6 +12,7 @@ interface AuthContextType {
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signUp: (email: string, password: string, name: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
+  signInWithGoogle: () => Promise<{ error: Error | null }>;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -21,6 +22,7 @@ const AuthContext = createContext<AuthContextType>({
   signIn: async () => ({ error: null }),
   signUp: async () => ({ error: null }),
   signOut: async () => {},
+  signInWithGoogle: async () => ({ error: null }),
 });
 
 export const useAuth = () => {
@@ -38,9 +40,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const fetchProfile = useCallback(async (userId: string) => {
     try {
-      const { data, error } = await api.getProfile(userId);
-      if (error) throw error;
-      setProfile(data);
+      const profileData = await api.getProfile(userId);
+      setProfile(profileData);
     } catch (error) {
       console.error('Error fetching profile:', error);
       setProfile(null);
@@ -88,14 +89,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setProfile(null);
   }, []);
 
+  const signInWithGoogle = useCallback(async () => {
+    const { error } = await api.signInWithGoogle();
+    return { error };
+  }, []);
+
   const value = useMemo(() => ({
     user,
     profile,
     loading,
     signIn,
     signUp,
-    signOut
-  }), [user, profile, loading, signIn, signUp, signOut]);
+    signOut,
+    signInWithGoogle
+  }), [user, profile, loading, signIn, signUp, signOut, signInWithGoogle]);
 
   return (
     <AuthContext.Provider value={value}>
