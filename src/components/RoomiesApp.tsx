@@ -109,11 +109,11 @@ const Layout: React.FC<{
                                 <div className="flex items-center space-x-2">
                                     <div className="hidden md:flex items-center space-x-2">
                                         <NotificationBell />
-                                        <UserMenu 
-                                            onProfileClick={onShowProfile} 
-                                            onSettingsClick={onShowSettings} 
-                                            onSignOut={signOut} 
-                                            householdSelected={isHouseholdView} 
+                                        <UserMenu
+                                            onProfileClick={onShowProfile}
+                                            onSettingsClick={onShowSettings}
+                                            onSignOut={signOut}
+                                            householdSelected={isHouseholdView}
                                         />
                                     </div>
                                     <div className="flex items-center md:hidden">
@@ -160,7 +160,7 @@ const LoadingSpinner = () => (
 );
 
 const AuthForm: React.FC<{isRegisteringInitially: boolean}> = ({isRegisteringInitially}) => {
-    const { signIn, signUp } = useAuth();
+    const { signIn, signUp, signInWithGoogle } = useAuth();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [name, setName] = useState('');
@@ -181,6 +181,23 @@ const AuthForm: React.FC<{isRegisteringInitially: boolean}> = ({isRegisteringIni
                 setError(err.message);
             } else {
                 setError('An unexpected error occurred');
+            }
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleGoogleSignIn = async () => {
+        setError('');
+        setIsLoading(true);
+        try {
+            const { error: authError } = await signInWithGoogle();
+            if (authError) setError(authError.message);
+        } catch (err: unknown) {
+            if (err instanceof Error) {
+                setError(err.message);
+            } else {
+                setError('An unexpected error occurred with Google sign-in');
             }
         } finally {
             setIsLoading(false);
@@ -224,6 +241,22 @@ const AuthForm: React.FC<{isRegisteringInitially: boolean}> = ({isRegisteringIni
                     <div>
                         <Button onClick={handleSubmit} disabled={isLoading} className="w-full">
                             {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : (isRegistering ? 'Create Account' : 'Sign in')}
+                        </Button>
+                    </div>
+
+                    <div className="relative">
+                        <div className="absolute inset-0 flex items-center">
+                            <div className="w-full border-t border-border" />
+                        </div>
+                        <div className="relative flex justify-center text-sm">
+                            <span className="px-2 bg-background text-secondary-foreground">Or continue with</span>
+                        </div>
+                    </div>
+
+                    <div>
+                        <Button onClick={handleGoogleSignIn} variant="outline" className="w-full" disabled={isLoading}>
+                            <svg className="mr-2 -ml-1 w-4 h-4" aria-hidden="true" focusable="false" data-prefix="fab" data-icon="google" role="img" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 488 512"><path fill="currentColor" d="M488 261.8C488 403.3 381.5 512 244 512 110.3 512 0 401.8 0 261.8S110.3 11.8 244 11.8c70.3 0 120.5 28.5 160.8 66.2l-64.8 64.3c-32.3-30.5-73.8-50-129.5-50-101.5 0-184.5 83.3-184.5 186.2s83 186.2 184.5 186.2c104.5 0 162.5-74.8 162.5-149.3 0-25.5-3-50.5-8.8-74.8H244V261.8z"></path></svg>
+                            Sign in with Google
                         </Button>
                     </div>
 
@@ -655,7 +688,7 @@ const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = (
                                     {Math.abs(currentUserBalance) < 0.01 && "You are all settled up."}
                                     {currentUserBalance > 0.01 && `Overall, you are owed `}
                                     {currentUserBalance < -0.01 && `Overall, you owe `}
-                                    {Math.abs(currentUserBalance) >= 0.01 && 
+                                    {Math.abs(currentUserBalance) >= 0.01 &&
                                         <span className={`font-bold ${currentUserBalance > 0 ? 'text-primary' : 'text-destructive'}`}>
                                             ${Math.abs(currentUserBalance).toFixed(2)}
                                         </span>
@@ -673,9 +706,9 @@ const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = (
                                                 </div>
                                         );
                                     }
-                                    
+
                                     const isOwed = balance.balance > 0;
-                                    
+
                                     return (
                                         <div key={balance.userId} className={`flex justify-between items-center p-2 rounded-md text-sm ${balance.userId === user?.id ? 'bg-secondary' : ''}`}>
                                             <span className="font-medium text-foreground">{balance.profile?.name} {balance.userId === user?.id && '(You)'}</span>
