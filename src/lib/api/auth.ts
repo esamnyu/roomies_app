@@ -33,3 +33,21 @@ export const signInWithGoogle = async () => {
   });
   return { data, error };
 };
+
+// Functions to send the OTP to the user's phone
+export const signInWithPhone = async (phone: string) => {
+  const { data, error } = await supabase.auth.signInWithOtp({
+    phone,
+  });
+  return { data, error };
+};
+
+// Function to verify the OTP entered by the user
+export const verifyOtp = async (phone: string, token: string) => {
+  const { data, error } = await supabase.auth.verifyOtp({
+    phone,
+    token,
+    type: 'sms',
+  });
+  return { data, error };
+};
