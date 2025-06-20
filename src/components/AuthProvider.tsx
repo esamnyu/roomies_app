@@ -13,6 +13,8 @@ interface AuthContextType {
   signUp: (email: string, password: string, name: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
   signInWithGoogle: () => Promise<{ error: Error | null }>;
+  signInWithPhone: (phone: string) => Promise<{ error: Error | null }>;
+  verifyOtp: (phone: string, token: string) => Promise<{ error: Error | null }>;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -23,6 +25,8 @@ const AuthContext = createContext<AuthContextType>({
   signUp: async () => ({ error: null }),
   signOut: async () => {},
   signInWithGoogle: async () => ({ error: null }),
+  signInWithPhone: async () => ({ error: null }),
+  verifyOtp: async () => ({ error: null }),
 });
 
 export const useAuth = () => {
@@ -49,17 +53,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   useEffect(() => {
-    const getInitialSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        await fetchProfile(session.user.id);
-      }
-      setLoading(false);
-    };
-
-    getInitialSession();
-
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       setUser(session?.user ?? null);
       if (session?.user) {
@@ -67,6 +60,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       } else {
         setProfile(null);
       }
+      setLoading(false);
     });
 
     return () => {
@@ -94,6 +88,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return { error };
   }, []);
 
+  const signInWithPhone = useCallback(async (phone: string) => {
+    const { error } = await api.signInWithPhone(phone);
+    return { error };
+  }, []);
+
+  const verifyOtp = useCallback(async (phone: string, token: string) => {
+    const { error } = await api.verifyOtp(phone, token);
+    return { error };
+  }, []);
+
   const value = useMemo(() => ({
     user,
     profile,
@@ -101,8 +105,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     signIn,
     signUp,
     signOut,
-    signInWithGoogle
-  }), [user, profile, loading, signIn, signUp, signOut, signInWithGoogle]);
+    signInWithGoogle,
+    signInWithPhone,
+    verifyOtp
+  }), [user, profile, loading, signIn, signUp, signOut, signInWithGoogle, signInWithPhone, verifyOtp]);
 
   return (
     <AuthContext.Provider value={value}>
