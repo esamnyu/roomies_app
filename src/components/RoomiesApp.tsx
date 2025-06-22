@@ -755,7 +755,7 @@ const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = (
                         <div className="bg-background rounded-lg shadow p-6 border border-border">
                             <div className="flex justify-between items-center mb-4">
                                 <h3 className="text-lg font-medium text-foreground">Balance Summary</h3>
-                                <Button onClick={() => setShowSettleUp(true)} size="sm">
+                                <Button onClick={() => setShowSettleUp(true)} size="sm" disabled={currentUserBalance >= 0}>
                                     <CreditCard className="h-4 w-4 mr-1" />Settle Up
                                 </Button>
                             </div>

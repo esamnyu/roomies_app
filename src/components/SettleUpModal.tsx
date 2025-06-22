@@ -34,7 +34,7 @@ export const SettleUpModal: React.FC<SettleUpModalProps> = ({ householdId, membe
         setDescription(`Payment to ${toProfile?.name || 'member'}`);
       }
     }, [selectedSuggestion, members]);
-
+    
     const handleSubmit = async () => {
       const amount = parseFloat(customAmount);
       
@@ -45,6 +45,12 @@ export const SettleUpModal: React.FC<SettleUpModalProps> = ({ householdId, membe
     
       if (isNaN(amount) || amount <= 0) {
         toast.error('Please enter a valid amount greater than 0');
+        return;
+      }
+
+      const debtToPayee = myDebts.find(d => d.to === payeeId);
+      if (debtToPayee && amount > debtToPayee.amount) {
+        toast.error(`You cannot pay more than you owe to this person. You owe $${debtToPayee.amount.toFixed(2)}.`);
         return;
       }
 
@@ -159,8 +165,9 @@ export const SettleUpModal: React.FC<SettleUpModalProps> = ({ householdId, membe
           </div>
 
           <div className="mt-6 flex justify-end space-x-3">
+            
             <Button onClick={onClose} variant="secondary" disabled={submitting}>Cancel</Button>
-            <Button onClick={handleSubmit} disabled={submitting || !payeeId || !customAmount || parseFloat(customAmount) <=0}>
+            <Button onClick={handleSubmit} disabled={submitting || !payeeId || !customAmount || parseFloat(customAmount) <=0 || myDebts.length === 0}>
               {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Record Payment'}
             </Button>
           </div>
