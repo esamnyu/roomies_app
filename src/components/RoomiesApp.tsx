@@ -1,8 +1,9 @@
 // src/components/RoomiesApp.tsx
 "use client";
 
+
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { ChevronRight, Home, DollarSign, CheckSquare, Plus, LogOut, Menu, X, ArrowLeft, Loader2, CreditCard, MessageSquare, Settings, ClipboardList, User, Share2, LifeBuoy, Edit3, Trash2, Phone, Mail } from 'lucide-react';
+import { ChevronRight, Home, DollarSign, CheckSquare, Plus, LogOut, Menu, X, ArrowLeft, Loader2, CreditCard, MessageSquare, Settings, ClipboardList, User, Share2, LifeBuoy, Edit3, Trash2, Phone, Mail, Pencil } from 'lucide-react';
 
 import * as api from '../lib/api';
 import { Household, HouseholdMember, Expense, Settlement, RecurringExpense, HouseRule, Profile } from '../lib/types/types';
@@ -26,6 +27,8 @@ import { Button } from './ui/Button';
 import { Input } from './ui/Input';
 import { ProfileModal } from './ProfileModal';
 import { HouseholdSettingsModal } from './HouseholdSettingsModal';
+import { EditExpenseModal } from './EditExpenseModal';
+
 
 
 // --- START: SHARED & HELPER COMPONENTS ---
@@ -663,6 +666,8 @@ const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = (
     const [showAddRuleModal, setShowAddRuleModal] = useState(false);
     const [showEditRuleModal, setShowEditRuleModal] = useState(false);
     const [ruleToEdit, setRuleToEdit] = useState<HouseRule | null>(null);
+
+    const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
     
 
     const isLoadingRef = useRef(false);
@@ -755,7 +760,7 @@ const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = (
                         <div className="bg-background rounded-lg shadow p-6 border border-border">
                             <div className="flex justify-between items-center mb-4">
                                 <h3 className="text-lg font-medium text-foreground">Balance Summary</h3>
-                                <Button onClick={() => setShowSettleUp(true)} size="sm">
+                                <Button onClick={() => setShowSettleUp(true)} size="sm" disabled={currentUserBalance >= 0}>
                                     <CreditCard className="h-4 w-4 mr-1" />Settle Up
                                 </Button>
                             </div>
@@ -824,9 +829,34 @@ const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = (
     )}
                         </div>
                         <div className="space-y-4">
-                            <div className="flex justify-between items-center"><h3 className="text-lg font-medium text-foreground">One-Time Expenses</h3><Button onClick={() => setShowAddExpense(true)} size="sm"><Plus className="h-4 w-4 mr-1" />Add Expense</Button></div>
+                            <div className="flex justify-between items-center">
+                                <h3 className="text-lg font-medium text-foreground">One-Time Expenses</h3>
+                                <Button onClick={() => setShowAddExpense(true)} size="sm">
+                                    <Plus className="h-4 w-4 mr-1" />Add Expense
+                                </Button>
+                            </div>
                             <div className="space-y-3">
-                                {loadingData && expenses.length === 0 ? <LoadingSpinner/> : expenses.length === 0 ? <p className="text-secondary-foreground text-center py-4">No one-time expenses.</p> : ( expenses.map(expense => (<div key={expense.id} className="bg-background rounded-lg shadow p-4 border border-border"><div className="flex justify-between items-start"><div className="flex-1"><h4 className="font-medium text-foreground">{expense.description}</h4><p className="text-sm text-secondary-foreground">Paid by {expense.profiles?.name} • {new Date(expense.date + (expense.date.includes('T') ? '' : 'T00:00:00')).toLocaleDateString()}</p></div><div className="text-right ml-4"><p className="font-medium text-foreground">${expense.amount.toFixed(2)}</p></div></div></div>)) )}
+                                {loadingData && expenses.length === 0 ? <LoadingSpinner/> : expenses.length === 0 ? <p className="text-secondary-foreground text-center py-4">No one-time expenses.</p> : ( 
+                                    expenses.map(expense => (
+                                        <div key={expense.id} className="bg-background rounded-lg shadow p-4 border border-border">
+                                            <div className="flex justify-between items-start">
+                                                {/* Expense details on the left */}
+                                                <div className="flex-1">
+                                                    <h4 className="font-medium text-foreground">{expense.description}</h4>
+                                                    <p className="text-sm text-secondary-foreground">Paid by {expense.profiles?.name} • {new Date(expense.date + (expense.date.includes('T') ? '' : 'T00:00:00')).toLocaleDateString()}</p>
+                                                </div>
+                                                {/* Amount and Edit Button on the right */}
+                                                <div className="flex items-center space-x-2">
+                                                    <p className="font-medium text-foreground text-right">${expense.amount.toFixed(2)}</p>
+                                                    {/* This is the new button */}
+                                                    <Button variant="ghost" size="icon" onClick={() => setEditingExpense(expense)}>
+                                                        <Pencil className="h-4 w-4" />
+                                                    </Button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )) 
+                                )}
                             </div>
                         </div>
                     </div>
@@ -890,9 +920,21 @@ const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = (
             
             {showAddRuleModal && household && <AddRuleModal householdId={household.id} onClose={() => setShowAddRuleModal(false)} onRuleAdded={() => {setShowAddRuleModal(false); refreshData(true);}} />}
             {showEditRuleModal && ruleToEdit && household && <EditRuleModal householdId={household.id} rule={ruleToEdit} onClose={() => setRuleToEdit(null)} onRuleUpdated={() => {setRuleToEdit(null); refreshData(true);}} />}
+            {editingExpense && (
+                <EditExpenseModal
+                    expense={editingExpense}
+                    members={members}
+                    onClose={() => setEditingExpense(null)}
+                    onExpenseUpdated={() => {
+                        setEditingExpense(null);
+                        refreshData(true);
+                    }}
+                />
+            )}
         </Layout>
-    );
-};
+        );
+        };
+
 
 type AppState = 'loading' | 'landing' | 'authForm' | 'onboardingChoice' | 'householdSetup' | 'dashboard' | 'joinWithCode' | 'householdWelcome';
 

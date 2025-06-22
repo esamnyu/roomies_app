@@ -19,7 +19,8 @@ export const createExpenseWithCustomSplits = async (
   description: string,
   amount: number,
   splits: Array<{ user_id: string; amount: number }>,
-  date?: string
+  date?: string,
+  paidById?: string // MODIFIED: Added paidById
 ) => {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error('Not authenticated');
@@ -29,11 +30,13 @@ export const createExpenseWithCustomSplits = async (
     throw new Error('Split amounts must approximately equal total expense amount');
   }
 
+  const payerId = paidById || user.id; // Use passed in ID or default to current user
+
   const { data: expenseId, error } = await supabase.rpc('create_expense_with_splits', {
     p_household_id: householdId,
     p_description: description,
     p_amount: amount,
-    p_paid_by: user.id,
+    p_paid_by: payerId, // MODIFIED: Use the determined payerId
     p_splits: splits,
     p_date: date || new Date().toISOString().split('T')[0]
   });
@@ -43,9 +46,10 @@ export const createExpenseWithCustomSplits = async (
     throw new Error(`Failed to create expense: ${error.message}`);
   }
 
-  const otherMembers = splits.filter(split => split.user_id !== user.id);
+  // MODIFIED: Notification logic now uses the correct payerId
+  const otherMembers = splits.filter(split => split.user_id !== payerId);
   if (otherMembers.length > 0) {
-    const payerProfile = await getProfile(user.id);
+    const payerProfile = await getProfile(payerId);
     if (payerProfile) {
       const notifications = otherMembers.map(split => ({
         user_id: split.user_id,
@@ -53,7 +57,7 @@ export const createExpenseWithCustomSplits = async (
         type: 'expense_added' as const,
         title: 'New Expense Added',
         message: `${payerProfile.name} added "${description}" - You owe $${split.amount.toFixed(2)}`,
-        data: { expense_id: expenseId, amount: split.amount, payer_id: user.id },
+        data: { expense_id: expenseId, amount: split.amount, payer_id: payerId },
         is_read: false
       }));
       try {
@@ -67,7 +71,36 @@ export const createExpenseWithCustomSplits = async (
   return { id: expenseId };
 };
 
-// --- RECURRING EXPENSE FUNCTIONS ---
+// --- NEW ---
+// Payload for the update function
+interface UpdateExpensePayload {
+  description: string;
+  amount: number;
+  splits: Array<{ user_id: string; amount: number }>;
+  paid_by?: string;
+  date?: string;
+}
+
+export const updateExpense = async (expenseId: string, payload: UpdateExpensePayload) => {
+  const { error } = await supabase.rpc('update_expense_with_splits', {
+    p_expense_id: expenseId,
+    p_description: payload.description,
+    p_amount: payload.amount,
+    p_splits: payload.splits,
+    p_paid_by: payload.paid_by,
+    p_date: payload.date
+  });
+
+  if (error) {
+    console.error("Error updating expense:", error);
+    throw new Error(`Failed to update expense: ${error.message}`);
+  }
+
+  return { success: true };
+};
+
+
+// --- RECURRING EXPENSE FUNCTIONS (unchanged) ---
 
 const calculateNextDueDate = (currentDate: Date, frequency: RecurringExpense['frequency'], dayOfMonth?: number): string => {
   const date = new Date(currentDate);
