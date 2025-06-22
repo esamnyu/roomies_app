@@ -1,0 +1,851 @@
+{
+  "comment": "This JSON file contains the schema for the public tables, functions, and triggers in the Supabase database. It is intended to be used as context for an LLM.",
+  "tables": [
+    {
+      "table_name": "chore_assignments",
+      "comment": "Columns for the chore_assignments table.",
+      "columns": [
+        {
+          "column_name": "id",
+          "data_type": "uuid"
+        },
+        {
+          "column_name": "household_chore_id",
+          "data_type": "uuid"
+        },
+        {
+          "column_name": "household_id",
+          "data_type": "uuid"
+        },
+        {
+          "column_name": "assigned_user_id",
+          "data_type": "text"
+        },
+        {
+          "column_name": "cycle_start_date",
+          "data_type": "date"
+        },
+        {
+          "column_name": "due_date",
+          "data_type": "date"
+        },
+        {
+          "column_name": "status",
+          "data_type": "text"
+        },
+        {
+          "column_name": "completed_at",
+          "data_type": "timestamp with time zone"
+        },
+        {
+          "column_name": "completed_by_user_id",
+          "data_type": "uuid"
+        },
+        {
+          "column_name": "notes",
+          "data_type": "text"
+        },
+        {
+          "column_name": "created_at",
+          "data_type": "timestamp with time zone"
+        },
+        {
+          "column_name": "updated_at",
+          "data_type": "timestamp with time zone"
+        }
+      ]
+    },
+    {
+      "table_name": "expense_splits",
+      "comment": "Columns for the expense_splits table.",
+      "columns": [
+        {
+          "column_name": "id",
+          "data_type": "uuid"
+        },
+        {
+          "column_name": "expense_id",
+          "data_type": "uuid"
+        },
+        {
+          "column_name": "user_id",
+          "data_type": "uuid"
+        },
+        {
+          "column_name": "amount",
+          "data_type": "numeric"
+        },
+        {
+          "column_name": "settled",
+          "data_type": "boolean"
+        },
+        {
+          "column_name": "settled_at",
+          "data_type": "timestamp with time zone"
+        }
+      ]
+    },
+    {
+      "table_name": "expenses",
+      "comment": "Columns for the expenses table.",
+      "columns": [
+        {
+          "column_name": "id",
+          "data_type": "uuid"
+        },
+        {
+          "column_name": "household_id",
+          "data_type": "uuid"
+        },
+        {
+          "column_name": "description",
+          "data_type": "text"
+        },
+        {
+          "column_name": "amount",
+          "data_type": "numeric"
+        },
+        {
+          "column_name": "paid_by",
+          "data_type": "uuid"
+        },
+        {
+          "column_name": "date",
+          "data_type": "date"
+        },
+        {
+          "column_name": "created_at",
+          "data_type": "timestamp with time zone"
+        },
+        {
+          "column_name": "updated_at",
+          "data_type": "timestamp with time zone"
+        },
+        {
+          "column_name": "recurring_expense_id",
+          "data_type": "uuid"
+        }
+      ]
+    },
+    {
+      "table_name": "household_chores",
+      "comment": "Columns for the household_chores table.",
+      "columns": [
+        {
+          "column_name": "id",
+          "data_type": "uuid"
+        },
+        {
+          "column_name": "household_id",
+          "data_type": "uuid"
+        },
+        {
+          "column_name": "name",
+          "data_type": "text"
+        },
+        {
+          "column_name": "description",
+          "data_type": "text"
+        },
+        {
+          "column_name": "is_core_chore",
+          "data_type": "boolean"
+        },
+        {
+          "column_name": "default_order",
+          "data_type": "integer"
+        },
+        {
+          "column_name": "is_active",
+          "data_type": "boolean"
+        },
+        {
+          "column_name": "created_at",
+          "data_type": "timestamp with time zone"
+        },
+        {
+          "column_name": "updated_at",
+          "data_type": "timestamp with time zone"
+        }
+      ]
+    },
+    {
+      "table_name": "household_members",
+      "comment": "Columns for the household_members table.",
+      "columns": [
+        {
+          "column_name": "id",
+          "data_type": "uuid"
+        },
+        {
+          "column_name": "household_id",
+          "data_type": "uuid"
+        },
+        {
+          "column_name": "user_id",
+          "data_type": "uuid"
+        },
+        {
+          "column_name": "role",
+          "data_type": "text"
+        },
+        {
+          "column_name": "joined_at",
+          "data_type": "timestamp with time zone"
+        }
+      ]
+    },
+    {
+      "table_name": "households",
+      "comment": "Columns for the households table.",
+      "columns": [
+        {
+          "column_name": "id",
+          "data_type": "uuid"
+        },
+        {
+          "column_name": "name",
+          "data_type": "text"
+        },
+        {
+          "column_name": "created_by",
+          "data_type": "uuid"
+        },
+        {
+          "column_name": "created_at",
+          "data_type": "timestamp with time zone"
+        },
+        {
+          "column_name": "updated_at",
+          "data_type": "timestamp with time zone"
+        },
+        {
+          "column_name": "member_count",
+          "data_type": "smallint"
+        },
+        {
+          "column_name": "core_chores",
+          "data_type": "ARRAY"
+        },
+        {
+          "column_name": "chore_frequency",
+          "data_type": "text"
+        },
+        {
+          "column_name": "chore_framework",
+          "data_type": "text"
+        },
+        {
+          "column_name": "join_code",
+          "data_type": "text"
+        },
+        {
+          "column_name": "last_chore_rotation_date",
+          "data_type": "date"
+        },
+        {
+          "column_name": "next_chore_rotation_date",
+          "data_type": "date"
+        },
+        {
+          "column_name": "chore_current_assignee_index",
+          "data_type": "integer"
+        },
+        {
+          "column_name": "rules_document",
+          "data_type": "text"
+        },
+        {
+          "column_name": "rules_last_updated",
+          "data_type": "timestamp with time zone"
+        },
+        {
+          "column_name": "rules",
+          "data_type": "jsonb"
+        }
+      ]
+    },
+    {
+      "table_name": "invitations",
+      "comment": "Columns for the invitations table.",
+      "columns": [
+        {
+          "column_name": "id",
+          "data_type": "uuid"
+        },
+        {
+          "column_name": "household_id",
+          "data_type": "uuid"
+        },
+        {
+          "column_name": "invited_by",
+          "data_type": "uuid"
+        },
+        {
+          "column_name": "email",
+          "data_type": "text"
+        },
+        {
+          "column_name": "status",
+          "data_type": "text"
+        },
+        {
+          "column_name": "created_at",
+          "data_type": "timestamp with time zone"
+        },
+        {
+          "column_name": "expires_at",
+          "data_type": "timestamp with time zone"
+        },
+        {
+          "column_name": "token",
+          "data_type": "uuid"
+        },
+        {
+          "column_name": "accepted_at",
+          "data_type": "timestamp with time zone"
+        },
+        {
+          "column_name": "updated_at",
+          "data_type": "timestamp with time zone"
+        }
+      ]
+    },
+    {
+      "table_name": "messages",
+      "comment": "Columns for the messages table.",
+      "columns": [
+        {
+          "column_name": "id",
+          "data_type": "uuid"
+        },
+        {
+          "column_name": "household_id",
+          "data_type": "uuid"
+        },
+        {
+          "column_name": "user_id",
+          "data_type": "uuid"
+        },
+        {
+          "column_name": "content",
+          "data_type": "text"
+        },
+        {
+          "column_name": "edited",
+          "data_type": "boolean"
+        },
+        {
+          "column_name": "deleted",
+          "data_type": "boolean"
+        },
+        {
+          "column_name": "created_at",
+          "data_type": "timestamp with time zone"
+        },
+        {
+          "column_name": "updated_at",
+          "data_type": "timestamp with time zone"
+        }
+      ]
+    },
+    {
+      "table_name": "notifications",
+      "comment": "Columns for the notifications table.",
+      "columns": [
+        {
+          "column_name": "id",
+          "data_type": "uuid"
+        },
+        {
+          "column_name": "user_id",
+          "data_type": "uuid"
+        },
+        {
+          "column_name": "household_id",
+          "data_type": "uuid"
+        },
+        {
+          "column_name": "type",
+          "data_type": "character varying"
+        },
+        {
+          "column_name": "title",
+          "data_type": "text"
+        },
+        {
+          "column_name": "message",
+          "data_type": "text"
+        },
+        {
+          "column_name": "data",
+          "data_type": "jsonb"
+        },
+        {
+          "column_name": "is_read",
+          "data_type": "boolean"
+        },
+        {
+          "column_name": "read_at",
+          "data_type": "timestamp with time zone"
+        },
+        {
+          "column_name": "created_at",
+          "data_type": "timestamp with time zone"
+        },
+        {
+          "column_name": "updated_at",
+          "data_type": "timestamp with time zone"
+        }
+      ]
+    },
+    {
+      "table_name": "profiles",
+      "comment": "Columns for the profiles table.",
+      "columns": [
+        {
+          "column_name": "id",
+          "data_type": "uuid"
+        },
+        {
+          "column_name": "name",
+          "data_type": "text"
+        },
+        {
+          "column_name": "avatar_url",
+          "data_type": "text"
+        },
+        {
+          "column_name": "created_at",
+          "data_type": "timestamp with time zone"
+        },
+        {
+          "column_name": "updated_at",
+          "data_type": "timestamp with time zone"
+        },
+        {
+          "column_name": "email",
+          "data_type": "text"
+        },
+        {
+          "column_name": "vacation_start_date",
+          "data_type": "date"
+        },
+        {
+          "column_name": "vacation_end_date",
+          "data_type": "date"
+        }
+      ]
+    },
+    {
+      "table_name": "recurring_expenses",
+      "comment": "Columns for the recurring_expenses table.",
+      "columns": [
+        {
+          "column_name": "id",
+          "data_type": "uuid"
+        },
+        {
+          "column_name": "household_id",
+          "data_type": "uuid"
+        },
+        {
+          "column_name": "description",
+          "data_type": "text"
+        },
+        {
+          "column_name": "amount",
+          "data_type": "numeric"
+        },
+        {
+          "column_name": "frequency",
+          "data_type": "text"
+        },
+        {
+          "column_name": "day_of_month",
+          "data_type": "integer"
+        },
+        {
+          "column_name": "day_of_week",
+          "data_type": "integer"
+        },
+        {
+          "column_name": "next_due_date",
+          "data_type": "date"
+        },
+        {
+          "column_name": "is_active",
+          "data_type": "boolean"
+        },
+        {
+          "column_name": "created_by",
+          "data_type": "uuid"
+        },
+        {
+          "column_name": "created_at",
+          "data_type": "timestamp with time zone"
+        },
+        {
+          "column_name": "updated_at",
+          "data_type": "timestamp with time zone"
+        }
+      ]
+    },
+    {
+      "table_name": "settlements",
+      "comment": "Columns for the settlements table.",
+      "columns": [
+        {
+          "column_name": "id",
+          "data_type": "uuid"
+        },
+        {
+          "column_name": "household_id",
+          "data_type": "uuid"
+        },
+        {
+          "column_name": "payer_id",
+          "data_type": "uuid"
+        },
+        {
+          "column_name": "payee_id",
+          "data_type": "uuid"
+        },
+        {
+          "column_name": "amount",
+          "data_type": "numeric"
+        },
+        {
+          "column_name": "description",
+          "data_type": "text"
+        },
+        {
+          "column_name": "created_at",
+          "data_type": "timestamp with time zone"
+        }
+      ]
+    },
+    {
+      "table_name": "tasks",
+      "comment": "Columns for the tasks table.",
+      "columns": [
+        {
+          "column_name": "id",
+          "data_type": "uuid"
+        },
+        {
+          "column_name": "household_id",
+          "data_type": "uuid"
+        },
+        {
+          "column_name": "title",
+          "data_type": "text"
+        },
+        {
+          "column_name": "assigned_to",
+          "data_type": "uuid"
+        },
+        {
+          "column_name": "completed",
+          "data_type": "boolean"
+        },
+        {
+          "column_name": "completed_at",
+          "data_type": "timestamp with time zone"
+        },
+        {
+          "column_name": "created_at",
+          "data_type": "timestamp with time zone"
+        },
+        {
+          "column_name": "updated_at",
+          "data_type": "timestamp with time zone"
+        }
+      ]
+    }
+  ],
+  "functions": [
+    {
+      "function_name": "handle_invitations_updated_at",
+      "comment": "Definition for the handle_invitations_updated_at function.",
+      "definition": "CREATE OR REPLACE FUNCTION public.handle_invitations_updated_at()\n RETURNS trigger\n LANGUAGE plpgsql\nAS $function$\nBEGIN\n    NEW.updated_at = NOW();\n    RETURN NEW;\nEND;\n$function$\n"
+    },
+    {
+      "function_name": "create_settlement_and_notify",
+      "comment": "Definition for the create_settlement_and_notify function.",
+      "definition": "CREATE OR REPLACE FUNCTION public.create_settlement_and_notify(p_household_id uuid, p_payer_id uuid, p_payee_id uuid, p_amount numeric, p_description text)\n RETURNS SETOF settlements\n LANGUAGE plpgsql\n SECURITY DEFINER\nAS $function$\nDECLARE\n  new_settlement settlements;\n  payer_profile record;\nBEGIN\n  -- Verify the payer is a member of the household\n  IF NOT EXISTS (\n    SELECT 1 FROM household_members \n    WHERE household_id = p_household_id \n    AND user_id = p_payer_id\n  ) THEN\n    RAISE EXCEPTION 'Payer is not a member of this household';\n  END IF;\n\n  -- Verify the payee is a member of the household\n  IF NOT EXISTS (\n    SELECT 1 FROM household_members \n    WHERE household_id = p_household_id \n    AND user_id = p_payee_id\n  ) THEN\n    RAISE EXCEPTION 'Payee is not a member of this household';\n  END IF;\n\n  -- Prevent self-payments\n  IF p_payer_id = p_payee_id THEN\n    RAISE EXCEPTION 'Cannot create a payment to yourself';\n  END IF;\n\n  -- Insert using p_payer_id instead of auth.uid()\n  INSERT INTO public.settlements (household_id, payer_id, payee_id, amount, description)\n  VALUES (p_household_id, p_payer_id, p_payee_id, p_amount, p_description)\n  RETURNING * INTO new_settlement;\n\n  -- Get the payer's profile\n  SELECT name INTO payer_profile FROM public.profiles WHERE id = p_payer_id;\n\n  -- Create notification\n  IF payer_profile IS NOT NULL THEN\n    INSERT INTO public.notifications (user_id, household_id, type, title, message, data)\n    VALUES (\n      p_payee_id,\n      p_household_id,\n      'settlement_recorded',\n      'Payment Received',\n      payer_profile.name || ' paid you $' || p_amount::text,\n      jsonb_build_object(\n        'settlement_id', new_settlement.id,\n        'amount', p_amount,\n        'payer_id', p_payer_id\n      )\n    );\n  END IF;\n\n  RETURN NEXT new_settlement;\nEND;\n$function$\n"
+    },
+    {
+      "function_name": "expire_old_invitations",
+      "comment": "Definition for the expire_old_invitations function.",
+      "definition": "CREATE OR REPLACE FUNCTION public.expire_old_invitations()\n RETURNS void\n LANGUAGE plpgsql\nAS $function$\nBEGIN\n    UPDATE invitations\n    SET status = 'expired'\n    WHERE status = 'pending'\n    AND expires_at < NOW();\nEND;\n$function$\n"
+    },
+    {
+      "function_name": "create_household_notification",
+      "comment": "Definition for the create_household_notification function.",
+      "definition": "CREATE OR REPLACE FUNCTION public.create_household_notification(p_household_id uuid, p_type character varying, p_title text, p_message text, p_data jsonb DEFAULT '{}'::jsonb, p_exclude_user_id uuid DEFAULT NULL::uuid)\n RETURNS void\n LANGUAGE plpgsql\n SECURITY DEFINER\nAS $function$\nBEGIN\n    INSERT INTO notifications (user_id, household_id, type, title, message, data)\n    SELECT \n        hm.user_id,\n        p_household_id,\n        p_type,\n        p_title,\n        p_message,\n        p_data\n    FROM household_members hm\n    WHERE hm.household_id = p_household_id\n    AND (p_exclude_user_id IS NULL OR hm.user_id != p_exclude_user_id);\nEND;\n$function$\n"
+    },
+    {
+      "function_name": "mark_notifications_read",
+      "comment": "Definition for the mark_notifications_read function.",
+      "definition": "CREATE OR REPLACE FUNCTION public.mark_notifications_read(p_notification_ids uuid[])\n RETURNS void\n LANGUAGE plpgsql\n SECURITY DEFINER\nAS $function$\nBEGIN\n    UPDATE notifications\n    SET \n        is_read = TRUE,\n        read_at = NOW(),\n        updated_at = NOW()\n    WHERE id = ANY(p_notification_ids)\n    AND user_id = auth.uid();\nEND;\n$function$\n"
+    },
+    {
+      "function_name": "notify_expense_created",
+      "comment": "Definition for the notify_expense_created function.",
+      "definition": "CREATE OR REPLACE FUNCTION public.notify_expense_created()\n RETURNS trigger\n LANGUAGE plpgsql\n SECURITY DEFINER\nAS $function$\nDECLARE\n    v_payer_name TEXT;\n    v_amount_per_person NUMERIC;\n    v_member_count INTEGER;\nBEGIN\n    -- Get payer name\n    SELECT name INTO v_payer_name\n    FROM profiles\n    WHERE id = NEW.paid_by;\n    \n    -- Get member count\n    SELECT COUNT(*) INTO v_member_count\n    FROM household_members\n    WHERE household_id = NEW.household_id;\n    \n    v_amount_per_person := NEW.amount / v_member_count;\n    \n    -- Create notification for all household members except the payer\n    PERFORM create_household_notification(\n        NEW.household_id,\n        'expense_added',\n        'New Expense Added',\n        format('%s paid $%s for %s. Your share: $%s', \n            v_payer_name, \n            NEW.amount::NUMERIC(10,2), \n            NEW.description,\n            v_amount_per_person::NUMERIC(10,2)\n        ),\n        jsonb_build_object(\n            'expense_id', NEW.id,\n            'amount', NEW.amount,\n            'description', NEW.description,\n            'paid_by', NEW.paid_by\n        ),\n        NEW.paid_by -- Exclude the payer from notifications\n    );\n    \n    RETURN NEW;\nEND;\n$function$\n"
+    },
+    {
+      "function_name": "notify_task_assigned",
+      "comment": "Definition for the notify_task_assigned function.",
+      "definition": "CREATE OR REPLACE FUNCTION public.notify_task_assigned()\n RETURNS trigger\n LANGUAGE plpgsql\n SECURITY DEFINER\nAS $function$\nDECLARE\n    v_assigner_name TEXT;\nBEGIN\n    -- Only notify if task is assigned to someone\n    IF NEW.assigned_to IS NOT NULL AND (OLD.assigned_to IS NULL OR OLD.assigned_to != NEW.assigned_to) THEN\n        -- Get current user's name (task creator/updater)\n        SELECT name INTO v_assigner_name\n        FROM profiles\n        WHERE id = auth.uid();\n        \n        -- Create notification for assigned user\n        INSERT INTO notifications (user_id, household_id, type, title, message, data)\n        VALUES (\n            NEW.assigned_to,\n            NEW.household_id,\n            'task_assigned',\n            'New Task Assigned',\n            format('You have been assigned: %s', NEW.title),\n            jsonb_build_object(\n                'task_id', NEW.id,\n                'title', NEW.title,\n                'assigned_by', auth.uid()\n            )\n        );\n    END IF;\n    \n    RETURN NEW;\nEND;\n$function$\n"
+    },
+    {
+      "function_name": "notify_settlement_created",
+      "comment": "Definition for the notify_settlement_created function.",
+      "definition": "CREATE OR REPLACE FUNCTION public.notify_settlement_created()\n RETURNS trigger\n LANGUAGE plpgsql\n SECURITY DEFINER\nAS $function$\nDECLARE\n    v_payer_name TEXT;\n    v_payee_name TEXT;\nBEGIN\n    -- Get payer and payee names\n    SELECT name INTO v_payer_name\n    FROM profiles\n    WHERE id = NEW.payer_id;\n    \n    SELECT name INTO v_payee_name\n    FROM profiles\n    WHERE id = NEW.payee_id;\n    \n    -- Notify the payee\n    INSERT INTO notifications (user_id, household_id, type, title, message, data)\n    VALUES (\n        NEW.payee_id,\n        NEW.household_id,\n        'settlement_recorded',\n        'Payment Received',\n        format('%s paid you $%s', v_payer_name, NEW.amount::NUMERIC(10,2)),\n        jsonb_build_object(\n            'settlement_id', NEW.id,\n            'amount', NEW.amount,\n            'payer_id', NEW.payer_id\n        )\n    );\n    \n    -- Notify other household members\n    PERFORM create_household_notification(\n        NEW.household_id,\n        'settlement_recorded',\n        'Settlement Recorded',\n        format('%s paid %s $%s', v_payer_name, v_payee_name, NEW.amount::NUMERIC(10,2)),\n        jsonb_build_object(\n            'settlement_id', NEW.id,\n            'amount', NEW.amount,\n            'payer_id', NEW.payer_id,\n            'payee_id', NEW.payee_id\n        ),\n        NEW.payer_id -- Exclude both payer and payee from general notification\n    );\n    \n    -- Remove the payee from the general notification\n    DELETE FROM notifications \n    WHERE household_id = NEW.household_id \n    AND user_id = NEW.payee_id \n    AND data->>'settlement_id' = NEW.id::TEXT\n    AND type = 'settlement_recorded'\n    AND title = 'Settlement Recorded';\n    \n    RETURN NEW;\nEND;\n$function$\n"
+    },
+    {
+      "function_name": "create_payment_reminders",
+      "comment": "Definition for the create_payment_reminders function.",
+      "definition": "CREATE OR REPLACE FUNCTION public.create_payment_reminders()\n RETURNS void\n LANGUAGE plpgsql\n SECURITY DEFINER\nAS $function$\nDECLARE\n    v_balance RECORD;\n    v_creditor_name TEXT;\n    v_last_reminder TIMESTAMPTZ;\nBEGIN\n    -- Get all negative balances (debts)\n    FOR v_balance IN\n        WITH balance_calculation AS (\n            SELECT \n                hm.household_id,\n                hm.user_id,\n                COALESCE(\n                    SUM(CASE \n                        WHEN e.paid_by = hm.user_id THEN e.amount \n                        ELSE 0 \n                    END) - \n                    SUM(CASE \n                        WHEN es.user_id = hm.user_id AND NOT es.settled THEN es.amount \n                        ELSE 0 \n                    END) -\n                    SUM(CASE \n                        WHEN s.payer_id = hm.user_id THEN s.amount \n                        ELSE 0 \n                    END) +\n                    SUM(CASE \n                        WHEN s.payee_id = hm.user_id THEN s.amount \n                        ELSE 0 \n                    END), \n                    0\n                ) as balance\n            FROM household_members hm\n            LEFT JOIN expenses e ON e.household_id = hm.household_id\n            LEFT JOIN expense_splits es ON es.expense_id = e.id\n            LEFT JOIN settlements s ON s.household_id = hm.household_id\n            GROUP BY hm.household_id, hm.user_id\n            HAVING COALESCE(\n                SUM(CASE \n                    WHEN e.paid_by = hm.user_id THEN e.amount \n                    ELSE 0 \n                END) - \n                SUM(CASE \n                    WHEN es.user_id = hm.user_id AND NOT es.settled THEN es.amount \n                    ELSE 0 \n                END) -\n                SUM(CASE \n                    WHEN s.payer_id = hm.user_id THEN s.amount \n                    ELSE 0 \n                END) +\n                SUM(CASE \n                    WHEN s.payee_id = hm.user_id THEN s.amount \n                    ELSE 0 \n                END), \n                0\n            ) < -5 -- Only remind for debts over $5\n        )\n        SELECT * FROM balance_calculation\n    LOOP\n        -- Check if we sent a reminder in the last 3 days\n        SELECT MAX(created_at) INTO v_last_reminder\n        FROM notifications\n        WHERE user_id = v_balance.user_id\n        AND type = 'payment_reminder'\n        AND household_id = v_balance.household_id;\n        \n        IF v_last_reminder IS NULL OR v_last_reminder < NOW() - INTERVAL '3 days' THEN\n            INSERT INTO notifications (user_id, household_id, type, title, message, data)\n            VALUES (\n                v_balance.user_id,\n                v_balance.household_id,\n                'payment_reminder',\n                'Payment Reminder',\n                format('You have an outstanding balance of $%s', ABS(v_balance.balance)::NUMERIC(10,2)),\n                jsonb_build_object(\n                    'balance', v_balance.balance\n                )\n            );\n        END IF;\n    END LOOP;\nEND;\n$function$\n"
+    },
+    {
+      "function_name": "notify_recurring_expense_processed",
+      "comment": "Definition for the notify_recurring_expense_processed function.",
+      "definition": "CREATE OR REPLACE FUNCTION public.notify_recurring_expense_processed()\n RETURNS trigger\n LANGUAGE plpgsql\n SECURITY DEFINER\nAS $function$\nBEGIN\n    -- Check if this expense was created from a recurring expense\n    IF NEW.description LIKE '%(Recurring)%' THEN\n        PERFORM create_household_notification(\n            NEW.household_id,\n            'recurring_expense_added',\n            'Recurring Expense Added',\n            format('Recurring expense \"%s\" of $%s has been added', \n                NEW.description, \n                NEW.amount::NUMERIC(10,2)\n            ),\n            jsonb_build_object(\n                'expense_id', NEW.id,\n                'amount', NEW.amount,\n                'description', NEW.description\n            )\n        );\n    END IF;\n    \n    RETURN NEW;\nEND;\n$function$\n"
+    },
+    {
+      "function_name": "get_unread_notification_count",
+      "comment": "Definition for the get_unread_notification_count function.",
+      "definition": "CREATE OR REPLACE FUNCTION public.get_unread_notification_count(p_user_id uuid)\n RETURNS integer\n LANGUAGE plpgsql\n SECURITY DEFINER\nAS $function$\nDECLARE\n    v_count INTEGER;\nBEGIN\n    SELECT COUNT(*) INTO v_count\n    FROM notifications\n    WHERE user_id = p_user_id\n    AND is_read = FALSE;\n    \n    RETURN v_count;\nEND;\n$function$\n"
+    },
+    {
+      "function_name": "remove_member_from_household",
+      "comment": "Definition for the remove_member_from_household function.",
+      "definition": "CREATE OR REPLACE FUNCTION public.remove_member_from_household(member_id_to_remove uuid, household_id_to_check uuid)\n RETURNS void\n LANGUAGE plpgsql\n SECURITY DEFINER\nAS $function$\nDECLARE\n  admin_count integer;\nBEGIN\n  -- Check how many admins are left\n  SELECT count(*) INTO admin_count\n  FROM household_members\n  WHERE household_id = household_id_to_check AND role = 'admin';\n\n  -- Prevent removing the last admin\n  IF admin_count <= 1 AND (SELECT role FROM household_members WHERE id = member_id_to_remove) = 'admin' THEN\n    RAISE EXCEPTION 'Cannot remove the last admin from the household.';\n  END IF;\n\n  -- Proceed with deletion\n  DELETE FROM household_members WHERE id = member_id_to_remove;\nEND;\n$function$\n"
+    },
+    {
+      "function_name": "notify_message_sent",
+      "comment": "Definition for the notify_message_sent function.",
+      "definition": "CREATE OR REPLACE FUNCTION public.notify_message_sent()\n RETURNS trigger\n LANGUAGE plpgsql\n SECURITY DEFINER\nAS $function$\nBEGIN\n  -- Get sender's name\n  DECLARE\n    sender_name TEXT;\n    household_name TEXT;\n  BEGIN\n    SELECT p.name INTO sender_name\n    FROM profiles p\n    WHERE p.id = NEW.user_id;\n    \n    SELECT h.name INTO household_name\n    FROM households h\n    WHERE h.id = NEW.household_id;\n\n    -- Create notifications for all other household members\n    INSERT INTO notifications (\n      user_id,\n      household_id,\n      type,\n      title,\n      message,\n      data,\n      is_read\n    )\n    SELECT \n      hm.user_id,\n      NEW.household_id,\n      'message_sent',\n      'New Message',\n      sender_name || ' sent a message in ' || household_name,\n      jsonb_build_object(\n        'message_id', NEW.id,\n        'sender_id', NEW.user_id,\n        'preview', LEFT(NEW.content, 50)\n      ),\n      FALSE\n    FROM household_members hm\n    WHERE hm.household_id = NEW.household_id\n      AND hm.user_id != NEW.user_id;\n    \n    RETURN NEW;\n  END;\nEND;\n$function$\n"
+    },
+    {
+      "function_name": "send_invitation",
+      "comment": "Definition for the send_invitation function.",
+      "definition": "CREATE OR REPLACE FUNCTION public.send_invitation(p_household_id uuid, p_email text)\n RETURNS json\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'public'\nAS $function$\nDECLARE\n  v_inviter_id UUID;\n  v_invitee_id UUID;\n  v_invitation_id UUID;\n  v_token UUID;\n  v_household_name TEXT;\n  v_inviter_name TEXT;\nBEGIN\n  -- Get the current user\n  v_inviter_id := auth.uid();\n  IF v_inviter_id IS NULL THEN\n    RAISE EXCEPTION 'Not authenticated';\n  END IF;\n\n  -- Check if inviter is a member of the household\n  IF NOT EXISTS (\n    SELECT 1 FROM household_members\n    WHERE household_id = p_household_id\n    AND user_id = v_inviter_id\n  ) THEN\n    RAISE EXCEPTION 'You are not a member of this household';\n  END IF;\n\n  -- Get household name\n  SELECT name INTO v_household_name\n  FROM households\n  WHERE id = p_household_id;\n\n  -- Get inviter name\n  SELECT name INTO v_inviter_name\n  FROM profiles\n  WHERE id = v_inviter_id;\n\n  -- Check if the email belongs to an existing user\n  SELECT id INTO v_invitee_id\n  FROM auth.users\n  WHERE email = LOWER(p_email);\n\n  IF v_invitee_id IS NULL THEN\n    RAISE EXCEPTION 'User not found with email: %. They need to create an account first.', p_email;\n  END IF;\n\n  -- Check if user is already a member\n  IF EXISTS (\n    SELECT 1 FROM household_members\n    WHERE household_id = p_household_id\n    AND user_id = v_invitee_id\n  ) THEN\n    RAISE EXCEPTION 'User is already a member of this household';\n  END IF;\n\n  -- Check if there's already a pending invitation\n  IF EXISTS (\n    SELECT 1 FROM invitations\n    WHERE household_id = p_household_id\n    AND email = LOWER(p_email)\n    AND status = 'pending'\n    AND expires_at > NOW()\n  ) THEN\n    RAISE EXCEPTION 'An invitation already exists for this email';\n  END IF;\n\n  -- Generate a unique token\n  v_token := gen_random_uuid();\n\n  -- Create the invitation\n  INSERT INTO invitations (\n    household_id,\n    invited_by,\n    email,\n    token,\n    status,\n    expires_at\n  ) VALUES (\n    p_household_id,\n    v_inviter_id,\n    LOWER(p_email),\n    v_token,\n    'pending',\n    NOW() + INTERVAL '7 days'\n  ) RETURNING id INTO v_invitation_id;\n\n  -- Create notification for invitee\n  IF v_invitee_id IS NOT NULL THEN\n    INSERT INTO notifications (\n      user_id,\n      household_id,\n      type,\n      title,\n      message,\n      data,\n      is_read\n    ) VALUES (\n      v_invitee_id,\n      p_household_id,\n      'household_invitation',\n      'New Household Invitation',\n      COALESCE(v_inviter_name, 'Someone') || ' has invited you to join ' || COALESCE(v_household_name, 'a household'),\n      jsonb_build_object(\n        'invitation_id', v_invitation_id,\n        'household_id', p_household_id,\n        'inviter_id', v_inviter_id\n      ),\n      false\n    );\n  END IF;\n\n  -- Return success\n  RETURN json_build_object(\n    'success', true,\n    'invitation_id', v_invitation_id,\n    'message', 'Invitation sent successfully'\n  );\n\nEXCEPTION\n  WHEN OTHERS THEN\n    -- Log the error and re-raise with a user-friendly message\n    RAISE EXCEPTION '%', SQLERRM;\nEND;\n$function$\n"
+    },
+    {
+      "function_name": "accept_invitation",
+      "comment": "Definition for the accept_invitation function.",
+      "definition": "CREATE OR REPLACE FUNCTION public.accept_invitation(p_invitation_id uuid)\n RETURNS json\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'public'\nAS $function$\nDECLARE\n  v_user_id UUID;\n  v_user_email TEXT;\n  v_invitation RECORD;\n  v_household_name TEXT;\n  v_accepter_name TEXT;\nBEGIN\n  -- Get current user\n  v_user_id := auth.uid();\n  IF v_user_id IS NULL THEN\n    RAISE EXCEPTION 'Not authenticated';\n  END IF;\n\n  -- Get user email\n  SELECT email INTO v_user_email\n  FROM auth.users\n  WHERE id = v_user_id;\n\n  -- Get and validate invitation\n  SELECT i.*, h.name as household_name\n  INTO v_invitation\n  FROM invitations i\n  JOIN households h ON i.household_id = h.id\n  WHERE i.id = p_invitation_id\n  AND i.email = v_user_email\n  AND i.status = 'pending';\n\n  IF NOT FOUND THEN\n    RAISE EXCEPTION 'Invitation not found or not for your email';\n  END IF;\n\n  -- Check if invitation is expired\n  IF v_invitation.expires_at < NOW() THEN\n    -- Update status to expired\n    UPDATE invitations\n    SET status = 'expired', updated_at = NOW()\n    WHERE id = p_invitation_id;\n    \n    RAISE EXCEPTION 'This invitation has expired';\n  END IF;\n\n  -- Check if user is already a member\n  IF EXISTS (\n    SELECT 1 FROM household_members\n    WHERE household_id = v_invitation.household_id\n    AND user_id = v_user_id\n  ) THEN\n    -- Update invitation status\n    UPDATE invitations\n    SET status = 'accepted', updated_at = NOW()\n    WHERE id = p_invitation_id;\n    \n    RAISE EXCEPTION 'You are already a member of this household';\n  END IF;\n\n  -- Add user to household\n  INSERT INTO household_members (\n    household_id,\n    user_id,\n    role,\n    joined_at\n  ) VALUES (\n    v_invitation.household_id,\n    v_user_id,\n    'member',\n    NOW()\n  );\n\n  -- Update invitation status\n  UPDATE invitations\n  SET status = 'accepted', updated_at = NOW()\n  WHERE id = p_invitation_id;\n\n  -- Get accepter name\n  SELECT name INTO v_accepter_name\n  FROM profiles\n  WHERE id = v_user_id;\n\n  -- Notify household members\n  INSERT INTO notifications (\n    user_id,\n    household_id,\n    type,\n    title,\n    message,\n    data,\n    is_read\n  )\n  SELECT \n    hm.user_id,\n    v_invitation.household_id,\n    'member_joined',\n    'New Member Joined',\n    COALESCE(v_accepter_name, 'Someone') || ' has joined ' || v_invitation.household_name,\n    jsonb_build_object(\n      'new_member_id', v_user_id,\n      'household_id', v_invitation.household_id\n    ),\n    false\n  FROM household_members hm\n  WHERE hm.household_id = v_invitation.household_id\n  AND hm.user_id != v_user_id;\n\n  -- Return success\n  RETURN json_build_object(\n    'success', true,\n    'household_id', v_invitation.household_id,\n    'message', 'Successfully joined household'\n  );\n\nEXCEPTION\n  WHEN OTHERS THEN\n    -- Log the error and re-raise\n    RAISE EXCEPTION '%', SQLERRM;\nEND;\n$function$\n"
+    },
+    {
+      "function_name": "cleanup_expired_invitations",
+      "comment": "Definition for the cleanup_expired_invitations function.",
+      "definition": "CREATE OR REPLACE FUNCTION public.cleanup_expired_invitations()\n RETURNS void\n LANGUAGE plpgsql\nAS $function$\nBEGIN\n  UPDATE invitations\n  SET status = 'expired'\n  WHERE status = 'pending'\n  AND expires_at < NOW();\nEND;\n$function$\n"
+    },
+    {
+      "function_name": "delete_household_safely",
+      "comment": "Definition for the delete_household_safely function.",
+      "definition": "CREATE OR REPLACE FUNCTION public.delete_household_safely(p_household_id uuid)\n RETURNS void\n LANGUAGE plpgsql\n SECURITY DEFINER\nAS $function$\nBEGIN\n  -- Ensure the person calling this is the original creator\n  IF (SELECT created_by FROM households WHERE id = p_household_id) != auth.uid() THEN\n    RAISE EXCEPTION 'Only the original creator can delete this household.';\n  END IF;\n\n  -- Proceed with deletion\n  DELETE FROM households WHERE id = p_household_id;\nEND;\n$function$\n"
+    },
+    {
+      "function_name": "delete_user_data",
+      "comment": "Definition for the delete_user_data function.",
+      "definition": "CREATE OR REPLACE FUNCTION public.delete_user_data(p_user_id uuid)\n RETURNS void\n LANGUAGE plpgsql\n SECURITY DEFINER\nAS $function$\nBEGIN\n  -- Delete notifications\n  DELETE FROM notifications WHERE user_id = p_user_id;\n  \n  -- Delete expense splits\n  DELETE FROM expense_splits WHERE user_id = p_user_id;\n  \n  -- Delete tasks assigned to user\n  UPDATE tasks SET assigned_to = NULL WHERE assigned_to = p_user_id;\n  \n  -- Delete settlements where user is payer or payee\n  DELETE FROM settlements WHERE payer_id = p_user_id OR payee_id = p_user_id;\n  \n  -- Delete invitations sent by user\n  UPDATE invitations SET invited_by = NULL WHERE invited_by = p_user_id;\n  \n  -- Remove user from household members\n  DELETE FROM household_members WHERE user_id = p_user_id;\n  \n  -- Delete expenses paid by user (this will cascade to expense_splits)\n  DELETE FROM expenses WHERE paid_by = p_user_id;\n  \n  -- Delete recurring expenses created by user\n  DELETE FROM recurring_expenses WHERE created_by = p_user_id;\n  \n  -- Delete user's profile\n  DELETE FROM profiles WHERE id = p_user_id;\n  \n  -- Note: The actual auth.users record will be deleted by Supabase\nEND;\n$function$\n"
+    },
+    {
+      "function_name": "handle_user_delete",
+      "comment": "Definition for the handle_user_delete function.",
+      "definition": "CREATE OR REPLACE FUNCTION public.handle_user_delete()\n RETURNS trigger\n LANGUAGE plpgsql\n SECURITY DEFINER\nAS $function$\nBEGIN\n  -- Call our cleanup function\n  PERFORM delete_user_data(OLD.id);\n  RETURN OLD;\nEND;\n$function$\n"
+    },
+    {
+      "function_name": "create_expense_with_splits",
+      "comment": "Definition for the create_expense_with_splits function.",
+      "definition": "CREATE OR REPLACE FUNCTION public.create_expense_with_splits(p_household_id uuid, p_description text, p_amount numeric, p_paid_by uuid, p_splits jsonb, p_date date DEFAULT CURRENT_DATE)\n RETURNS uuid\n LANGUAGE plpgsql\n SECURITY DEFINER\nAS $function$\nDECLARE\n  v_expense_id UUID;\n  v_split JSONB;\n  split_count int;\n  single_splitter_id uuid;\n  v_splits_total numeric;\nBEGIN\n  -- VALIDATION: Ensure the sum of split amounts equals the total expense amount.\n  -- This revised version is cleaner and less prone to parsing errors.\n  SELECT SUM(s.amount) INTO v_splits_total\n  FROM jsonb_to_recordset(p_splits) AS s(user_id uuid, amount numeric);\n\n  IF abs(v_splits_total - p_amount) > 0.01 THEN\n    RAISE EXCEPTION 'The sum of split amounts (%) does not match the total expense amount (%).', v_splits_total, p_amount;\n  END IF;\n\n  -- 1. First, check the nature of the split provided by the client.\n  SELECT\n    count(*),\n    (array_agg(s.user_id))[1]\n  INTO\n    split_count,\n    single_splitter_id\n  FROM jsonb_to_recordset(p_splits) AS s(user_id uuid, amount numeric);\n\n  -- 2. Create the base expense record. This happens for all expenses.\n  INSERT INTO expenses (household_id, description, amount, paid_by, date)\n  VALUES (p_household_id, p_description, p_amount, p_paid_by, p_date)\n  RETURNING id INTO v_expense_id;\n\n  -- 3. Only create splits if the expense is meant to be shared.\n  -- A \"personal\" expense is one where the splits array has only one person,\n  -- and that person is the one who paid.\n  IF split_count > 1 OR single_splitter_id IS DISTINCT FROM p_paid_by THEN\n    -- If it's a shared expense, loop through and insert ALL provided splits.\n    -- It's crucial to include the payer's split to calculate balances correctly.\n    FOR v_split IN SELECT * FROM jsonb_array_elements(p_splits) LOOP\n      INSERT INTO expense_splits (expense_id, user_id, amount, settled)\n      VALUES (\n        v_expense_id,\n        (v_split->>'user_id')::UUID,\n        (v_split->>'amount')::DECIMAL(10,2),\n        false\n      );\n    END LOOP;\n  END IF;\n\n  -- 4. Return the new expense ID\n  RETURN v_expense_id;\nEND;\n$function$\n"
+    },
+    {
+      "function_name": "get_database_schema_json",
+      "comment": "Definition for the get_database_schema_json function.",
+      "definition": "CREATE OR REPLACE FUNCTION public.get_database_schema_json()\n RETURNS json\n LANGUAGE plpgsql\nAS $function$\r\nDECLARE\r\n    schema_json json;\r\nBEGIN\r\n    SELECT json_build_object(\r\n        'comment', 'This JSON file contains the schema for the public tables, functions, and triggers in the Supabase database. It is intended to be used as context for an LLM.',\r\n        'tables', (\r\n            SELECT json_agg(\r\n                json_build_object(\r\n                    'table_name', t.table_name,\r\n                    'comment', 'Columns for the ' || t.table_name || ' table.',\r\n                    'columns', (\r\n                        SELECT json_agg(\r\n                            json_build_object(\r\n                                'column_name', c.column_name,\r\n                                'data_type', c.data_type\r\n                            )\r\n                        )\r\n                        FROM information_schema.columns c\r\n                        WHERE c.table_schema = 'public' AND c.table_name = t.table_name\r\n                    )\r\n                )\r\n            )\r\n            FROM (SELECT DISTINCT table_name FROM information_schema.columns WHERE table_schema = 'public') AS t\r\n        ),\r\n        'functions', (\r\n            SELECT json_agg(\r\n                json_build_object(\r\n                    'function_name', p.proname,\r\n                    'comment', 'Definition for the ' || p.proname || ' function.',\r\n                    'definition', pg_get_functiondef(p.oid)\r\n                )\r\n            )\r\n            FROM pg_proc p\r\n            JOIN pg_namespace n ON p.pronamespace = n.oid\r\n            WHERE n.nspname = 'public'\r\n        ),\r\n        'triggers', (\r\n            SELECT json_agg(\r\n                json_build_object(\r\n                    'trigger_name', t.trigger_name,\r\n                    'comment', 'Definition for the ' || t.trigger_name || ' trigger.',\r\n                    'table', t.event_object_table,\r\n                    'event', t.event_manipulation,\r\n                    'definition', t.action_statement\r\n                )\r\n            )\r\n            FROM information_schema.triggers t\r\n            WHERE t.trigger_schema = 'public'\r\n        )\r\n    ) INTO schema_json;\r\n\r\n    RETURN schema_json;\r\nEND;\r\n$function$\n"
+    },
+    {
+      "function_name": "normalize_invitation_emails",
+      "comment": "Definition for the normalize_invitation_emails function.",
+      "definition": "CREATE OR REPLACE FUNCTION public.normalize_invitation_emails()\n RETURNS void\n LANGUAGE plpgsql\nAS $function$\nBEGIN\n  UPDATE invitations\n  SET email = LOWER(TRIM(email))\n  WHERE email != LOWER(TRIM(email));\nEND;\n$function$\n"
+    },
+    {
+      "function_name": "ensure_lowercase_email",
+      "comment": "Definition for the ensure_lowercase_email function.",
+      "definition": "CREATE OR REPLACE FUNCTION public.ensure_lowercase_email()\n RETURNS trigger\n LANGUAGE plpgsql\nAS $function$\nBEGIN\n  NEW.email = LOWER(TRIM(NEW.email));\n  RETURN NEW;\nEND;\n$function$\n"
+    },
+    {
+      "function_name": "force_delete_user",
+      "comment": "Definition for the force_delete_user function.",
+      "definition": "CREATE OR REPLACE FUNCTION public.force_delete_user(p_email text)\n RETURNS text\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'public', 'auth'\nAS $function$\nDECLARE\n    v_user_id UUID;\n    v_deleted_count INT := 0;\n    v_result TEXT := '';\nBEGIN\n    -- Get user ID\n    SELECT id INTO v_user_id FROM auth.users WHERE email = p_email;\n    \n    IF v_user_id IS NULL THEN\n        RETURN 'User not found with email: ' || p_email;\n    END IF;\n    \n    -- Start cleanup\n    v_result := 'Starting cleanup for user: ' || v_user_id || E'\\n';\n    \n    -- Delete from notifications\n    DELETE FROM public.notifications WHERE user_id = v_user_id;\n    GET DIAGNOSTICS v_deleted_count = ROW_COUNT;\n    v_result := v_result || 'Deleted ' || v_deleted_count || ' notifications' || E'\\n';\n    \n    -- Delete from expense_splits\n    DELETE FROM public.expense_splits WHERE user_id = v_user_id;\n    GET DIAGNOSTICS v_deleted_count = ROW_COUNT;\n    v_result := v_result || 'Deleted ' || v_deleted_count || ' expense splits' || E'\\n';\n    \n    -- Update tasks (remove assignment)\n    UPDATE public.tasks SET assigned_to = NULL WHERE assigned_to = v_user_id;\n    GET DIAGNOSTICS v_deleted_count = ROW_COUNT;\n    v_result := v_result || 'Updated ' || v_deleted_count || ' tasks' || E'\\n';\n    \n    -- Delete settlements\n    DELETE FROM public.settlements WHERE payer_id = v_user_id OR payee_id = v_user_id;\n    GET DIAGNOSTICS v_deleted_count = ROW_COUNT;\n    v_result := v_result || 'Deleted ' || v_deleted_count || ' settlements' || E'\\n';\n    \n    -- Update invitations\n    UPDATE public.invitations SET invited_by = NULL WHERE invited_by = v_user_id;\n    GET DIAGNOSTICS v_deleted_count = ROW_COUNT;\n    v_result := v_result || 'Updated ' || v_deleted_count || ' invitations' || E'\\n';\n    \n    -- Delete from household_members\n    DELETE FROM public.household_members WHERE user_id = v_user_id;\n    GET DIAGNOSTICS v_deleted_count = ROW_COUNT;\n    v_result := v_result || 'Deleted ' || v_deleted_count || ' household memberships' || E'\\n';\n    \n    -- Delete expenses\n    DELETE FROM public.expenses WHERE paid_by = v_user_id;\n    GET DIAGNOSTICS v_deleted_count = ROW_COUNT;\n    v_result := v_result || 'Deleted ' || v_deleted_count || ' expenses' || E'\\n';\n    \n    -- Delete recurring expenses\n    DELETE FROM public.recurring_expenses WHERE created_by = v_user_id;\n    GET DIAGNOSTICS v_deleted_count = ROW_COUNT;\n    v_result := v_result || 'Deleted ' || v_deleted_count || ' recurring expenses' || E'\\n';\n    \n    -- Update households (if user created any)\n    UPDATE public.households SET created_by = NULL WHERE created_by = v_user_id;\n    GET DIAGNOSTICS v_deleted_count = ROW_COUNT;\n    v_result := v_result || 'Updated ' || v_deleted_count || ' households' || E'\\n';\n    \n    -- Delete profile\n    DELETE FROM public.profiles WHERE id = v_user_id;\n    GET DIAGNOSTICS v_deleted_count = ROW_COUNT;\n    v_result := v_result || 'Deleted ' || v_deleted_count || ' profiles' || E'\\n';\n    \n    -- Finally, delete from auth.users\n    DELETE FROM auth.users WHERE id = v_user_id;\n    GET DIAGNOSTICS v_deleted_count = ROW_COUNT;\n    v_result := v_result || 'Deleted ' || v_deleted_count || ' auth.users records' || E'\\n';\n    \n    RETURN v_result || E'\\nUser deletion completed successfully!';\n    \nEXCEPTION\n    WHEN foreign_key_violation THEN\n        RETURN 'Foreign key violation: ' || SQLERRM || E'\\n' || v_result;\n    WHEN OTHERS THEN\n        RETURN 'Error: ' || SQLERRM || E'\\n' || v_result;\nEND;\n$function$\n"
+    },
+    {
+      "function_name": "get_messages_with_profiles",
+      "comment": "Definition for the get_messages_with_profiles function.",
+      "definition": "CREATE OR REPLACE FUNCTION public.get_messages_with_profiles(p_household_id uuid, p_limit integer DEFAULT 50, p_before timestamp with time zone DEFAULT NULL::timestamp with time zone)\n RETURNS TABLE(id uuid, household_id uuid, user_id uuid, content text, edited boolean, deleted boolean, created_at timestamp with time zone, updated_at timestamp with time zone, profile json)\n LANGUAGE plpgsql\n SECURITY DEFINER\nAS $function$\nBEGIN\n  RETURN QUERY\n  SELECT \n    m.id,\n    m.household_id,\n    m.user_id,\n    m.content,\n    m.edited,\n    m.deleted,\n    m.created_at,\n    m.updated_at,\n    row_to_json(p.*) as profile\n  FROM messages m\n  LEFT JOIN profiles p ON p.id = m.user_id\n  WHERE m.household_id = p_household_id\n    AND m.deleted = FALSE\n    AND (p_before IS NULL OR m.created_at < p_before)\n  ORDER BY m.created_at DESC\n  LIMIT p_limit;\nEND;\n$function$\n"
+    },
+    {
+      "function_name": "process_due_recurring_expenses",
+      "comment": "Definition for the process_due_recurring_expenses function.",
+      "definition": "CREATE OR REPLACE FUNCTION public.process_due_recurring_expenses(p_household_id uuid)\n RETURNS void\n LANGUAGE plpgsql\n SECURITY DEFINER\nAS $function$\nDECLARE\n  recurring_expense RECORD;\n  household_members RECORD;\n  new_expense_id uuid;\n  member_count INT;\n  split_amount NUMERIC;\n  payer_profile RECORD;\n  v_next_due_date DATE; -- Renamed the variable to avoid ambiguity\nBEGIN\n  -- Loop through all active recurring expenses for the given household that are due.\n  -- The table column is explicitly referenced with \"recurring_expense.next_due_date\"\n  FOR recurring_expense IN\n    SELECT *\n    FROM public.recurring_expenses\n    WHERE household_id = p_household_id\n      AND is_active = TRUE\n      AND next_due_date <= CURRENT_DATE\n  LOOP\n    -- Get all members of the household to create the splits.\n    SELECT count(*) INTO member_count FROM public.household_members WHERE household_id = recurring_expense.household_id;\n\n    IF member_count > 0 THEN\n      -- 1. Create the new one-time expense record.\n      INSERT INTO public.expenses(household_id, description, amount, paid_by, date)\n      VALUES (recurring_expense.household_id, recurring_expense.description, recurring_expense.amount, recurring_expense.created_by, recurring_expense.next_due_date)\n      RETURNING id INTO new_expense_id;\n\n      -- Calculate the split amount.\n      split_amount := round(recurring_expense.amount / member_count, 2);\n\n      -- 2. Create expense splits for each member.\n      FOR household_members IN\n        SELECT user_id FROM public.household_members WHERE household_id = recurring_expense.household_id\n      LOOP\n        INSERT INTO public.expense_splits(expense_id, user_id, amount, settled)\n        VALUES (\n          new_expense_id,\n          household_members.user_id,\n          split_amount,\n          household_members.user_id = recurring_expense.created_by\n        );\n      END LOOP;\n\n      -- (Optional) Create notifications\n      SELECT name INTO payer_profile FROM public.profiles WHERE id = recurring_expense.created_by;\n      IF payer_profile IS NOT NULL THEN\n        FOR household_members IN\n          SELECT user_id FROM public.household_members \n          WHERE household_id = recurring_expense.household_id AND user_id <> recurring_expense.created_by\n        LOOP\n          INSERT INTO public.notifications(user_id, household_id, type, title, message, data)\n          VALUES (\n            household_members.user_id,\n            recurring_expense.household_id,\n            'expense_added',\n            'New Expense Added',\n            payer_profile.name || ' added \"' || recurring_expense.description || '\" - You owe $' || split_amount::text,\n            jsonb_build_object('expense_id', new_expense_id, 'amount', split_amount, 'payer_id', recurring_expense.created_by)\n          );\n        END LOOP;\n      END IF;\n      \n      -- 3. Calculate the next due date and store it in the new variable.\n      v_next_due_date := CASE recurring_expense.frequency\n        WHEN 'weekly' THEN recurring_expense.next_due_date + INTERVAL '1 week'\n        WHEN 'biweekly' THEN recurring_expense.next_due_date + INTERVAL '2 weeks'\n        WHEN 'monthly' THEN recurring_expense.next_due_date + INTERVAL '1 month'\n        WHEN 'quarterly' THEN recurring_expense.next_due_date + INTERVAL '3 months'\n        WHEN 'yearly' THEN recurring_expense.next_due_date + INTERVAL '1 year'\n        ELSE recurring_expense.next_due_date + INTERVAL '1 month'\n      END;\n\n      -- 4. Update the recurring expense with the value from our unambiguous variable.\n      UPDATE public.recurring_expenses\n      SET next_due_date = v_next_due_date -- This is the key fix\n      WHERE id = recurring_expense.id;\n\n    END IF;\n  END LOOP;\nEND;\n$function$\n"
+    },
+    {
+      "function_name": "calculate_household_balances",
+      "comment": "Definition for the calculate_household_balances function.",
+      "definition": "CREATE OR REPLACE FUNCTION public.calculate_household_balances(p_household_id uuid)\n RETURNS TABLE(userid uuid, balance numeric, profile json)\n LANGUAGE plpgsql\nAS $function$\nBEGIN\n  RETURN QUERY\n  SELECT\n    m.user_id,\n    -- The final balance is the sum of what a user paid for expenses,\n    -- minus their share of all expenses, plus their net settlement balance.\n    (COALESCE(e.paid, 0) - COALESCE(s.owed, 0) + COALESCE(se.settled_balance, 0)) AS balance,\n    json_build_object('id', p.id, 'name', p.name, 'avatar_url', p.avatar_url) as profile\n  FROM household_members m\n  JOIN profiles p ON m.user_id = p.id\n  -- 1. Get the total amount each user has paid for SHARED expenses\n  LEFT JOIN (\n    SELECT\n      paid_by,\n      SUM(amount) as paid\n    FROM expenses\n    -- THIS IS THE FIX: Only sum expenses that have at least one split.\n    -- This correctly excludes personal expenses from the balance calculation.\n    WHERE household_id = p_household_id\n      AND id IN (SELECT DISTINCT expense_id FROM expense_splits WHERE expense_splits.expense_id IS NOT NULL)\n    GROUP BY paid_by\n  ) e ON m.user_id = e.paid_by\n  -- 2. Get the total amount each user owes from their share of expenses\n  LEFT JOIN (\n    SELECT es.user_id, SUM(es.amount) as owed\n    FROM expense_splits es\n    JOIN expenses ex ON es.expense_id = ex.id\n    WHERE ex.household_id = p_household_id AND es.settled = false\n    GROUP BY es.user_id\n  ) s ON m.user_id = s.user_id\n  -- 3. Get the net balance from all settlements\n  LEFT JOIN (\n    SELECT\n      user_id,\n      SUM(amount) as settled_balance\n    FROM (\n      -- Add amounts for payments made by the user\n      SELECT payer_id as user_id, amount\n      FROM settlements\n      WHERE household_id = p_household_id\n      UNION ALL\n      -- Subtract amounts for payments received by the user\n      SELECT payee_id as user_id, -amount\n      FROM settlements\n      WHERE household_id = p_household_id\n    ) AS settlement_transactions\n    GROUP BY user_id\n  ) se ON m.user_id = se.user_id\n  WHERE m.household_id = p_household_id;\nEND;\n$function$\n"
+    },
+    {
+      "function_name": "handle_user_deletion",
+      "comment": "Definition for the handle_user_deletion function.",
+      "definition": "CREATE OR REPLACE FUNCTION public.handle_user_deletion()\n RETURNS trigger\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'public'\nAS $function$\nBEGIN\n    -- Log the deletion attempt\n    RAISE NOTICE 'Processing deletion for user: %', OLD.id;\n    \n    -- Delete all related data in the correct order\n    \n    -- 1. Delete notifications\n    DELETE FROM public.notifications WHERE user_id = OLD.id;\n    \n    -- 2. Delete expense splits (must come before expenses)\n    DELETE FROM public.expense_splits WHERE user_id = OLD.id;\n    \n    -- 3. Delete settlements where user is involved\n    DELETE FROM public.settlements WHERE payer_id = OLD.id OR payee_id = OLD.id;\n    \n    -- 4. Delete expenses paid by user\n    DELETE FROM public.expenses WHERE paid_by = OLD.id;\n    \n    -- 5. Remove user from households\n    DELETE FROM public.household_members WHERE user_id = OLD.id;\n    \n    -- 6. Delete recurring expenses created by user\n    DELETE FROM public.recurring_expenses WHERE created_by = OLD.id;\n    \n    -- 7. Update tasks - set assigned_to to NULL\n    UPDATE public.tasks SET assigned_to = NULL WHERE assigned_to = OLD.id;\n    \n    -- 8. Update invitations - set invited_by to NULL\n    UPDATE public.invitations SET invited_by = NULL WHERE invited_by = OLD.id;\n    \n    -- 9. Update households - set created_by to NULL (or delete if preferred)\n    UPDATE public.households SET created_by = NULL WHERE created_by = OLD.id;\n    \n    -- 10. Delete user profile\n    DELETE FROM public.profiles WHERE id = OLD.id;\n    \n    RAISE NOTICE 'Successfully cleaned up data for user: %', OLD.id;\n    \n    RETURN OLD;\nEXCEPTION\n    WHEN OTHERS THEN\n        RAISE WARNING 'Error during user deletion cleanup: %', SQLERRM;\n        -- Continue with deletion anyway\n        RETURN OLD;\nEND;\n$function$\n"
+    },
+    {
+      "function_name": "notify_new_message_with_profile",
+      "comment": "Definition for the notify_new_message_with_profile function.",
+      "definition": "CREATE OR REPLACE FUNCTION public.notify_new_message_with_profile()\n RETURNS trigger\n LANGUAGE plpgsql\nAS $function$\nDECLARE\n  profile_data json;\nBEGIN\n  -- Get the profile of the user who sent the message\n  SELECT json_build_object(\n    'id', id,\n    'name', name,\n    'avatar_url', avatar_url\n  ) INTO profile_data\n  FROM public.profiles\n  WHERE id = NEW.user_id;\n\n  -- Send a notification on the 'new_message' channel with a combined payload\n  PERFORM pg_notify(\n    'new_message',\n    json_build_object(\n      'message', row_to_json(NEW),\n      'profile', profile_data\n    )::text\n  );\n\n  RETURN NEW;\nEND;\n$function$\n"
+    },
+    {
+      "function_name": "delete_user_safely",
+      "comment": "Definition for the delete_user_safely function.",
+      "definition": "CREATE OR REPLACE FUNCTION public.delete_user_safely(p_email text)\n RETURNS text\n LANGUAGE plpgsql\n SECURITY DEFINER\nAS $function$\nDECLARE\n    v_user_id UUID;\n    v_username TEXT;\nBEGIN\n    -- Get user details\n    SELECT id, raw_user_meta_data->>'name' \n    INTO v_user_id, v_username\n    FROM auth.users \n    WHERE email = p_email;\n    \n    IF v_user_id IS NULL THEN\n        RETURN format('User not found with email: %s', p_email);\n    END IF;\n    \n    -- Delete the user (trigger will handle cleanup)\n    DELETE FROM auth.users WHERE id = v_user_id;\n    \n    RETURN format('Successfully deleted user: %s (%s)', COALESCE(v_username, 'Unknown'), p_email);\n    \nEXCEPTION\n    WHEN OTHERS THEN\n        RETURN format('Error deleting user %s: %s', p_email, SQLERRM);\nEND;\n$function$\n"
+    },
+    {
+      "function_name": "check_user_deletion_setup",
+      "comment": "Definition for the check_user_deletion_setup function.",
+      "definition": "CREATE OR REPLACE FUNCTION public.check_user_deletion_setup()\n RETURNS TABLE(check_item text, status text, details text)\n LANGUAGE plpgsql\nAS $function$\nBEGIN\n    -- Check if trigger exists\n    RETURN QUERY\n    SELECT \n        'User deletion trigger'::TEXT,\n        CASE WHEN EXISTS (\n            SELECT 1 FROM pg_trigger \n            WHERE tgname = 'before_user_delete' \n            AND tgrelid = 'auth.users'::regclass\n        ) THEN 'OK' ELSE 'MISSING' END,\n        'Trigger to clean up user data before deletion'::TEXT;\n    \n    -- Check foreign key constraints\n    RETURN QUERY\n    SELECT \n        format('FK: %s.%s', tc.table_name, tc.constraint_name)::TEXT,\n        format('%s on delete', rc.delete_rule)::TEXT,\n        format('Column %s -> auth.users', kcu.column_name)::TEXT\n    FROM \n        information_schema.table_constraints AS tc \n        JOIN information_schema.key_column_usage AS kcu\n          ON tc.constraint_name = kcu.constraint_name\n          AND tc.table_schema = kcu.table_schema\n        JOIN information_schema.referential_constraints AS rc\n          ON tc.constraint_name = rc.constraint_name\n          AND tc.table_schema = rc.constraint_schema\n        JOIN information_schema.constraint_column_usage AS ccu\n          ON rc.unique_constraint_name = ccu.constraint_name\n    WHERE tc.constraint_type = 'FOREIGN KEY' \n        AND ccu.table_schema = 'auth'\n        AND ccu.table_name = 'users'\n        AND tc.table_schema = 'public'\n    ORDER BY tc.table_name, tc.constraint_name;\n    \nEND;\n$function$\n"
+    },
+    {
+      "function_name": "handle_updated_at",
+      "comment": "Definition for the handle_updated_at function.",
+      "definition": "CREATE OR REPLACE FUNCTION public.handle_updated_at()\n RETURNS trigger\n LANGUAGE plpgsql\nAS $function$\nBEGIN\n  NEW.updated_at = TIMEZONE('utc', NOW());\n  RETURN NEW;\nEND;\n$function$\n"
+    },
+    {
+      "function_name": "get_household_data",
+      "comment": "Definition for the get_household_data function.",
+      "definition": "CREATE OR REPLACE FUNCTION public.get_household_data(p_household_id uuid)\n RETURNS json\n LANGUAGE plpgsql\n SECURITY DEFINER\nAS $function$-- FILEPATH: supabase>database>functions>get_household_data (Updated)\nDECLARE\n  result JSON;\nBEGIN\n  SELECT json_build_object(\n    'household', (\n      SELECT row_to_json(h.*)\n      FROM households h\n      WHERE h.id = p_household_id\n    ),\n    'members', (\n      SELECT COALESCE(json_agg(\n        json_build_object(\n          'id', hm.id,\n          'household_id', hm.household_id,\n          'user_id', hm.user_id,\n          'role', hm.role,\n          'joined_at', hm.joined_at,\n          'profiles', row_to_json(p.*)\n        )\n      ), '[]'::json)\n      FROM household_members hm\n      JOIN profiles p ON p.id = hm.user_id\n      WHERE hm.household_id = p_household_id\n    ),\n    'recent_expenses', (\n      SELECT COALESCE(json_agg(\n        json_build_object(\n          'id', e.id,\n          'household_id', e.household_id,\n          'description', e.description,\n          'amount', e.amount,\n          'paid_by', e.paid_by,\n          'date', e.date,\n          'created_at', e.created_at,\n          'updated_at', e.updated_at,\n          'profiles', row_to_json(p.*),\n          'expense_splits', (\n            SELECT json_agg(\n              json_build_object(\n                'id', es.id,\n                'expense_id', es.expense_id,\n                'user_id', es.user_id,\n                'amount', es.amount,\n                'settled', es.settled,\n                'settled_at', es.settled_at,\n                'profiles', row_to_json(sp.*)\n              )\n            )\n            FROM expense_splits es\n            JOIN profiles sp ON sp.id = es.user_id\n            WHERE es.expense_id = e.id\n          )\n        )\n        ORDER BY e.date DESC, e.created_at DESC\n      ), '[]'::json)\n      FROM expenses e\n      JOIN profiles p ON p.id = e.paid_by\n      WHERE e.household_id = p_household_id\n      LIMIT 50\n    ),\n    'recent_settlements', (\n      SELECT COALESCE(json_agg(\n        json_build_object(\n          'id', s.id,\n          'household_id', s.household_id,\n          'payer_id', s.payer_id,\n          'payee_id', s.payee_id,\n          'amount', s.amount,\n          'description', s.description,\n          'created_at', s.created_at,\n          'payer_profile', row_to_json(payer.*),\n          'payee_profile', row_to_json(payee.*)\n        )\n        ORDER BY s.created_at DESC\n      ), '[]'::json)\n      FROM settlements s\n      JOIN profiles payer ON payer.id = s.payer_id\n      JOIN profiles payee ON payee.id = s.payee_id\n      WHERE s.household_id = p_household_id\n      LIMIT 20\n    )\n    -- The 'tasks' and 'recent_messages' sections have been removed.\n  ) INTO result;\n  \n  RETURN result;\nEND;$function$\n"
+    },
+    {
+      "function_name": "handle_new_user",
+      "comment": "Definition for the handle_new_user function.",
+      "definition": "CREATE OR REPLACE FUNCTION public.handle_new_user()\n RETURNS trigger\n LANGUAGE plpgsql\n SECURITY DEFINER\nAS $function$BEGIN\n  INSERT INTO public.profiles (id, name)\n  VALUES (\n    new.id,\n    COALESCE(\n      new.raw_user_meta_data->>'name',\n      split_part(new.email, '@', 1),\n      new.phone\n    )\n  );\n  RETURN new;\nEND;$function$\n"
+    },
+    {
+      "function_name": "get_user_households_with_counts",
+      "comment": "Definition for the get_user_households_with_counts function.",
+      "definition": "CREATE OR REPLACE FUNCTION public.get_user_households_with_counts(p_user_id uuid)\n RETURNS TABLE(id uuid, name text, created_by uuid, created_at timestamp with time zone, updated_at timestamp with time zone, member_count bigint)\n LANGUAGE plpgsql\nAS $function$\nBEGIN\n    RETURN QUERY\n    SELECT\n        h.id,\n        h.name,\n        h.created_by,\n        h.created_at,\n        h.updated_at,\n        COUNT(hm_counter.id) as member_count\n    FROM\n        households h\n    -- Join to find which households the user is a member of\n    JOIN\n        household_members hm_user ON h.id = hm_user.household_id\n    -- Left Join to count all members in those households\n    LEFT JOIN\n        household_members hm_counter ON h.id = hm_counter.household_id\n    WHERE\n        hm_user.user_id = p_user_id\n    GROUP BY\n        h.id;\nEND;\n$function$\n"
+    }
+  ],
+  "triggers": [
+    {
+      "trigger_name": "ensure_invitation_email_lowercase",
+      "comment": "Definition for the ensure_invitation_email_lowercase trigger.",
+      "table": "invitations",
+      "event": "INSERT",
+      "definition": "EXECUTE FUNCTION ensure_lowercase_email()"
+    },
+    {
+      "trigger_name": "ensure_invitation_email_lowercase",
+      "comment": "Definition for the ensure_invitation_email_lowercase trigger.",
+      "table": "invitations",
+      "event": "UPDATE",
+      "definition": "EXECUTE FUNCTION ensure_lowercase_email()"
+    },
+    {
+      "trigger_name": "set_updated_at",
+      "comment": "Definition for the set_updated_at trigger.",
+      "table": "messages",
+      "event": "UPDATE",
+      "definition": "EXECUTE FUNCTION handle_updated_at()"
+    },
+    {
+      "trigger_name": "trigger_notify_message_sent",
+      "comment": "Definition for the trigger_notify_message_sent trigger.",
+      "table": "messages",
+      "event": "INSERT",
+      "definition": "EXECUTE FUNCTION notify_message_sent()"
+    },
+    {
+      "trigger_name": "set_updated_at",
+      "comment": "Definition for the set_updated_at trigger.",
+      "table": "profiles",
+      "event": "UPDATE",
+      "definition": "EXECUTE FUNCTION handle_updated_at()"
+    },
+    {
+      "trigger_name": "set_updated_at",
+      "comment": "Definition for the set_updated_at trigger.",
+      "table": "households",
+      "event": "UPDATE",
+      "definition": "EXECUTE FUNCTION handle_updated_at()"
+    },
+    {
+      "trigger_name": "set_updated_at",
+      "comment": "Definition for the set_updated_at trigger.",
+      "table": "expenses",
+      "event": "UPDATE",
+      "definition": "EXECUTE FUNCTION handle_updated_at()"
+    },
+    {
+      "trigger_name": "set_updated_at",
+      "comment": "Definition for the set_updated_at trigger.",
+      "table": "tasks",
+      "event": "UPDATE",
+      "definition": "EXECUTE FUNCTION handle_updated_at()"
+    },
+    {
+      "trigger_name": "trigger_notify_expense_created",
+      "comment": "Definition for the trigger_notify_expense_created trigger.",
+      "table": "expenses",
+      "event": "INSERT",
+      "definition": "EXECUTE FUNCTION notify_expense_created()"
+    },
+    {
+      "trigger_name": "trigger_notify_task_assigned",
+      "comment": "Definition for the trigger_notify_task_assigned trigger.",
+      "table": "tasks",
+      "event": "INSERT",
+      "definition": "EXECUTE FUNCTION notify_task_assigned()"
+    },
+    {
+      "trigger_name": "trigger_notify_task_assigned",
+      "comment": "Definition for the trigger_notify_task_assigned trigger.",
+      "table": "tasks",
+      "event": "UPDATE",
+      "definition": "EXECUTE FUNCTION notify_task_assigned()"
+    },
+    {
+      "trigger_name": "trigger_notify_settlement_created",
+      "comment": "Definition for the trigger_notify_settlement_created trigger.",
+      "table": "settlements",
+      "event": "INSERT",
+      "definition": "EXECUTE FUNCTION notify_settlement_created()"
+    },
+    {
+      "trigger_name": "trigger_notify_recurring_expense",
+      "comment": "Definition for the trigger_notify_recurring_expense trigger.",
+      "table": "expenses",
+      "event": "INSERT",
+      "definition": "EXECUTE FUNCTION notify_recurring_expense_processed()"
+    },
+    {
+      "trigger_name": "set_updated_at",
+      "comment": "Definition for the set_updated_at trigger.",
+      "table": "invitations",
+      "event": "UPDATE",
+      "definition": "EXECUTE FUNCTION handle_invitations_updated_at()"
+    },
+    {
+      "trigger_name": "on_new_message",
+      "comment": "Definition for the on_new_message trigger.",
+      "table": "messages",
+      "event": "INSERT",
+      "definition": "EXECUTE FUNCTION notify_new_message_with_profile()"
+    }
+  ]
+}
