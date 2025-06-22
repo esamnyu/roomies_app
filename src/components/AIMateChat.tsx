@@ -9,6 +9,7 @@ import ReactMarkdown from 'react-markdown';
 // IMPORTANT: YOU MUST ADD YOUR GEMINI API KEY HERE
 // Get your key from Google AI Studio: https://aistudio.google.com/app/apikey
 // ====================================================================================
+
 const API_KEY = process.env.NEXT_PUBLIC_GOOGLE_API_KEY;
 
 
@@ -147,7 +148,7 @@ const AIMateChat: React.FC = () => {
                  <div ref={messagesEndRef} />
             </div>
             <div className="p-4 border-t border-border">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-6">
                     <Input
                         type="text"
                         value={input}
