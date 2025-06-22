@@ -1,12 +1,13 @@
 // src/components/AddExpenseModal.tsx
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Loader2 } from 'lucide-react';
 import { createExpenseWithCustomSplits } from '@/lib/api/expenses';
 import { toast } from 'react-hot-toast';
 import type { HouseholdMember } from '@/lib/types/types';
 import { useExpenseSplits } from '@/hooks/useExpenseSplits';
+import { useAuth } from './AuthProvider'; // NEW: Import useAuth
 import { ExpenseSplitter } from '@/components/ExpenseSplitter';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -19,8 +20,19 @@ interface AddExpenseModalProps {
 }
 
 export const AddExpenseModal: React.FC<AddExpenseModalProps> = ({ householdId, members, onClose, onExpenseAdded }) => {
+  const { user } = useAuth(); // NEW: Get current user
   const [description, setDescription] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+  
+  // NEW: State to manage who paid, defaults to the logged-in user
+  const [paidBy, setPaidBy] = useState(user?.id || '');
+
+  useEffect(() => {
+    if (user?.id) {
+        setPaidBy(user.id);
+    }
+  }, [user]);
 
   const {
     amount,
@@ -33,11 +45,15 @@ export const AddExpenseModal: React.FC<AddExpenseModalProps> = ({ householdId, m
   } = useExpenseSplits(members);
 
   const handleSubmit = async () => {
-    if (!description || !isValid || !householdId) return;
+    if (!description || !isValid || !householdId || !paidBy) { // MODIFIED: Check for paidBy
+        if (!paidBy) toast.error("Please select who paid.");
+        return;
+    };
     
     setSubmitting(true);
     try {
-      await createExpenseWithCustomSplits(householdId, description, amount, finalSplits);
+      // MODIFIED: Pass paidBy and date to the API function
+      await createExpenseWithCustomSplits(householdId, description, amount, finalSplits, date, paidBy);
       toast.success('Expense added!');
       onExpenseAdded();
       onClose();
@@ -48,6 +64,8 @@ export const AddExpenseModal: React.FC<AddExpenseModalProps> = ({ householdId, m
       setSubmitting(false);
     }
   };
+  
+  const selectStyles = "mt-1 flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50";
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 overflow-y-auto">
@@ -79,6 +97,29 @@ export const AddExpenseModal: React.FC<AddExpenseModalProps> = ({ householdId, m
                 placeholder="0.00" 
               />
             </div>
+          </div>
+          
+          {/* NEW: Dropdown to select who paid */}
+          <div>
+              <label className="block text-sm font-medium text-foreground">Paid by</label>
+              <select value={paidBy} onChange={(e) => setPaidBy(e.target.value)} className={selectStyles}>
+                  {members.map(member => (
+                      <option key={member.user_id} value={member.user_id}>
+                          {member.profiles?.name || 'Unknown'}
+                      </option>
+                  ))}
+              </select>
+          </div>
+
+          {/* NEW: Input for date */}
+          <div>
+              <label className="block text-sm font-medium text-foreground">Date</label>
+              <Input
+                  type="date"
+                  className="mt-1"
+                  value={date}
+                  onChange={(e) => setDate(e.target.value)}
+              />
           </div>
           
           <ExpenseSplitter
