@@ -650,6 +650,7 @@ const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = (
     const [members, setMembers] = useState<HouseholdMember[]>([]);
     const [expenses, setExpenses] = useState<Expense[]>([]);
     const [settlements, setSettlements] = useState<Settlement[]>([]);
+    const [balances, setBalances] = useState<Awaited<ReturnType<typeof api.getHouseholdBalances>>>([]);
     const [loadingData, setLoadingData] = useState(true);
     const [recurringExpenses, setRecurringExpenses] = useState<RecurringExpense[]>([]);
 
@@ -675,18 +676,21 @@ const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = (
         if (!showToast) setLoadingData(true);
         
         try {
-            const data = await api.getHouseholdData(householdId);
+            const [data, recurringData, balanceData] = await Promise.all([
+                api.getHouseholdData(householdId),
+                api.getHouseholdRecurringExpenses(householdId),
+                api.getHouseholdBalances(householdId)
+            ]);
+
             if (!isMountedRef.current) return;
             
             if (data.household) setHousehold(data.household);
             setMembers(data.members || []);
             setExpenses(data.recent_expenses || []);
             setSettlements(data.recent_settlements || []);
-
-            const recurringData = await api.getHouseholdRecurringExpenses(householdId);
-            if (!isMountedRef.current) return;
-            
             setRecurringExpenses(recurringData);
+            setBalances(balanceData);
+
             if (showToast) toast.success("Data refreshed!");
         } catch (error) {
             console.error('Error loading household data:', error);
@@ -703,7 +707,6 @@ const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = (
         return () => { isMountedRef.current = false; };
     }, [householdId, refreshData]);
 
-    const balances = useMemo(() => api.calculateBalances(expenses, members, settlements), [expenses, members, settlements]);
     const settlementSuggestions = useMemo(() => api.getSettlementSuggestions ? api.getSettlementSuggestions(balances) : [], [balances]);
 
         // New: Calculate the current user's overall balance

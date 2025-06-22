@@ -1,3 +1,4 @@
+// src/lib/api/settlements.ts
 import { supabase } from '../supabase';
 import { subscriptionManager } from '../subscriptionManager';
 import type { Settlement, Expense, HouseholdMember, Profile } from '../types/types';
@@ -85,77 +86,93 @@ export const subscribeToSettlements = (householdId: string, onSettlement: (settl
   return subscriptionManager.subscribe(key, channel);
 };
 
-// --- BALANCE & SETTLEMENT CALCULATION HELPERS ---
+// --- NEW EFFICIENT BALANCE CALCULATION ---
 
-export const calculateBalances = (expenses: Expense[], members: HouseholdMember[], settlements?: Settlement[]): { userId: string; balance: number; profile: Profile }[] => {
-  const balanceMap = new Map<string, number>();
-
-  members.forEach(member => {
-    if (member.user_id && !member.user_id.startsWith('placeholder_')) {
-      balanceMap.set(member.user_id, 0);
-    }
-  });
-
-  expenses.forEach(expense => {
-    if (!expense.paid_by || !balanceMap.has(expense.paid_by)) return;
-
-    const payerBalance = balanceMap.get(expense.paid_by) || 0;
-    balanceMap.set(expense.paid_by, payerBalance + expense.amount);
-
-    expense.expense_splits?.forEach(split => {
-      if (!split.settled && split.user_id && balanceMap.has(split.user_id)) {
-        const currentBalance = balanceMap.get(split.user_id) || 0;
-        balanceMap.set(split.user_id, currentBalance - split.amount);
-      }
+export const getHouseholdBalances = async (householdId: string) => {
+  const { data, error } = await supabase
+    .rpc('calculate_household_balances', {
+      p_household_id: householdId
     });
-  });
 
-  if (settlements) {
-    settlements.forEach(settlement => {
-      if (!settlement.payer_id || !settlement.payee_id || settlement.amount <= 0) return;
-
-      // When someone pays, their debt decreases (balance goes UP toward 0)
-      if (balanceMap.has(settlement.payer_id)) {
-        const payerBalance = balanceMap.get(settlement.payer_id) || 0;
-        balanceMap.set(settlement.payer_id, payerBalance + settlement.amount);
-      }
-
-      // When someone receives payment, their credit decreases (balance goes DOWN toward 0)
-      if (balanceMap.has(settlement.payee_id)) {
-        const payeeBalance = balanceMap.get(settlement.payee_id) || 0;
-        balanceMap.set(settlement.payee_id, payeeBalance - settlement.amount);
-      }
-    });
+  if (error) {
+    console.error("Error fetching household balances:", error);
+    throw error;
+  }
+  
+  // The RPC returns { userid, balance, profile }. We map it to { userId, balance, profile } to match the old format.
+  interface HouseholdBalance {
+    userId: string;
+    balance: number;
+    profile: Profile;
   }
 
-  return Array.from(balanceMap.entries())
-    .map(([userId, balance]) => {
-      const member = members.find(m => m.user_id === userId);
-      if (!member?.profiles) {
-        console.warn(`Profile not found for user ID: ${userId} in calculateBalances.`);
-        return null;
-      }
-      return {
-        userId,
-        balance: Math.round(balance * 100) / 100,
-        profile: member.profiles
-      };
-    })
-    .filter(Boolean) as { userId: string; balance: number; profile: Profile }[];
+  type RawBalance = {
+    userid: string;
+    balance: number;
+    profile: Profile;
+  };
+
+  return (data?.map((item: RawBalance): HouseholdBalance => ({
+    userId: item.userid,
+    balance: item.balance,
+    profile: item.profile
+  })) || []) as HouseholdBalance[];
 };
 
-export const getSettlementSuggestions = (balances: ReturnType<typeof calculateBalances>): { from: string; to: string; amount: number; fromProfile: Profile; toProfile: Profile }[] => {
+// --- SETTLEMENT SUGGESTION HELPER ---
+// This function now consumes the balances fetched efficiently from the backend.
+
+export const getSettlementSuggestions = (balances: Awaited<ReturnType<typeof getHouseholdBalances>>): { from: string; to: string; amount: number; fromProfile: Profile; toProfile: Profile }[] => {
   const suggestions: { from: string; to: string; amount: number; fromProfile: Profile; toProfile: Profile }[] = [];
-  const debtors = balances.filter(b => b.balance < -0.01).sort((a, b) => a.balance - b.balance);
-  const creditors = balances.filter(b => b.balance > 0.01).sort((a, b) => b.balance - a.balance);
-  const tempDebtors = [...debtors]; const tempCreditors = [...creditors];
-  while (tempDebtors.length > 0 && tempCreditors.length > 0) {
-    const debtor = tempDebtors[0]; const creditor = tempCreditors[0];
-    if (!debtor.profile || !creditor.profile) { console.warn('Skipping settlement suggestion due to missing profile information.'); if (!debtor.profile) tempDebtors.shift(); if (!creditor.profile) tempCreditors.shift(); continue; }
-    const debtAmount = Math.abs(debtor.balance); const creditAmount = creditor.balance; const settlementAmount = Math.min(debtAmount, creditAmount);
-    suggestions.push({ from: debtor.userId, to: creditor.userId, amount: Math.round(settlementAmount * 100) / 100, fromProfile: debtor.profile, toProfile: creditor.profile });
-    debtor.balance += settlementAmount; creditor.balance -= settlementAmount;
-    if (Math.abs(debtor.balance) < 0.01) tempDebtors.shift(); if (creditor.balance < 0.01) tempCreditors.shift();
+  
+  // Create mutable copies for calculation
+  interface BalanceWithProfile {
+    userId: string;
+    balance: number;
+    profile: Profile;
+  }
+
+  const debtors: BalanceWithProfile[] = JSON.parse(
+    JSON.stringify(
+      (balances as BalanceWithProfile[])
+        .filter((b: BalanceWithProfile) => b.balance < -0.01)
+        .sort((a: BalanceWithProfile, b: BalanceWithProfile) => a.balance - b.balance)
+    )
+  );
+  const creditors = JSON.parse(JSON.stringify(balances.filter(b => b.balance > 0.01).sort((a: { balance: number; }, b: { balance: number; }) => b.balance - a.balance)));
+
+  while (debtors.length > 0 && creditors.length > 0) {
+    const debtor = debtors[0];
+    const creditor = creditors[0];
+
+    if (!debtor.profile || !creditor.profile) {
+      console.warn('Skipping settlement suggestion due to missing profile information.');
+      if (!debtor.profile) debtors.shift();
+      if (!creditor.profile) creditors.shift();
+      continue;
+    }
+
+    const debtAmount = Math.abs(debtor.balance);
+    const creditAmount = creditor.balance;
+    const settlementAmount = Math.min(debtAmount, creditAmount);
+
+    suggestions.push({
+      from: debtor.userId,
+      to: creditor.userId,
+      amount: Math.round(settlementAmount * 100) / 100,
+      fromProfile: debtor.profile,
+      toProfile: creditor.profile
+    });
+
+    debtor.balance += settlementAmount;
+    creditor.balance -= settlementAmount;
+
+    if (Math.abs(debtor.balance) < 0.01) {
+      debtors.shift();
+    }
+    if (creditor.balance < 0.01) {
+      creditors.shift();
+    }
   }
   return suggestions;
 };
