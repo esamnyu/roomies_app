@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { ChevronRight, Home, DollarSign, CheckSquare, Plus, LogOut, Menu, X, ArrowLeft, Loader2, CreditCard, MessageSquare, Settings, ClipboardList, User, Share2, LifeBuoy, Edit3, Trash2 } from 'lucide-react';
+import { ChevronRight, Home, DollarSign, CheckSquare, Plus, LogOut, Menu, X, ArrowLeft, Loader2, CreditCard, MessageSquare, Settings, ClipboardList, User, Share2, LifeBuoy, Edit3, Trash2, Phone, Mail } from 'lucide-react';
 
 import * as api from '../lib/api';
 import { Household, HouseholdMember, Expense, Settlement, RecurringExpense, HouseRule, Profile } from '../lib/types/types';
@@ -109,11 +109,11 @@ const Layout: React.FC<{
                                 <div className="flex items-center space-x-2">
                                     <div className="hidden md:flex items-center space-x-2">
                                         <NotificationBell />
-                                        <UserMenu 
-                                            onProfileClick={onShowProfile} 
-                                            onSettingsClick={onShowSettings} 
-                                            onSignOut={signOut} 
-                                            householdSelected={isHouseholdView} 
+                                        <UserMenu
+                                            onProfileClick={onShowProfile}
+                                            onSettingsClick={onShowSettings}
+                                            onSignOut={signOut}
+                                            householdSelected={isHouseholdView}
                                         />
                                     </div>
                                     <div className="flex items-center md:hidden">
@@ -160,15 +160,20 @@ const LoadingSpinner = () => (
 );
 
 const AuthForm: React.FC<{isRegisteringInitially: boolean}> = ({isRegisteringInitially}) => {
-    const { signIn, signUp } = useAuth();
+    const { signIn, signUp, signInWithGoogle, signInWithPhone, verifyOtp } = useAuth();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [name, setName] = useState('');
+    const [phone, setPhone] = useState('');
+    const [otp, setOtp] = useState('');
     const [error, setError] = useState('');
     const [isRegistering, setIsRegistering] = useState(isRegisteringInitially);
     const [isLoading, setIsLoading] = useState(false);
+    const [authMethod, setAuthMethod] = useState<'email' | 'phone'>('email');
+    const [otpSent, setOtpSent] = useState(false);
 
-    const handleSubmit = async () => {
+    const handleEmailSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
         setError('');
         setIsLoading(true);
         try {
@@ -187,43 +192,145 @@ const AuthForm: React.FC<{isRegisteringInitially: boolean}> = ({isRegisteringIni
         }
     };
 
-    const handleKeyPress = (e: React.KeyboardEvent) => {
-        if (e.key === 'Enter' && !isLoading) handleSubmit();
+    const handlePhoneSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setError('');
+        setIsLoading(true);
+        const { error } = await signInWithPhone(phone);
+        if (error) {
+            setError(error.message);
+        } else {
+            setOtpSent(true);
+        }
+        setIsLoading(false);
     };
+
+    const handleOtpSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setError('');
+        setIsLoading(true);
+        const { error } = await verifyOtp(phone, otp);
+        if (error) setError(error.message);
+        // On success, onAuthStateChange handles the rest
+        setIsLoading(false);
+    };
+
+    const handleGoogleSignIn = async () => {
+        setError('');
+        setIsLoading(true);
+        try {
+            const { error: authError } = await signInWithGoogle();
+            if (authError) setError(authError.message);
+        } catch (err: unknown) {
+            if (err instanceof Error) {
+                setError(err.message);
+            } else {
+                setError('An unexpected error occurred with Google sign-in');
+            }
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    // Resets form state when switching auth methods
+    useEffect(() => {
+        setError('');
+        setEmail('');
+        setPassword('');
+        setPhone('');
+        setOtp('');
+        setOtpSent(false);
+    }, [authMethod, isRegistering]);
 
     return (
         <div className="min-h-screen flex items-center justify-center bg-background py-12 px-4 sm:px-6 lg:px-8">
             <div className="max-w-md w-full space-y-8">
                 <div>
                     <h2 className="mt-6 text-center text-3xl font-extrabold text-foreground">
-                        Welcome to Roomies
+                        {isRegistering ? 'Create your account' : 'Welcome back'}
                     </h2>
-                    <p className="mt-2 text-center text-sm text-secondary-foreground">
-                        {isRegistering ? 'Create your account' : 'Sign in to manage your shared living space'}
+                     <p className="mt-2 text-center text-sm text-secondary-foreground">
+                        {isRegistering ? 'Get started with Roomies today.' : 'Sign in to manage your shared living space'}
                     </p>
                 </div>
+
                 <div className="mt-8 space-y-6">
-                    <div className="rounded-md shadow-sm -space-y-px">
-                        {isRegistering && (
-                            <div>
-                                <Input type="text" required className="rounded-b-none" placeholder="Name" value={name} onChange={(e) => setName(e.target.value)} onKeyPress={handleKeyPress}/>
-                            </div>
-                        )}
-                        <div>
-                            <Input type="email" required className={isRegistering ? '' : 'rounded-t-md'} placeholder="Email address" value={email} onChange={(e) => setEmail(e.target.value)} onKeyPress={handleKeyPress} />
+                    {/* Tabs for Email/Phone */}
+                    {!isRegistering && (
+                        <div className="grid grid-cols-2 gap-2 rounded-lg bg-secondary p-1">
+                            <button onClick={() => setAuthMethod('email')} className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${authMethod === 'email' ? 'bg-background text-foreground shadow-sm' : 'text-secondary-foreground hover:bg-background/50'}`}>
+                                <Mail className="inline h-4 w-4 mr-2" /> Email
+                            </button>
+                            <button onClick={() => setAuthMethod('phone')} className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${authMethod === 'phone' ? 'bg-background text-foreground shadow-sm' : 'text-secondary-foreground hover:bg-background/50'}`}>
+                                <Phone className="inline h-4 w-4 mr-2" /> Phone
+                            </button>
                         </div>
-                        <div>
-                            <Input type="password" required className="rounded-t-none" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} onKeyPress={handleKeyPress} />
+                    )}
+
+                    {authMethod === 'email' && (
+                        <form onSubmit={handleEmailSubmit} className="space-y-4">
+                            <div className="rounded-md shadow-sm -space-y-px">
+                                {isRegistering && (
+                                    <div>
+                                        <Input type="text" required className="rounded-b-none" placeholder="Name" value={name} onChange={(e) => setName(e.target.value)} />
+                                    </div>
+                                )}
+                                <div>
+                                    <Input type="email" required className={isRegistering ? '' : 'rounded-t-md'} placeholder="Email address" value={email} onChange={(e) => setEmail(e.target.value)} />
+                                </div>
+                                <div>
+                                    <Input type="password" required className="rounded-t-none" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} />
+                                </div>
+                            </div>
+                            <Button type="submit" disabled={isLoading} className="w-full">
+                                {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : (isRegistering ? 'Create Account' : 'Sign in')}
+                            </Button>
+                        </form>
+                    )}
+
+                    {authMethod === 'phone' && !isRegistering && (
+                        <>
+                            {!otpSent ? (
+                                <form onSubmit={handlePhoneSubmit} className="space-y-4">
+                                    <div>
+                                        <label htmlFor="phone" className="sr-only">Phone Number</label>
+                                        <Input id="phone" type="tel" placeholder="e.g., +14155552671" value={phone} onChange={(e) => setPhone(e.target.value)} required/>
+                                    </div>
+                                    <Button type="submit" disabled={isLoading} className="w-full">
+                                        {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Send Code'}
+                                    </Button>
+                                </form>
+                            ) : (
+                                <form onSubmit={handleOtpSubmit} className="space-y-4">
+                                    <div>
+                                        <label htmlFor="otp" className="sr-only">Verification Code</label>
+                                        <Input id="otp" type="text" inputMode="numeric" placeholder="123456" value={otp} onChange={(e) => setOtp(e.target.value)} required />
+                                    </div>
+                                    <Button type="submit" disabled={isLoading} className="w-full">
+                                        {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Verify and Sign In'}
+                                    </Button>
+                                </form>
+                            )}
+                        </>
+                    )}
+
+                    {error && (
+                        <div className="text-destructive text-sm text-center pt-2">{error}</div>
+                    )}
+                    
+                    <div className="relative">
+                        <div className="absolute inset-0 flex items-center">
+                            <div className="w-full border-t border-border" />
+                        </div>
+                        <div className="relative flex justify-center text-sm">
+                            <span className="px-2 bg-background text-secondary-foreground">Or</span>
                         </div>
                     </div>
 
-                    {error && (
-                        <div className="text-destructive text-sm text-center">{error}</div>
-                    )}
-
                     <div>
-                        <Button onClick={handleSubmit} disabled={isLoading} className="w-full">
-                            {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : (isRegistering ? 'Create Account' : 'Sign in')}
+                        <Button onClick={handleGoogleSignIn} variant="outline" className="w-full" disabled={isLoading}>
+                            <svg className="mr-2 -ml-1 w-4 h-4" aria-hidden="true" focusable="false" data-prefix="fab" data-icon="google" role="img" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 488 512"><path fill="currentColor" d="M488 261.8C488 403.3 381.5 512 244 512 110.3 512 0 401.8 0 261.8S110.3 11.8 244 11.8c70.3 0 120.5 28.5 160.8 66.2l-64.8 64.3c-32.3-30.5-73.8-50-129.5-50-101.5 0-184.5 83.3-184.5 186.2s83 186.2 184.5 186.2c104.5 0 162.5-74.8 162.5-149.3 0-25.5-3-50.5-8.8-74.8H244V261.8z"></path></svg>
+                            Sign in with Google
                         </Button>
                     </div>
 
@@ -543,6 +650,7 @@ const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = (
     const [members, setMembers] = useState<HouseholdMember[]>([]);
     const [expenses, setExpenses] = useState<Expense[]>([]);
     const [settlements, setSettlements] = useState<Settlement[]>([]);
+    const [balances, setBalances] = useState<Awaited<ReturnType<typeof api.getHouseholdBalances>>>([]);
     const [loadingData, setLoadingData] = useState(true);
     const [recurringExpenses, setRecurringExpenses] = useState<RecurringExpense[]>([]);
 
@@ -568,18 +676,21 @@ const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = (
         if (!showToast) setLoadingData(true);
         
         try {
-            const data = await api.getHouseholdData(householdId);
+            const [data, recurringData, balanceData] = await Promise.all([
+                api.getHouseholdData(householdId),
+                api.getHouseholdRecurringExpenses(householdId),
+                api.getHouseholdBalances(householdId)
+            ]);
+
             if (!isMountedRef.current) return;
             
             if (data.household) setHousehold(data.household);
             setMembers(data.members || []);
             setExpenses(data.recent_expenses || []);
             setSettlements(data.recent_settlements || []);
-
-            const recurringData = await api.getHouseholdRecurringExpenses(householdId);
-            if (!isMountedRef.current) return;
-            
             setRecurringExpenses(recurringData);
+            setBalances(balanceData);
+
             if (showToast) toast.success("Data refreshed!");
         } catch (error) {
             console.error('Error loading household data:', error);
@@ -596,7 +707,6 @@ const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = (
         return () => { isMountedRef.current = false; };
     }, [householdId, refreshData]);
 
-    const balances = useMemo(() => api.calculateBalances(expenses, members, settlements), [expenses, members, settlements]);
     const settlementSuggestions = useMemo(() => api.getSettlementSuggestions ? api.getSettlementSuggestions(balances) : [], [balances]);
 
         // New: Calculate the current user's overall balance
@@ -655,7 +765,7 @@ const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = (
                                     {Math.abs(currentUserBalance) < 0.01 && "You are all settled up."}
                                     {currentUserBalance > 0.01 && `Overall, you are owed `}
                                     {currentUserBalance < -0.01 && `Overall, you owe `}
-                                    {Math.abs(currentUserBalance) >= 0.01 && 
+                                    {Math.abs(currentUserBalance) >= 0.01 &&
                                         <span className={`font-bold ${currentUserBalance > 0 ? 'text-primary' : 'text-destructive'}`}>
                                             ${Math.abs(currentUserBalance).toFixed(2)}
                                         </span>
@@ -673,27 +783,45 @@ const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = (
                                                 </div>
                                         );
                                     }
-                                    
+
                                     const isOwed = balance.balance > 0;
-                                    
+
                                     return (
                                         <div key={balance.userId} className={`flex justify-between items-center p-2 rounded-md text-sm ${balance.userId === user?.id ? 'bg-secondary' : ''}`}>
                                             <span className="font-medium text-foreground">{balance.profile?.name} {balance.userId === user?.id && '(You)'}</span>
                                             <div className={`font-medium ${isOwed ? 'text-primary' : 'text-destructive'}`}>
-                                                {isOwed ? 'gets back ' : 'owes '}
-                                                ${Math.abs(balance.balance).toFixed(2)}
-                                            </div>
-                                        </div>
-                                    );
-                                }) : <p className="text-sm text-secondary-foreground">No balances to show yet. Add some expenses!</p>}
-                            </div>
-                        </div>
-                        <div className="bg-secondary rounded-lg p-4">
-                            <div className="flex justify-between items-center mb-3">
-                                <h4 className="text-sm font-medium text-foreground">Recurring Expenses</h4>
-                                <Button onClick={() => setShowAddRecurring(true)} variant="outline" size="sm"><Plus className="h-4 w-4 inline mr-1" />Add Recurring</Button>
-                            </div>
-                            {loadingData && recurringExpenses.length === 0 ? <LoadingSpinner/> : recurringExpenses.length === 0 ? <p className="text-sm text-secondary-foreground">No recurring expenses.</p> : ( <div className="space-y-2">{recurringExpenses.map(rec => (<div key={rec.id} className="flex justify-between items-center text-sm p-2 bg-background rounded shadow-sm"><div><span className="font-medium">{rec.description}</span><span className="text-secondary-foreground ml-2">${rec.amount.toFixed(2)} {rec.frequency}</span></div><div className="text-secondary-foreground">Next: {new Date(rec.next_due_date + (rec.next_due_date.includes('T') ? '' : 'T00:00:00')).toLocaleDateString()}</div></div>))}</div> )}
+                        {isOwed ? 'gets back ' : 'owes '}
+                        <span>
+                            ${Math.abs(balance.balance).toFixed(2)}
+                        </span>
+                    </div>
+                </div>
+            );
+        }) : <p className="text-sm text-secondary-foreground">No balances to show yet. Add some expenses!</p>}
+    </div>
+</div>
+<div className="bg-secondary rounded-lg p-4">
+    <div className="flex justify-between items-center mb-3">
+        <h4 className="text-sm font-medium text-foreground">Recurring Expenses</h4>
+        <Button onClick={() => setShowAddRecurring(true)} variant="outline" size="sm"><Plus className="h-4 w-4 inline mr-1" />Add Recurring</Button>
+    </div>
+    {loadingData && recurringExpenses.length === 0 ? <LoadingSpinner/> : recurringExpenses.length === 0 ? <p className="text-sm text-secondary-foreground">No recurring expenses.</p> : (
+        <div className="space-y-2">
+            {recurringExpenses.map(rec => (
+                <div key={rec.id} className="flex justify-between items-center text-sm p-2 bg-background rounded shadow-sm">
+                    <div>
+                        <span className="font-medium">{rec.description}</span>
+                        <span className="text-secondary-foreground ml-2">
+                            ${rec.amount.toFixed(2)} {rec.frequency}
+                        </span>
+                    </div>
+                    <div className="text-secondary-foreground">
+                        Next: {new Date(rec.next_due_date + (rec.next_due_date.includes('T') ? '' : 'T00:00:00')).toLocaleDateString()}
+                    </div>
+                </div>
+            ))}
+        </div>
+    )}
                         </div>
                         <div className="space-y-4">
                             <div className="flex justify-between items-center"><h3 className="text-lg font-medium text-foreground">One-Time Expenses</h3><Button onClick={() => setShowAddExpense(true)} size="sm"><Plus className="h-4 w-4 mr-1" />Add Expense</Button></div>
