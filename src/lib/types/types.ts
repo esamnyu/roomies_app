@@ -59,6 +59,18 @@ export interface Expense {
   expense_splits?: ExpenseSplit[]
 }
 
+// --- NEW: This interface was missing ---
+export interface ExpenseSplitAdjustment {
+  id: string;
+  expense_split_id: string;
+  adjustment_amount: number;
+  reason: string | null;
+  created_at: string;
+  created_by: string;
+  profiles?: Profile; // For the creator of the adjustment
+}
+
+// --- MODIFIED: Added adjustments array ---
 export interface ExpenseSplit {
   id: string
   expense_id: string
@@ -67,6 +79,16 @@ export interface ExpenseSplit {
   settled: boolean
   settled_at?: string
   profiles?: Profile
+  expense_split_adjustments?: ExpenseSplitAdjustment[]; // This is the new property
+}
+
+// --- NEW: This interface was missing and caused the error ---
+export interface UpdateExpensePayload {
+  description: string;
+  amount: number;
+  splits: Array<{ user_id: string; amount: number }>;
+  paid_by: string;
+  date: string;
 }
 
 export interface Task {

@@ -1,17 +1,38 @@
-// src/lib/api/expenses.ts
 import { supabase } from '../supabase';
 import type { RecurringExpense } from '../types/types';
 import { getProfile } from './profile';
 
 // --- EXPENSE FUNCTIONS ---
 export const getHouseholdExpenses = async (householdId: string) => {
-  const { data, error } = await supabase.from('expenses').select(`*, profiles:paid_by (id, name, avatar_url), expense_splits (*, profiles:user_id (id, name, avatar_url))`).eq('household_id', householdId).order('date', { ascending: false }).order('created_at', { ascending: false });
-  if (error) throw error; return data || [];
+  const { data, error } = await supabase
+    .from('expenses')
+    // --- MODIFIED LINE START ---
+    .select(`
+      *, 
+      profiles:paid_by (id, name, avatar_url), 
+      expense_splits (*, 
+        profiles:user_id (id, name, avatar_url),
+        expense_split_adjustments (*, profiles:created_by(id, name, avatar_url))
+      )
+    `)
+    // --- MODIFIED LINE END ---
+    .eq('household_id', householdId)
+    .order('date', { ascending: false })
+    .order('created_at', { ascending: false });
+
+  if (error) throw error;
+  return data || [];
 };
 
 export const markExpenseSettled = async (expenseId: string, userId: string) => {
-  const { data, error } = await supabase.from('expense_splits').update({ settled: true, settled_at: new Date().toISOString() }).eq('expense_id', expenseId).eq('user_id', userId);
-  if (error) throw error; return data;
+  const { data, error } = await supabase
+    .from('expense_splits')
+    .update({ settled: true, settled_at: new Date().toISOString() })
+    .eq('expense_id', expenseId)
+    .eq('user_id', userId);
+
+  if (error) throw error;
+  return data;
 };
 
 export const createExpenseWithCustomSplits = async (
@@ -20,7 +41,7 @@ export const createExpenseWithCustomSplits = async (
   amount: number,
   splits: Array<{ user_id: string; amount: number }>,
   date?: string,
-  paidById?: string // MODIFIED: Added paidById
+  paidById?: string
 ) => {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error('Not authenticated');
@@ -30,13 +51,13 @@ export const createExpenseWithCustomSplits = async (
     throw new Error('Split amounts must approximately equal total expense amount');
   }
 
-  const payerId = paidById || user.id; // Use passed in ID or default to current user
+  const payerId = paidById || user.id;
 
   const { data: expenseId, error } = await supabase.rpc('create_expense_with_splits', {
     p_household_id: householdId,
     p_description: description,
     p_amount: amount,
-    p_paid_by: payerId, // MODIFIED: Use the determined payerId
+    p_paid_by: payerId,
     p_splits: splits,
     p_date: date || new Date().toISOString().split('T')[0]
   });
@@ -46,7 +67,6 @@ export const createExpenseWithCustomSplits = async (
     throw new Error(`Failed to create expense: ${error.message}`);
   }
 
-  // MODIFIED: Notification logic now uses the correct payerId
   const otherMembers = splits.filter(split => split.user_id !== payerId);
   if (otherMembers.length > 0) {
     const payerProfile = await getProfile(payerId);
@@ -61,9 +81,9 @@ export const createExpenseWithCustomSplits = async (
         is_read: false
       }));
       try {
-        await supabase.from('notifications').insert(notifications)
+        await supabase.from('notifications').insert(notifications);
       } catch (notifError) {
-        console.error('Failed to create notifications (expense was still created):', notifError)
+        console.error('Failed to create notifications (expense was still created):', notifError);
       }
     }
   }
@@ -71,18 +91,27 @@ export const createExpenseWithCustomSplits = async (
   return { id: expenseId };
 };
 
-// --- NEW ---
+// --- MODIFIED SECTION START ---
+
 // Payload for the update function
 interface UpdateExpensePayload {
   description: string;
   amount: number;
   splits: Array<{ user_id: string; amount: number }>;
-  paid_by?: string;
-  date?: string;
+  paid_by: string; // Ensure paid_by is always provided
+  date: string;    // Ensure date is always provided
 }
 
-export const updateExpense = async (expenseId: string, payload: UpdateExpensePayload) => {
-  const { error } = await supabase.rpc('update_expense_with_splits', {
+// Define the expected response type from the new RPC
+interface UpdateExpenseResponse {
+  success: boolean;
+  adjustments_made: boolean;
+  message: string;
+}
+
+export const updateExpense = async (expenseId: string, payload: UpdateExpensePayload): Promise<UpdateExpenseResponse> => {
+  // Call the new 'update_expense_with_splits_smart' RPC
+  const { data, error } = await supabase.rpc('update_expense_with_splits_smart', {
     p_expense_id: expenseId,
     p_description: payload.description,
     p_amount: payload.amount,
@@ -96,8 +125,11 @@ export const updateExpense = async (expenseId: string, payload: UpdateExpensePay
     throw new Error(`Failed to update expense: ${error.message}`);
   }
 
-  return { success: true };
+  // Return the data from the RPC, which includes the 'adjustments_made' flag
+  return data;
 };
+
+// --- MODIFIED SECTION END ---
 
 
 // --- RECURRING EXPENSE FUNCTIONS (unchanged) ---
@@ -126,13 +158,13 @@ export const getHouseholdRecurringExpenses = async (householdId: string) => {
   if (error) throw error; return data || [];
 };
 
-export const processDueRecurringExpenses = async (householdId: string) => {
-  const { error } = await supabase.rpc('process_due_recurring_expenses', {
-    p_household_id: householdId,
-  });
+export const processDueRecurringExpenses = async (householdId:string) => {
+    const { error } = await supabase.rpc('process_due_recurring_expenses', {
+        p_household_id: householdId,
+    });
 
-  if (error) {
-    console.error('Error processing due recurring expenses:', error);
-    throw error;
-  }
+    if (error) {
+        console.error('Error processing due recurring expenses:', error);
+        throw error;
+    }
 };

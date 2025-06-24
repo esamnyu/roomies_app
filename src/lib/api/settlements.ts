@@ -1,12 +1,13 @@
 // src/lib/api/settlements.ts
 import { supabase } from '../supabase';
 import { subscriptionManager } from '../subscriptionManager';
-import type { Settlement, Expense, HouseholdMember, Profile } from '../types/types';
+import type { Settlement, Profile } from '../types/types';
 
 // This function is updated to accept a single object.
 export const createSettlement = async (settlement: Omit<Settlement, 'id' | 'created_at' | 'payer_profile' | 'payee_profile'>) => {
+  // MODIFIED: Changed RPC call to the correct function name 'create_settlement'
   const { data, error } = await supabase
-    .rpc('create_settlement_and_notify', {
+    .rpc('create_settlement', {
       p_household_id: settlement.household_id,
       p_payer_id: settlement.payer_id,
       p_payee_id: settlement.payee_id,
@@ -25,7 +26,9 @@ export const createSettlement = async (settlement: Omit<Settlement, 'id' | 'crea
     throw error;
   }
 
-  return data;
+  // The 'create_settlement' function returns a SETOF settlements, so it will be an array.
+  // We return the first element to match the expected return type.
+  return Array.isArray(data) ? data[0] : data;
 };
 
 export const getHouseholdSettlements = async (householdId: string) => {
@@ -47,7 +50,6 @@ export const getHouseholdSettlements = async (householdId: string) => {
 export const subscribeToSettlements = (householdId: string, onSettlement: (settlement: Settlement) => void) => {
   const key = `settlements:${householdId}`;
   
-  // Check if already subscribed
   if (subscriptionManager.hasSubscription(key)) {
     console.log(`Already subscribed to ${key}, skipping...`);
     return;
@@ -99,7 +101,6 @@ export const getHouseholdBalances = async (householdId: string) => {
     throw error;
   }
   
-  // The RPC returns { userid, balance, profile }. We map it to { userId, balance, profile } to match the old format.
   interface HouseholdBalance {
     userId: string;
     balance: number;
@@ -120,12 +121,11 @@ export const getHouseholdBalances = async (householdId: string) => {
 };
 
 // --- SETTLEMENT SUGGESTION HELPER ---
-// This function now consumes the balances fetched efficiently from the backend.
+export type SettlementSuggestion = { from: string; to: string; amount: number; fromProfile: Profile; toProfile: Profile };
 
-export const getSettlementSuggestions = (balances: Awaited<ReturnType<typeof getHouseholdBalances>>): { from: string; to: string; amount: number; fromProfile: Profile; toProfile: Profile }[] => {
-  const suggestions: { from: string; to: string; amount: number; fromProfile: Profile; toProfile: Profile }[] = [];
+export const getSettlementSuggestions = (balances: Awaited<ReturnType<typeof getHouseholdBalances>>): SettlementSuggestion[] => {
+  const suggestions: SettlementSuggestion[] = [];
   
-  // Create mutable copies for calculation
   interface BalanceWithProfile {
     userId: string;
     balance: number;

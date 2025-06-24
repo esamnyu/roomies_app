@@ -3,7 +3,7 @@
 
 
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { ChevronRight, Home, DollarSign, CheckSquare, Plus, LogOut, Menu, X, ArrowLeft, Loader2, CreditCard, MessageSquare, Settings, ClipboardList, User, Share2, LifeBuoy, Edit3, Trash2, Phone, Mail, Pencil } from 'lucide-react';
+import { ChevronRight, Home, DollarSign, CheckSquare, Plus, LogOut, Menu, X, ArrowLeft, Loader2, CreditCard, MessageSquare, Settings, ClipboardList, User, Share2, LifeBuoy, Edit3, Trash2, Phone, Mail, Pencil, CheckCircle2 } from 'lucide-react'; // MODIFIED: Added CheckCircle2
 
 import * as api from '../lib/api';
 import { Household, HouseholdMember, Expense, Settlement, RecurringExpense, HouseRule, Profile } from '../lib/types/types';
@@ -648,7 +648,7 @@ const RuleCard: React.FC<{
 
 const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = ({ householdId, onBack }) => {
     const { user } = useAuth();
-    const [activeTab, setActiveTab] = useState<HouseholdDetailTab>('structuredChores');
+    const [activeTab, setActiveTab] = useState<HouseholdDetailTab>('money');
     const [household, setHousehold] = useState<Household | null>(null);
     const [members, setMembers] = useState<HouseholdMember[]>([]);
     const [expenses, setExpenses] = useState<Expense[]>([]);
@@ -656,6 +656,7 @@ const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = (
     const [balances, setBalances] = useState<Awaited<ReturnType<typeof api.getHouseholdBalances>>>([]);
     const [loadingData, setLoadingData] = useState(true);
     const [recurringExpenses, setRecurringExpenses] = useState<RecurringExpense[]>([]);
+    const [expandedExpense, setExpandedExpense] = useState<string | null>(null);
 
     const [showAddRecurring, setShowAddRecurring] = useState(false);
     const [showAddExpense, setShowAddExpense] = useState(false);
@@ -741,7 +742,7 @@ const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = (
             <div className="space-y-6">
                 <div className="border-b border-border">
                     <nav className="-mb-px flex space-x-4 sm:space-x-8 overflow-x-auto">
-                        {(['structuredChores', 'money', 'communication', 'rules'] as HouseholdDetailTab[]).map(tab => (
+                        {(['money', 'structuredChores', 'communication', 'rules'] as HouseholdDetailTab[]).map(tab => ( // MODIFIED: Changed default tab
                             <button key={tab} onClick={() => setActiveTab(tab)} className={`py-2 px-1 sm:px-3 border-b-2 font-medium text-sm whitespace-nowrap ${activeTab === tab ? 'border-primary text-primary' : 'border-transparent text-secondary-foreground hover:text-foreground hover:border-border'}`}>
                                 {tab === 'structuredChores' && <ClipboardList className="inline h-4 w-4 mr-1" />}
                                 {tab === 'money' && <DollarSign className="inline h-4 w-4 mr-1" />}
@@ -838,22 +839,59 @@ const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = (
                             <div className="space-y-3">
                                 {loadingData && expenses.length === 0 ? <LoadingSpinner/> : expenses.length === 0 ? <p className="text-secondary-foreground text-center py-4">No one-time expenses.</p> : ( 
                                     expenses.map(expense => (
-                                        <div key={expense.id} className="bg-background rounded-lg shadow p-4 border border-border">
-                                            <div className="flex justify-between items-start">
-                                                {/* Expense details on the left */}
+                                        // MODIFIED: This whole block is new to handle collapsible expenses and display splits/adjustments
+                                        <div key={expense.id} className="bg-background rounded-lg shadow border border-border overflow-hidden">
+                                            <div 
+                                                className="p-4 flex justify-between items-start cursor-pointer hover:bg-secondary/50"
+                                                onClick={() => setExpandedExpense(expandedExpense === expense.id ? null : expense.id)}
+                                            >
                                                 <div className="flex-1">
                                                     <h4 className="font-medium text-foreground">{expense.description}</h4>
                                                     <p className="text-sm text-secondary-foreground">Paid by {expense.profiles?.name} • {new Date(expense.date + (expense.date.includes('T') ? '' : 'T00:00:00')).toLocaleDateString()}</p>
                                                 </div>
-                                                {/* Amount and Edit Button on the right */}
                                                 <div className="flex items-center space-x-2">
                                                     <p className="font-medium text-foreground text-right">${expense.amount.toFixed(2)}</p>
-                                                    {/* This is the new button */}
-                                                    <Button variant="ghost" size="icon" onClick={() => setEditingExpense(expense)}>
+                                                    <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); setEditingExpense(expense); }}>
                                                         <Pencil className="h-4 w-4" />
                                                     </Button>
                                                 </div>
                                             </div>
+                                            {/* Collapsible content for splits */}
+                                            {expandedExpense === expense.id && (
+                                                <div className="px-4 pb-4 border-t border-border bg-secondary/30">
+                                                    <h5 className="text-sm font-semibold text-foreground mt-3 mb-2">Splits</h5>
+                                                    <div className="space-y-2">
+                                                        {expense.expense_splits && expense.expense_splits.length > 0 ? expense.expense_splits.map(split => (
+                                                            <div key={split.id} className="text-sm">
+                                                                <div className="flex justify-between items-center">
+                                                                    <div className="flex items-center">
+                                                                        {split.settled ? (
+                                                                            <><CheckCircle2 className="h-4 w-4 text-primary mr-2" /><span className="sr-only">Settled</span></>
+                                                                        ) : (
+                                                                            <div className="w-4 h-4 mr-2" />
+                                                                        )}
+                                                                        <span>{split.profiles?.name || 'Unknown User'}</span>
+                                                                    </div>
+                                                                    <span className={split.settled ? 'text-secondary-foreground' : 'text-foreground font-medium'}>
+                                                                        ${split.amount.toFixed(2)}
+                                                                    </span>
+                                                                </div>
+                                                                {/* --- NEW: UI to Display Adjustments --- */}
+                                                                {split.expense_split_adjustments && split.expense_split_adjustments.length > 0 && (
+                                                                    <div className="ml-6 mt-1 space-y-1 border-l-2 border-dashed border-border pl-3">
+                                                                        {split.expense_split_adjustments.map(adj => (
+                                                                            <div key={adj.id} className="text-xs text-secondary-foreground italic">
+                                                                                Adjustment: {adj.adjustment_amount > 0 ? `+` : ''}${adj.adjustment_amount.toFixed(2)} by {adj.profiles?.name || 'system'}
+                                                                                {adj.reason && ` (${adj.reason})`}
+                                                                            </div>
+                                                                        ))}
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        )) : <p className="text-sm text-secondary-foreground">This was a personal expense.</p>}
+                                                    </div>
+                                                </div>
+                                            )}
                                         </div>
                                     )) 
                                 )}
