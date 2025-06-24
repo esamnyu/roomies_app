@@ -1,9 +1,9 @@
-// src/lib/types.ts
+// src/lib/types/types.ts
 
 export interface Profile {
   id: string;
   name: string;
-  avatar_url?: string | null; // This line has been updated
+  avatar_url?: string | null;
   created_at: string;
   updated_at: string;
   email?: string;
@@ -41,25 +41,19 @@ export interface HouseholdMember {
   user_id: string;
   role: 'admin' | 'member';
   joined_at: string;
-  profiles?: Profile;
-  households?: Household;
-  chore_rotation_order?: number;
 }
 
 export interface Expense {
-  id: string
-  household_id: string
-  description: string
-  amount: number
-  paid_by: string
-  date: string
-  created_at: string
-  updated_at: string
-  profiles?: Profile
-  expense_splits?: ExpenseSplit[]
+  id: string;
+  household_id: string;
+  description: string;
+  amount: number;
+  paid_by: string;
+  date: string;
+  created_at: string;
+  updated_at: string;
 }
 
-// --- NEW: This interface was missing ---
 export interface ExpenseSplitAdjustment {
   id: string;
   expense_split_id: string;
@@ -67,22 +61,44 @@ export interface ExpenseSplitAdjustment {
   reason: string | null;
   created_at: string;
   created_by: string;
-  profiles?: Profile; // For the creator of the adjustment
+  profiles?: Profile;
 }
 
-// --- MODIFIED: Added adjustments array ---
 export interface ExpenseSplit {
-  id: string
-  expense_id: string
-  user_id: string
-  amount: number
-  settled: boolean
-  settled_at?: string
-  profiles?: Profile
-  expense_split_adjustments?: ExpenseSplitAdjustment[]; // This is the new property
+  id: string;
+  expense_id: string;
+  user_id: string;
+  amount: number;
+  settled: boolean;
+  settled_at?: string;
+  profiles?: Profile;
+  expense_split_adjustments?: ExpenseSplitAdjustment[];
 }
 
-// --- NEW: This interface was missing and caused the error ---
+
+// --- TYPES ADDED TO FIX ERRORS ---
+
+// Represents the structure of the data returned from `api.calculateHouseholdBalances`
+export interface Balance {
+  profile: Profile;
+  balance: number;
+}
+
+// Represents an Expense object that includes the full Profile of the person who paid
+// and the full details of how the expense was split.
+export interface ExpenseWithDetails extends Expense {
+  paid_by_profile: Profile;
+  expense_splits: (ExpenseSplit & { profiles: Profile })[];
+}
+
+// Represents a HouseholdMember object that includes the full user Profile.
+export interface HouseholdMemberWithProfile extends HouseholdMember {
+  profiles: Profile;
+}
+
+// --- END OF ADDED TYPES ---
+
+
 export interface UpdateExpensePayload {
   description: string;
   amount: number;
@@ -92,30 +108,29 @@ export interface UpdateExpensePayload {
 }
 
 export interface Task {
-  id: string
-  household_id: string
-  title: string
-  assigned_to?: string
-  completed: boolean
-  completed_at?: string
-  created_at: string
-  updated_at: string
-  profiles?: Profile
+  id: string;
+  household_id: string;
+  title: string;
+  assigned_to?: string;
+  completed: boolean;
+  completed_at?: string;
+  created_at: string;
+  updated_at: string;
+  profiles?: Profile;
 }
 
 export interface Settlement {
-  id: string
-  household_id: string
-  payer_id: string
-  payee_id: string
-  amount: number
-  description?: string
-  created_at: string
-  payer_profile?: Profile
-  payee_profile?: Profile
+  id: string;
+  household_id: string;
+  payer_id: string;
+  payee_id: string;
+  amount: number;
+  description?: string;
+  created_at: string;
+  payer_profile?: Profile;
+  payee_profile?: Profile;
 }
 
-// Added the missing SettlementSuggestion interface
 export interface SettlementSuggestion {
     from: string;
     to: string;
@@ -125,18 +140,18 @@ export interface SettlementSuggestion {
 }
 
 export interface RecurringExpense {
-  id: string
-  household_id: string
-  description: string
-  amount: number
-  frequency: 'weekly' | 'biweekly' | 'monthly' | 'quarterly' | 'yearly'
-  day_of_month?: number
-  day_of_week?: number
-  next_due_date: string
-  is_active: boolean
-  created_by: string
-  created_at: string
-  updated_at: string
+  id: string;
+  household_id: string;
+  description: string;
+  amount: number;
+  frequency: 'weekly' | 'biweekly' | 'monthly' | 'quarterly' | 'yearly';
+  day_of_month?: number;
+  day_of_week?: number;
+  next_due_date: string;
+  is_active: boolean;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface Notification {
@@ -154,26 +169,26 @@ export interface Notification {
 }
 
 export interface Message {
-  id: string
-  household_id: string
-  user_id: string
-  content: string
-  edited: boolean
-  deleted: boolean
-  created_at: string
-  updated_at: string
-  profiles?: Profile
+  id: string;
+  household_id: string;
+  user_id: string;
+  content: string;
+  edited: boolean;
+  deleted: boolean;
+  created_at: string;
+  updated_at: string;
+  profiles?: Profile;
 }
 
 export interface MessageWithProfileRPC {
-  id: string
-  household_id: string
-  user_id: string
-  content: string
-  edited: boolean
-  deleted: boolean
-  created_at: string
-  updated_at: string
+  id: string;
+  household_id: string;
+  user_id: string;
+  content: string;
+  edited: boolean;
+  deleted: boolean;
+  created_at: string;
+  updated_at: string;
   profile: Profile;
 }
 

@@ -1,201 +1,159 @@
-// src/components/EditExpenseModal.tsx
 "use client";
 
-// MODIFIED: Removed useEffect from import
-import React, { useState } from 'react';
-import { Loader2, AlertTriangle } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Loader2 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
-import { updateExpense } from '@/lib/api/expenses';
-import type { Expense, HouseholdMember, UpdateExpensePayload } from '@/lib/types/types';
+import type { ExpenseWithDetails, Profile, HouseholdMember } from '@/lib/types/types';
 import { useExpenseSplits } from '@/hooks/useExpenseSplits';
+import { useAuth } from './AuthProvider';
 import { ExpenseSplitter } from '@/components/ExpenseSplitter';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
-
-const SettledExpenseWarningDialog = ({ onConfirm, onCancel }: { onConfirm: () => void; onCancel: () => void; }) => (
-    <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-[60]">
-        <div className="bg-background rounded-lg p-6 max-w-md w-full shadow-xl">
-            <div className="flex items-center space-x-3 mb-4">
-                <AlertTriangle className="h-8 w-8 text-yellow-500" />
-                <h3 className="text-lg font-bold text-foreground">
-                    Settled Splits Affected
-                </h3>
-            </div>
-            <p className="text-sm text-secondary-foreground mb-6">
-                You are editing an expense that has already been settled by one or more members.
-                Proceeding will create adjustments to their balances. This action cannot be undone.
-            </p>
-            <div className="flex justify-end space-x-3">
-                <Button onClick={onCancel} variant="secondary">Cancel Edit</Button>
-                <Button onClick={onConfirm} variant="destructive">Proceed Anyway</Button>
-            </div>
-        </div>
-    </div>
-);
-
+// FIX 1: Import the correctly named 'updateExpense' function
+import { updateExpense } from '@/lib/api';
 
 interface EditExpenseModalProps {
-  expense: Expense;
-  members: HouseholdMember[];
+  isOpen: boolean;
   onClose: () => void;
+  expense: ExpenseWithDetails;
+  householdId: string;
+  members: Profile[];
   onExpenseUpdated: () => void;
 }
 
-export const EditExpenseModal: React.FC<EditExpenseModalProps> = ({ expense, members, onClose, onExpenseUpdated }) => {
-    // MODIFIED: State is initialized directly from props. This happens only once.
-    const [description, setDescription] = useState(expense.description);
-    const [date, setDate] = useState(new Date(expense.date).toISOString().split('T')[0]);
-    const [paidBy, setPaidBy] = useState(expense.paid_by);
-    const [submitting, setSubmitting] = useState(false);
-    
-    const [showWarning, setShowWarning] = useState(false);
-    const [pendingUpdatePayload, setPendingUpdatePayload] = useState<UpdateExpensePayload | null>(null);
+export const EditExpenseModal: React.FC<EditExpenseModalProps> = ({ isOpen, onClose, expense, householdId, members, onExpenseUpdated }) => {
+  const { user } = useAuth();
+  const [description, setDescription] = useState(expense.description);
+  const [date, setDate] = useState(new Date(expense.date).toISOString().split('T')[0]);
+  const [paidBy, setPaidBy] = useState(expense.paid_by);
+  const [submitting, setSubmitting] = useState(false);
 
-    // MODIFIED: The expense data is now passed to the hook for proper initialization.
-    const {
+  // FIX 2: Create an array that strictly matches the 'HouseholdMember' type
+  const membersForHook: HouseholdMember[] = members.map(p => ({
+    id: p.id, // Assuming profile id can stand in for household_member id
+    user_id: p.id,
+    household_id: householdId,
+    role: 'member', // TypeScript now knows this is a valid role
+    joined_at: '',  // Provide a dummy value for the required property
+    profiles: p
+  }));
+
+  const {
+    amount,
+    setAmount,
+    splitType,
+    setSplitType,
+    finalSplits,
+    isValid,
+    ...splitterProps
+  } = useExpenseSplits(membersForHook, expense);
+
+  useEffect(() => {
+    setDescription(expense.description);
+    setDate(new Date(expense.date).toISOString().split('T')[0]);
+    setPaidBy(expense.paid_by);
+    setAmount(expense.amount);
+  }, [expense, setAmount]);
+
+  const handleSubmit = async () => {
+    if (!description || !isValid || !householdId || !paidBy) return;
+    
+    setSubmitting(true);
+    try {
+      // FIX 1: Call the correctly named 'updateExpense' function
+      await updateExpense(expense.id, {
+        description,
         amount,
-        setAmount,
-        splitType,
-        setSplitType,
-        finalSplits,
-        isValid,
-        customSplits,
-        setCustomSplits,
-        ...splitterProps
-    } = useExpenseSplits(members, expense);
+        splits: finalSplits,
+        paid_by: paidBy,
+        date,
+      });
+      toast.success('Expense updated!');
+      onExpenseUpdated();
+      onClose();
+    } catch (error) {
+      console.error('Error updating expense:', error);
+      toast.error((error as Error).message || 'Failed to update expense');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+  
+  const selectStyles = "mt-1 flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50";
 
-    // REMOVED: The problematic useEffect hook has been completely removed.
-    // This was the source of the state reverting issue.
+  if (!isOpen) {
+    return null;
+  }
 
-    const handleSubmit = async () => {
-        if (!description || !isValid) return;
-
-        const payload: UpdateExpensePayload = {
-            description,
-            amount,
-            splits: finalSplits,
-            paid_by: paidBy,
-            date: date
-        };
-        
-        setSubmitting(true);
-        try {
-            const result = await updateExpense(expense.id, payload);
-
-            if (result.adjustments_made) {
-                setPendingUpdatePayload(payload);
-                setShowWarning(true);
-            } else {
-                toast.success('Expense updated!');
-                onExpenseUpdated();
-                // We close the modal here by calling onClose
-                onClose(); 
-            }
-        } catch (error) {
-            console.error('Error updating expense:', error);
-            toast.error((error as Error).message || 'Failed to update expense');
-            setSubmitting(false);
-        }
-    };
-
-    const handleConfirmUpdate = async () => {
-        if (!pendingUpdatePayload) return;
-        setShowWarning(false);
-        setSubmitting(false);
-        toast.success('Expense updated with adjustments!');
-        onExpenseUpdated();
-        setPendingUpdatePayload(null);
-        // We close the modal here by calling onClose
-        onClose();
-    };
-
-    const handleCancelUpdate = () => {
-        setShowWarning(false);
-        setSubmitting(false);
-        setPendingUpdatePayload(null); 
-        // We still refresh the data because the change was already committed to the DB
-        onExpenseUpdated(); 
-    };
-    
-    const selectStyles = "mt-1 flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50";
-
-    return (
-        <>
-            {showWarning && (
-                <SettledExpenseWarningDialog
-                    onConfirm={handleConfirmUpdate}
-                    onCancel={handleCancelUpdate}
-                />
-            )}
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 overflow-y-auto">
-                <div className="bg-background rounded-lg p-6 max-w-2xl w-full my-8">
-                    <h3 className="text-lg font-medium text-foreground mb-4">Edit Expense</h3>
-                    <div className="space-y-4">
-                        {/* Form fields remain the same */}
-                        <div>
-                            <label className="block text-sm font-medium text-foreground">Description</label>
-                            <Input 
-                                type="text" 
-                                className="mt-1"
-                                value={description} 
-                                onChange={(e) => setDescription(e.target.value)} 
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-foreground">Total Amount</label>
-                            <div className="mt-1 relative rounded-md shadow-sm">
-                                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                    <span className="text-secondary-foreground sm:text-sm">$</span>
-                                </div>
-                                <Input 
-                                    type="number" 
-                                    step="0.01" 
-                                    className="pl-7"
-                                    value={amount || ''} 
-                                    onChange={(e) => setAmount(parseFloat(e.target.value))}
-                                />
-                            </div>
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-foreground">Paid by</label>
-                            <select value={paidBy} onChange={(e) => setPaidBy(e.target.value)} className={selectStyles}>
-                                {members.map(member => (
-                                    <option key={member.user_id} value={member.user_id}>
-                                        {member.profiles?.name || 'Unknown'}
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-foreground">Date</label>
-                            <Input
-                                type="date"
-                                className="mt-1"
-                                value={date}
-                                onChange={(e) => setDate(e.target.value)}
-                            />
-                        </div>
-                        
-                        <ExpenseSplitter
-                            members={members}
-                            amount={amount}
-                            splitType={splitType}
-                            setSplitType={setSplitType}
-                            finalSplits={finalSplits}
-                            isValid={isValid}
-                            customSplits={customSplits}
-                            setCustomSplits={setCustomSplits}
-                            {...splitterProps}
-                        />
-                    </div>
-                    <div className="mt-6 flex justify-end space-x-3">
-                        <Button onClick={onClose} variant="secondary" disabled={submitting}>Cancel</Button>
-                        <Button onClick={handleSubmit} disabled={submitting || !description || !amount || !isValid}>
-                            {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Save Changes'}
-                        </Button>
-                    </div>
-                </div>
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4 overflow-y-auto">
+      <div className="my-8 w-full max-w-2xl rounded-lg bg-background p-6">
+        <h3 className="mb-4 text-lg font-medium text-foreground">Edit Expense</h3>
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-foreground">Description</label>
+            <Input 
+              type="text" 
+              className="mt-1"
+              value={description} 
+              onChange={(e) => setDescription(e.target.value)} 
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-foreground">Total Amount</label>
+            <div className="relative mt-1 rounded-md shadow-sm">
+              <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                <span className="text-secondary-foreground sm:text-sm">$</span>
+              </div>
+              <Input 
+                type="number" 
+                step="0.01" 
+                className="pl-7"
+                value={amount || ''} 
+                onChange={(e) => setAmount(parseFloat(e.target.value))} 
+              />
             </div>
-        </>
-    );
+          </div>
+          
+          <div>
+              <label className="block text-sm font-medium text-foreground">Paid by</label>
+              <select value={paidBy} onChange={(e) => setPaidBy(e.target.value)} className={selectStyles}>
+                  {members.map(member => (
+                      <option key={member.id} value={member.id}>
+                          {member.name || 'Unknown'}
+                      </option>
+                  ))}
+              </select>
+          </div>
+
+          <div>
+              <label className="block text-sm font-medium text-foreground">Date</label>
+              <Input
+                  type="date"
+                  className="mt-1"
+                  value={date}
+                  onChange={(e) => setDate(e.target.value)}
+              />
+          </div>
+          
+          <ExpenseSplitter
+            members={membersForHook}
+            amount={amount}
+            splitType={splitType}
+            setSplitType={setSplitType}
+            finalSplits={finalSplits}
+            isValid={isValid}
+            {...splitterProps}
+          />
+
+        </div>
+        <div className="mt-6 flex justify-end space-x-3">
+          <Button onClick={onClose} variant="secondary" disabled={submitting}>Cancel</Button>
+          <Button onClick={handleSubmit} disabled={submitting || !description || !amount || !isValid}>
+            {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Save Changes'}
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
 };

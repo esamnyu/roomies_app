@@ -1,6 +1,8 @@
+'use client';
+
 import { useState, useEffect, useMemo, useCallback } from 'react';
-// MODIFIED: Import Expense type
-import type { HouseholdMember, Expense } from '@/lib/types/types';
+// FIX: Import the more specific 'ExpenseWithDetails' type instead of the base 'Expense'
+import type { HouseholdMember, ExpenseWithDetails } from '@/lib/types/types';
 
 export type SplitType = 'equal' | 'custom' | 'percentage';
 
@@ -18,17 +20,15 @@ function correctRoundingErrors(splits: Array<{ user_id: string; amount: number }
     return splits;
 }
 
-// MODIFIED: Hook now accepts an optional 'initialExpense' to set its initial state
-export function useExpenseSplits(members: HouseholdMember[], initialExpense?: Expense) {
-    // MODIFIED: State is now initialized from 'initialExpense' if it's provided
+// FIX: The hook now accepts an optional 'initialExpense' of type 'ExpenseWithDetails'
+export function useExpenseSplits(members: HouseholdMember[], initialExpense?: ExpenseWithDetails) {
     const [amount, setAmount] = useState<number>(initialExpense?.amount ?? 0);
     const [splitType, setSplitType] = useState<SplitType>(
-        // Default to 'custom' if there are already splits, otherwise 'equal'
+        // This logic now works safely because 'expense_splits' is guaranteed to exist on the type
         initialExpense?.expense_splits && initialExpense.expense_splits.length > 0 ? 'custom' : 'equal'
     );
     const [includedMembers, setIncludedMembers] = useState<Set<string>>(() => new Set(members.map(m => m.user_id)));
     
-    // MODIFIED: Initialize custom splits from 'initialExpense' only once
     const [customSplits, setCustomSplits] = useState<Record<string, number>>(() => {
         if (initialExpense?.expense_splits) {
             return initialExpense.expense_splits.reduce((acc, split) => {

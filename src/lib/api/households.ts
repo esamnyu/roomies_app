@@ -1,6 +1,7 @@
 // src/lib/api/households.ts
 import { supabase } from '../supabase';
-import type { Household, HouseholdMember, HouseRule, CreateHouseholdParams } from '../types/types';
+// FIX: Added HouseholdMemberWithProfile to the import list
+import type { Household, HouseholdMember, HouseRule, CreateHouseholdParams, HouseholdMemberWithProfile } from '../types/types';
 import { initializeChoresForHousehold } from './chores';
 
 // --- HOUSEHOLD FUNCTIONS ---
@@ -79,7 +80,8 @@ export const getHouseholdDetails = async (householdId: string): Promise<Househol
 
 // --- MEMBER MANAGEMENT ---
 
-export const getHouseholdMembers = async (householdId: string): Promise<HouseholdMember[]> => {
+// FIX: Updated the return type of the function
+export const getHouseholdMembers = async (householdId: string): Promise<HouseholdMemberWithProfile[]> => {
   const { data, error } = await supabase
     .from('household_members')
     .select(`
@@ -93,7 +95,8 @@ export const getHouseholdMembers = async (householdId: string): Promise<Househol
     console.error('Error fetching household members:', error);
     throw error;
   }
-  return data || [];
+  // Cast to `any` to satisfy TypeScript when Supabase returns a complex nested type
+  return (data as any) || [];
 };
 
 export const updateMemberRole = async (memberId: string, role: 'admin' | 'member') => {

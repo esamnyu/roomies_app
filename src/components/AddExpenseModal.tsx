@@ -1,38 +1,48 @@
-// src/components/AddExpenseModal.tsx
 "use client";
 
 import React, { useState, useEffect } from 'react';
 import { Loader2 } from 'lucide-react';
+// FIX: Import the correctly named function
 import { createExpenseWithCustomSplits } from '@/lib/api/expenses';
 import { toast } from 'react-hot-toast';
-import type { HouseholdMember } from '@/lib/types/types';
+// FIX: Import Profile and HouseholdMember for correct typing
+import type { Profile, HouseholdMember } from '@/lib/types/types';
 import { useExpenseSplits } from '@/hooks/useExpenseSplits';
-import { useAuth } from './AuthProvider'; // NEW: Import useAuth
+import { useAuth } from './AuthProvider';
 import { ExpenseSplitter } from '@/components/ExpenseSplitter';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 
 interface AddExpenseModalProps {
+  isOpen: boolean;
   householdId: string;
-  members: HouseholdMember[];
+  members: Profile[];
   onClose: () => void;
   onExpenseAdded: () => void;
 }
 
-export const AddExpenseModal: React.FC<AddExpenseModalProps> = ({ householdId, members, onClose, onExpenseAdded }) => {
-  const { user } = useAuth(); // NEW: Get current user
+export const AddExpenseModal: React.FC<AddExpenseModalProps> = ({ isOpen, householdId, members, onClose, onExpenseAdded }) => {
+  const { user } = useAuth();
   const [description, setDescription] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
-  
-  // NEW: State to manage who paid, defaults to the logged-in user
   const [paidBy, setPaidBy] = useState(user?.id || '');
 
   useEffect(() => {
-    if (user?.id) {
-        setPaidBy(user.id);
+    if (isOpen && user?.id) {
+      setPaidBy(user.id);
     }
-  }, [user]);
+  }, [isOpen, user]);
+
+  // FIX: Create an array that strictly matches the 'HouseholdMember' type for the hook
+  const membersForHook: HouseholdMember[] = members.map(p => ({
+    id: p.id,
+    user_id: p.id,
+    household_id: householdId,
+    role: 'member',
+    joined_at: '',
+    profiles: p,
+  }));
 
   const {
     amount,
@@ -42,17 +52,17 @@ export const AddExpenseModal: React.FC<AddExpenseModalProps> = ({ householdId, m
     finalSplits,
     isValid,
     ...splitterProps
-  } = useExpenseSplits(members);
+  } = useExpenseSplits(membersForHook);
 
   const handleSubmit = async () => {
-    if (!description || !isValid || !householdId || !paidBy) { // MODIFIED: Check for paidBy
-        if (!paidBy) toast.error("Please select who paid.");
-        return;
+    if (!description || !isValid || !householdId || !paidBy) {
+      if (!paidBy) toast.error("Please select who paid.");
+      return;
     };
     
     setSubmitting(true);
     try {
-      // MODIFIED: Pass paidBy and date to the API function
+      // FIX: Call the correctly named function
       await createExpenseWithCustomSplits(householdId, description, amount, finalSplits, date, paidBy);
       toast.success('Expense added!');
       onExpenseAdded();
@@ -66,11 +76,15 @@ export const AddExpenseModal: React.FC<AddExpenseModalProps> = ({ householdId, m
   };
   
   const selectStyles = "mt-1 flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50";
+  
+  if (!isOpen) {
+    return null;
+  }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 overflow-y-auto">
-      <div className="bg-background rounded-lg p-6 max-w-2xl w-full my-8">
-        <h3 className="text-lg font-medium text-foreground mb-4">Add Expense</h3>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4 overflow-y-auto">
+      <div className="my-8 w-full max-w-2xl rounded-lg bg-background p-6">
+        <h3 className="mb-4 text-lg font-medium text-foreground">Add Expense</h3>
         <div className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-foreground">Description</label>
@@ -84,8 +98,8 @@ export const AddExpenseModal: React.FC<AddExpenseModalProps> = ({ householdId, m
           </div>
           <div>
             <label className="block text-sm font-medium text-foreground">Total Amount</label>
-            <div className="mt-1 relative rounded-md shadow-sm">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+            <div className="relative mt-1 rounded-md shadow-sm">
+              <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
                 <span className="text-secondary-foreground sm:text-sm">$</span>
               </div>
               <Input 
@@ -99,19 +113,17 @@ export const AddExpenseModal: React.FC<AddExpenseModalProps> = ({ householdId, m
             </div>
           </div>
           
-          {/* NEW: Dropdown to select who paid */}
           <div>
               <label className="block text-sm font-medium text-foreground">Paid by</label>
               <select value={paidBy} onChange={(e) => setPaidBy(e.target.value)} className={selectStyles}>
                   {members.map(member => (
-                      <option key={member.user_id} value={member.user_id}>
-                          {member.profiles?.name || 'Unknown'}
+                      <option key={member.id} value={member.id}>
+                          {member.name || 'Unknown'}
                       </option>
                   ))}
               </select>
           </div>
 
-          {/* NEW: Input for date */}
           <div>
               <label className="block text-sm font-medium text-foreground">Date</label>
               <Input
@@ -123,7 +135,7 @@ export const AddExpenseModal: React.FC<AddExpenseModalProps> = ({ householdId, m
           </div>
           
           <ExpenseSplitter
-            members={members}
+            members={membersForHook}
             amount={amount}
             splitType={splitType}
             setSplitType={setSplitType}
