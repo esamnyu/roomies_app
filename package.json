@@ -28,7 +28,8 @@
     "react-markdown": "^9.0.1",
     "react-select": "^5.8.0",
     "tailwind-merge": "^2.3.0",
-    "tailwindcss-animate": "^1.0.7"
+    "tailwindcss-animate": "^1.0.7",
+    "zod": "^3.25.67"
   },
   "devDependencies": {
     "@tailwindcss/container-queries": "^0.1.1",

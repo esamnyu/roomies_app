@@ -1,7 +1,36 @@
 // src/lib/api/households.ts
 import { supabase } from '../supabase';
-import type { Household, HouseholdMember, HouseRule, CreateHouseholdParams } from '../types/types';
+import type { Household, HouseholdMember, HouseRule, CreateHouseholdParams, Expense, RecurringExpense, Settlement, ChoreAssignment } from '../types/types';
 import { initializeChoresForHousehold } from './chores';
+
+// Type for the full household data response
+export interface HouseholdFullData {
+  household: Household;
+  members: HouseholdMember[];
+  expenses: Expense[];
+  recurring_expenses: RecurringExpense[];
+  balances: Array<{
+    userId: string;
+    balance: number;
+    profile: {
+      id: string;
+      name: string;
+      avatar_url?: string | null;
+    };
+  }>;
+  recent_settlements: Settlement[];
+  active_chores: Array<{
+    id: string;
+    due_date: string;
+    status: string;
+    chore_name: string;
+    assigned_to: {
+      id: string;
+      name: string;
+      avatar_url?: string | null;
+    };
+  }>;
+}
 
 // --- HOUSEHOLD FUNCTIONS ---
 export const createHousehold = async (params: CreateHouseholdParams) => {
@@ -62,6 +91,28 @@ export const getHouseholdData = async (householdId: string) => {
   if (error) throw error
   return data
 }
+
+// NEW: Optimized function to get all household data in a single query
+export const getHouseholdFullData = async (householdId: string): Promise<HouseholdFullData> => {
+  const { data, error } = await supabase
+    .rpc('get_household_full_data', { p_household_id: householdId });
+    
+  if (error) {
+    console.error('Error fetching full household data:', error);
+    throw error;
+  }
+  
+  // Parse the JSON response and ensure proper typing
+  return {
+    household: data.household || null,
+    members: data.members || [],
+    expenses: data.expenses || [],
+    recurring_expenses: data.recurring_expenses || [],
+    balances: data.balances || [],
+    recent_settlements: data.recent_settlements || [],
+    active_chores: data.active_chores || []
+  };
+};
 
 export const getHouseholdDetails = async (householdId: string): Promise<Household | null> => {
   const { data, error } = await supabase
