@@ -1,5 +1,7 @@
 // src/pages/api/ai-chat.ts
 import type { NextApiRequest, NextApiResponse } from 'next';
+import { createClient } from '@supabase/supabase-js';
+import { z } from 'zod';
 
 let GoogleGenerativeAI: any;
 try {
@@ -10,21 +12,45 @@ try {
 
 const API_KEY = process.env.GOOGLE_API_KEY;
 
-// Add a simple GET handler for testing
+// Input validation schema
+const chatRequestSchema = z.object({
+  message: z.string().min(1).max(1000).trim(),
+  history: z.array(z.object({
+    role: z.enum(['user', 'model']),
+    parts: z.array(z.object({
+      text: z.string()
+    }))
+  })).optional()
+});
+
+// Rate limiting: Store request counts per user
+const requestCounts = new Map<string, { count: number; resetTime: number }>();
+const RATE_LIMIT = 20; // 20 requests per hour per user
+const RATE_LIMIT_WINDOW = 60 * 60 * 1000; // 1 hour in milliseconds
+
+function checkRateLimit(userId: string): boolean {
+  const now = Date.now();
+  const userRequests = requestCounts.get(userId);
+  
+  if (!userRequests || now > userRequests.resetTime) {
+    // Reset the counter
+    requestCounts.set(userId, { count: 1, resetTime: now + RATE_LIMIT_WINDOW });
+    return true;
+  }
+  
+  if (userRequests.count >= RATE_LIMIT) {
+    return false;
+  }
+  
+  userRequests.count++;
+  return true;
+}
+
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
-  // Test with GET first
-  if (req.method === 'GET') {
-    return res.status(200).json({ 
-      status: 'AI Chat API is running',
-      hasApiKey: !!API_KEY,
-      hasGoogleAI: !!GoogleGenerativeAI
-    });
-  }
-
-  // Only allow POST requests for actual chat
+  // Only allow POST requests
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
@@ -32,6 +58,52 @@ export default async function handler(
   console.log('AI Chat API called');
   
   try {
+    // Authenticate the user
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+
+    const token = authHeader.substring(7);
+    
+    // Create a Supabase client with the user's token
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        global: {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        },
+      }
+    );
+
+    // Verify the user's session
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+      return res.status(401).json({ error: 'Invalid authentication token' });
+    }
+
+    // Check rate limit
+    if (!checkRateLimit(user.id)) {
+      return res.status(429).json({ 
+        error: 'Rate limit exceeded. Please wait before making more requests.',
+        retryAfter: 3600 // seconds until rate limit resets
+      });
+    }
+
+    // Validate request body
+    const validationResult = chatRequestSchema.safeParse(req.body);
+    if (!validationResult.success) {
+      return res.status(400).json({ 
+        error: 'Invalid request data',
+        details: validationResult.error.errors
+      });
+    }
+
+    const { message, history } = validationResult.data;
+
     if (!API_KEY) {
       console.error('API Key is missing');
       return res.status(500).json({
@@ -43,12 +115,6 @@ export default async function handler(
       return res.status(500).json({
         error: 'Google Generative AI library not loaded'
       });
-    }
-
-    const { message, history } = req.body;
-    
-    if (!message?.trim()) {
-      return res.status(400).json({ error: 'Message is required' });
     }
 
     console.log('Initializing Gemini AI...');

@@ -5,6 +5,7 @@ import { Button } from './ui/Button';
 import { Loader2, AlertCircle, RotateCcw } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { toast } from 'react-hot-toast';
+import { supabase } from '@/lib/supabase';
 
 interface Message {
   id: string;
@@ -46,9 +47,19 @@ const AIMateChat: React.FC = () => {
     setIsLoading(true);
 
     try {
+      // Get the current session token
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError || !session) {
+        throw new Error('You must be logged in to use AI Chat');
+      }
+
       const response = await fetch('/api/ai-chat', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
         body: JSON.stringify({ 
           message: trimmedInput,
           history: chatHistory 
@@ -58,6 +69,11 @@ const AIMateChat: React.FC = () => {
       const data = await response.json();
 
       if (!response.ok) {
+        if (response.status === 401) {
+          throw new Error('Authentication expired. Please log in again.');
+        } else if (response.status === 429) {
+          throw new Error('Rate limit exceeded. Please wait before sending more messages.');
+        }
         throw new Error(data.error || 'Failed to get response');
       }
 
@@ -75,12 +91,12 @@ const AIMateChat: React.FC = () => {
       const errorMessage: Message = {
         id: (Date.now() + 2).toString(),
         role: 'error',
-        content: 'Sorry, I couldn\'t process your message. Please try again.',
+        content: error instanceof Error ? error.message : 'Sorry, I couldn\'t process your message. Please try again.',
         timestamp: new Date()
       };
       
       setMessages(prev => [...prev, errorMessage]);
-      toast.error('Failed to send message');
+      toast.error(error instanceof Error ? error.message : 'Failed to send message');
     } finally {
       setIsLoading(false);
       inputRef.current?.focus();
