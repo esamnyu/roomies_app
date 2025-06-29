@@ -3,11 +3,29 @@
 
 
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { ChevronRight, Home, DollarSign, CheckSquare, Plus, LogOut, Menu, X, ArrowLeft, Loader2, CreditCard, MessageSquare, Settings, ClipboardList, User, Share2, LifeBuoy, Edit3, Trash2, Phone, Mail, Pencil, CheckCircle2 } from 'lucide-react'; // MODIFIED: Added CheckCircle2
+// Navigation icons
+import { ChevronRight, Home, ArrowLeft, Menu, X } from 'lucide-react';
+// Feature icons
+import { DollarSign, CheckSquare, MessageSquare, Settings, ClipboardList, CreditCard } from 'lucide-react';
+// Action icons
+import { Plus, LogOut, Edit3, Trash2, Pencil, CheckCircle2 } from 'lucide-react';
+// User/Contact icons
+import { User, Share2, LifeBuoy, Phone, Mail } from 'lucide-react';
+// Status icons
+import { Loader2 } from 'lucide-react';
 
-import * as api from '../lib/api';
+import { 
+  joinHouseholdWithCode, 
+  getHouseholdDetails, 
+  getUserHouseholds, 
+  addHouseRule, 
+  updateHouseRule, 
+  deleteHouseRule, 
+  getHouseholdData
+} from '../lib/api/households';
+import { getHouseholdRecurringExpenses } from '../lib/api/expenses';
+import { getHouseholdBalances, getSettlementSuggestions } from '../lib/api/settlements';
 import { Household, HouseholdMember, Expense, Settlement, RecurringExpense, HouseRule, Profile } from '../lib/types/types';
-import { User as SupabaseUser } from '@supabase/supabase-js';
 
 import { AuthProvider, useAuth } from './AuthProvider';
 import { NotificationBell } from './NotificationsPanel';
@@ -361,7 +379,7 @@ const JoinHouseholdWithCode: React.FC<{ onJoined: (household: Household) => void
         setError('');
         setIsLoading(true);
         try {
-            const household = await api.joinHouseholdWithCode(joinCode);
+            const household = await joinHouseholdWithCode(joinCode);
             toast.success(`Successfully joined ${household.name}!`);
             onJoined(household);
         } catch (err) {
@@ -401,7 +419,7 @@ const HouseholdWelcomeDisplay: React.FC<{ householdId: string; householdName?: s
     useEffect(() => {
         if (!householdName && householdId) {
             setLoading(true);
-            api.getHouseholdDetails(householdId)
+            getHouseholdDetails(householdId)
                 .then(details => {
                     if (details) setFetchedHouseholdName(details.name);
                     else toast.error("Could not fetch household details.");
@@ -440,7 +458,7 @@ const Dashboard: React.FC<{ setAppState: (state: AppState) => void }> = ({ setAp
     const loadHouseholds = useCallback(async () => {
         try {
             setLoadingHouseholds(true);
-            const data = await api.getUserHouseholds();
+            const data = await getUserHouseholds();
             setHouseholds(data);
         } catch (error) {
             console.error('Error loading households:', error);
@@ -528,7 +546,7 @@ const AddRuleModal: React.FC<{
         }
         setIsSaving(true);
         try {
-            await api.addHouseRule(householdId, category.trim(), content.trim());
+            await addHouseRule(householdId, category.trim(), content.trim());
             toast.success("New rule added!");
             onRuleAdded();
         } catch (error) {
@@ -582,7 +600,7 @@ const EditRuleModal: React.FC<{
         }
         setIsSaving(true);
         try {
-            await api.updateHouseRule(householdId, { ...rule, category, content });
+            await updateHouseRule(householdId, { ...rule, category, content });
             toast.success("Rule updated!");
             onRuleUpdated();
         } catch (error) {
@@ -653,7 +671,7 @@ const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = (
     const [members, setMembers] = useState<HouseholdMember[]>([]);
     const [expenses, setExpenses] = useState<Expense[]>([]);
     const [settlements, setSettlements] = useState<Settlement[]>([]);
-    const [balances, setBalances] = useState<Awaited<ReturnType<typeof api.getHouseholdBalances>>>([]);
+    const [balances, setBalances] = useState<Awaited<ReturnType<typeof getHouseholdBalances>>>([]);
     const [loadingData, setLoadingData] = useState(true);
     const [recurringExpenses, setRecurringExpenses] = useState<RecurringExpense[]>([]);
     const [expandedExpense, setExpandedExpense] = useState<string | null>(null);
@@ -683,9 +701,9 @@ const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = (
         
         try {
             const [data, recurringData, balanceData] = await Promise.all([
-                api.getHouseholdData(householdId),
-                api.getHouseholdRecurringExpenses(householdId),
-                api.getHouseholdBalances(householdId)
+                getHouseholdData(householdId),
+                getHouseholdRecurringExpenses(householdId),
+                getHouseholdBalances(householdId)
             ]);
 
             if (!isMountedRef.current) return;
@@ -713,7 +731,7 @@ const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = (
         return () => { isMountedRef.current = false; };
     }, [householdId, refreshData]);
 
-    const settlementSuggestions = useMemo(() => api.getSettlementSuggestions ? api.getSettlementSuggestions(balances) : [], [balances]);
+    const settlementSuggestions = useMemo(() => getSettlementSuggestions ? getSettlementSuggestions(balances) : [], [balances]);
 
         // New: Calculate the current user's overall balance
     const currentUserBalance = useMemo(() => {
@@ -934,7 +952,7 @@ const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = (
                                 <div className="space-y-4">
                                     {household.rules && household.rules.length > 0 ? (
                                     household.rules.map((rule) => (
-                                        <RuleCard key={rule.id} rule={rule} isAdmin={isAdmin} onEdit={rule => { setRuleToEdit(rule); setShowEditRuleModal(true); }} onDelete={async (id) => { if(window.confirm('Are you sure?')) { await api.deleteHouseRule(householdId, id); refreshData(true) }}} />
+                                        <RuleCard key={rule.id} rule={rule} isAdmin={isAdmin} onEdit={rule => { setRuleToEdit(rule); setShowEditRuleModal(true); }} onDelete={async (id) => { if(window.confirm('Are you sure?')) { await deleteHouseRule(householdId, id); refreshData(true) }}} />
                                     ))
                                     ) : (
                                     <div className="text-center py-8">
@@ -995,7 +1013,7 @@ const App: React.FC = () => {
                 return;
             }
             try {
-                const userHouseholds = await api.getUserHouseholds();
+                const userHouseholds = await getUserHouseholds();
                 setUserHasHouseholds(userHouseholds.length > 0);
                 
                 const queryParams = new URLSearchParams(window.location.search);

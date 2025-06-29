@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { getProfile, updateUserProfile } from '../lib/api';
+import { getProfile, updateUserProfile } from '../lib/api/profile';
 import { toast } from 'react-hot-toast';
 import { Loader2 } from 'lucide-react';
 import { Button } from './ui/Button';

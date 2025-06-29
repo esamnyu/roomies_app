@@ -3,7 +3,13 @@
 
 import React, { useState } from 'react';
 import { useAuth } from './AuthProvider';
-import * as api from '../lib/api';
+import { 
+  updateHouseholdSettings, 
+  removeMember, 
+  updateMemberRole, 
+  leaveHousehold, 
+  deleteHousehold 
+} from '../lib/api/households';
 import type { Household, HouseholdMember } from '../lib/types/types';
 import { toast } from 'react-hot-toast';
 import { Loader2, Trash2, Shield, LogOut, AlertTriangle } from 'lucide-react';
@@ -42,7 +48,7 @@ export const HouseholdSettingsModal: React.FC<HouseholdSettingsModalProps> = ({ 
     const handleUpdate = async () => {
         setIsSaving(true);
         try {
-            await api.updateHouseholdSettings(household.id, { name, member_count: memberCount, chore_framework: choreFramework, chore_frequency: choreFrequency });
+            await updateHouseholdSettings(household.id, { name, member_count: memberCount, chore_framework: choreFramework, chore_frequency: choreFrequency });
             toast.success("Household settings updated!");
             onUpdate();
         } catch (error) {
@@ -55,7 +61,7 @@ export const HouseholdSettingsModal: React.FC<HouseholdSettingsModalProps> = ({ 
     const handleRemoveMember = async (memberToRemove: HouseholdMember) => {
         if (window.confirm(`Are you sure you want to remove ${memberToRemove.profiles?.name} from the household?`)) {
             try {
-                await api.removeMember(memberToRemove.id);
+                await removeMember(memberToRemove.id);
                 toast.success(`${memberToRemove.profiles?.name} has been removed.`);
                 onUpdate();
             } catch (error) {
@@ -67,7 +73,7 @@ export const HouseholdSettingsModal: React.FC<HouseholdSettingsModalProps> = ({ 
     const handlePromoteMember = async (memberToPromote: HouseholdMember) => {
         if (window.confirm(`Are you sure you want to make ${memberToPromote.profiles?.name} an admin?`)) {
             try {
-                await api.updateMemberRole(memberToPromote.id, 'admin');
+                await updateMemberRole(memberToPromote.id, 'admin');
                 toast.success(`${memberToPromote.profiles?.name} is now an admin.`);
                 onUpdate();
             } catch (error) {
@@ -79,7 +85,7 @@ export const HouseholdSettingsModal: React.FC<HouseholdSettingsModalProps> = ({ 
     const handleLeaveHousehold = async () => {
         if (window.confirm("Are you sure you want to leave this household? This action cannot be undone.")) {
             try {
-                await api.leaveHousehold(household.id);
+                await leaveHousehold(household.id);
                 toast.success("You have left the household.");
                 onClose();
                 window.location.reload(); 
@@ -95,7 +101,7 @@ export const HouseholdSettingsModal: React.FC<HouseholdSettingsModalProps> = ({ 
             return;
         }
         try {
-            await api.deleteHousehold(household.id);
+            await deleteHousehold(household.id);
             toast.success(`Household '${household.name}' has been deleted.`);
              onClose();
             window.location.reload();
