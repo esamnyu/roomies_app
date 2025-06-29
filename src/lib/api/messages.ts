@@ -68,11 +68,9 @@ export const getHouseholdMessages = async (householdId: string, limit = 50, befo
 export const subscribeToMessages = (householdId: string, onMessage: (message: Message) => void) => {
   const key = `messages:${householdId}`;
   
-  // Check if already subscribed
-  if (subscriptionManager.hasSubscription(key)) {
-    console.log(`Already subscribed to ${key}, skipping...`);
-    return;
-  }
+  // Always clean up existing subscription and create a new one
+  // This ensures we have fresh subscriptions and proper cleanup
+  subscriptionManager.unsubscribe(key);
   
   const channel = supabase
     .channel(key)
@@ -82,24 +80,39 @@ export const subscribeToMessages = (householdId: string, onMessage: (message: Me
       table: 'messages',
       filter: `household_id=eq.${householdId}`
     }, async (payload) => {
+      console.log(`New message received for ${key}:`, payload);
       if (payload.new) {
         const newMessage = payload.new as Message;
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', newMessage.user_id)
-          .single();
+        try {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', newMessage.user_id)
+            .single();
 
-        onMessage({ ...newMessage, profiles: profile || undefined });
+          onMessage({ ...newMessage, profiles: profile || undefined });
+        } catch (error) {
+          console.error('Error fetching profile for new message:', error);
+          // Still deliver the message even if profile fetch fails
+          onMessage(newMessage);
+        }
       }
     })
     .subscribe((status, err) => {
       if (err) {
         console.error(`Subscription error for ${key}:`, err);
+        // Clean up failed subscription
+        subscriptionManager.unsubscribe(key);
       } else {
         console.log(`Subscription status for ${key}:`, status);
       }
     });
 
-  return subscriptionManager.subscribe(key, channel);
+  // Store and return the subscription
+  subscriptionManager.subscribe(key, channel);
+  
+  // Return an object with unsubscribe method for proper cleanup
+  return {
+    unsubscribe: () => subscriptionManager.unsubscribe(key)
+  };
 };
