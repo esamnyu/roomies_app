@@ -1,16 +1,17 @@
 // src/components/RoomiesApp.tsx
+// Main application component that handles routing, authentication state, and top-level app navigation
 "use client";
 
 
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 // Navigation icons
-import { ChevronRight, Home, ArrowLeft, Menu, X } from 'lucide-react';
+import { ChevronRight, Home } from 'lucide-react';
 // Feature icons
-import { DollarSign, CheckSquare, MessageSquare, Settings, ClipboardList, CreditCard } from 'lucide-react';
+import { DollarSign, CheckSquare, MessageSquare, ClipboardList, CreditCard } from 'lucide-react';
 // Action icons
-import { Plus, LogOut, Edit3, Trash2, Pencil, CheckCircle2 } from 'lucide-react';
+import { Plus, Edit3, Trash2, Pencil, CheckCircle2 } from 'lucide-react';
 // User/Contact icons
-import { User, Share2, LifeBuoy, Phone, Mail } from 'lucide-react';
+import { User, Share2, LifeBuoy } from 'lucide-react';
 // Status icons
 import { Loader2 } from 'lucide-react';
 
@@ -25,11 +26,10 @@ import {
 } from '../lib/api/households';
 import { getHouseholdRecurringExpenses } from '../lib/api/expenses';
 import { getHouseholdBalances, getSettlementSuggestions } from '../lib/api/settlements';
-import { Household, HouseholdMember, Expense, Settlement, RecurringExpense, HouseRule, Profile } from '../lib/types/types';
+import { Household, HouseholdMember, Expense, RecurringExpense, HouseRule, Profile } from '../lib/types/types';
 
 import { AuthProvider, useAuth } from './AuthProvider';
-import { NotificationBell } from './NotificationsPanel';
-import { Toaster, toast } from 'react-hot-toast';
+import { toast } from 'react-hot-toast';
 
 // Component Imports
 import { LandingPageContent } from './LandingPageContent';
@@ -37,335 +37,35 @@ import { HouseholdSetupForm } from './HouseholdSetupForm';
 import { OnboardingChoice } from './OnboardingChoice';
 import HouseholdChat from './HouseholdChat';
 import { ChoreDashboard } from './ChoreDashboard';
-import { AddExpenseModal } from './AddExpenseModal';
-import { AddRecurringExpenseModal } from './AddRecurringExpenseModal';
-import { SettleUpModal } from './SettleUpModal';
-import { ManageJoinCodeModal } from './ManageJoinCodeModal';
+import { AddExpenseModal } from './modals/AddExpenseModal';
+import { AddRecurringExpenseModal } from './modals/AddRecurringExpenseModal';
+import { SettleUpModal } from './modals/SettleUpModal';
+import { ManageJoinCodeModal } from './modals/ManageJoinCodeModal';
 import { Button } from './ui/Button';
 import { Input } from './ui/Input';
-import { ProfileModal } from './ProfileModal';
-import { HouseholdSettingsModal } from './HouseholdSettingsModal';
-import { EditExpenseModal } from './EditExpenseModal';
+import { ProfileModal } from './modals/ProfileModal';
+import { HouseholdSettingsModal } from './modals/HouseholdSettingsModal';
+import { EditExpenseModal } from './modals/EditExpenseModal';
+import { AuthForm } from './AuthForm';
+import { Layout } from './Layout';
 
 
 
 // --- START: SHARED & HELPER COMPONENTS ---
 
-const UserMenu: React.FC<{ onProfileClick: () => void; onSettingsClick: () => void; onSignOut: () => void; householdSelected: boolean; }> = ({ onProfileClick, onSettingsClick, onSignOut, householdSelected }) => {
-    const [isOpen, setIsOpen] = useState(false);
-    const menuRef = useRef<HTMLDivElement>(null);
-
-    useEffect(() => {
-        const handleClickOutside = (event: MouseEvent) => {
-            if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
-                setIsOpen(false);
-            }
-        };
-        document.addEventListener("mousedown", handleClickOutside);
-        return () => document.removeEventListener("mousedown", handleClickOutside);
-    }, []);
-
-    return (
-        <div className="relative" ref={menuRef}>
-            <button onClick={() => setIsOpen(!isOpen)} className="p-2 rounded-full hover:bg-secondary">
-                <User className="h-5 w-5" />
-            </button>
-            {isOpen && (
-                <div className="absolute right-0 mt-2 w-56 bg-background rounded-md shadow-lg py-1 z-50 border border-border">
-                    <button onClick={() => { onProfileClick(); setIsOpen(false); }} className="w-full text-left px-4 py-2 text-sm text-foreground hover:bg-secondary flex items-center">
-                        <User className="h-4 w-4 mr-2" /> My Profile
-                    </button>
-                    {householdSelected && (
-                        <button onClick={() => { onSettingsClick(); setIsOpen(false); }} className="w-full text-left px-4 py-2 text-sm text-foreground hover:bg-secondary flex items-center">
-                            <Settings className="h-4 w-4 mr-2" /> Household Settings
-                        </button>
-                    )}
-                    <div className="border-t border-border my-1"></div>
-                    <button onClick={onSignOut} className="w-full text-left px-4 py-2 text-sm text-destructive hover:bg-destructive/10 flex items-center">
-                        <LogOut className="h-4 w-4 mr-2" /> Logout
-                    </button>
-                </div>
-            )}
-        </div>
-    );
-};
-
-
-const Layout: React.FC<{
-    children: React.ReactNode;
-    title?: string;
-    showBack?: boolean;
-    onBack?: () => void;
-    isHouseholdView?: boolean;
-    onShowProfile?: () => void;
-    onShowSettings?: () => void;
-}> = ({
-    children,
-    title = 'Roomies',
-    showBack = false,
-    onBack,
-    isHouseholdView = false,
-    onShowProfile = () => {},
-    onShowSettings = () => {}
-}) => {
-    const { user, signOut } = useAuth();
-    const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-
-    return (
-        <>
-            <div className="min-h-screen bg-secondary">
-                <header className="bg-background shadow-sm border-b border-border">
-                    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                        <div className="flex justify-between items-center h-16">
-                            <div className="flex items-center">
-                                {showBack && (
-                                    <button onClick={onBack} className="mr-3 p-2 rounded-md hover:bg-secondary">
-                                        <ArrowLeft className="h-5 w-5" />
-                                    </button>
-                                )}
-                                <h1 className="text-xl font-semibold text-foreground">{title}</h1>
-                            </div>
-
-                            {user && (
-                                <div className="flex items-center space-x-2">
-                                    <div className="hidden md:flex items-center space-x-2">
-                                        <NotificationBell />
-                                        <UserMenu
-                                            onProfileClick={onShowProfile}
-                                            onSettingsClick={onShowSettings}
-                                            onSignOut={signOut}
-                                            householdSelected={isHouseholdView}
-                                        />
-                                    </div>
-                                    <div className="flex items-center md:hidden">
-                                        <NotificationBell />
-                                        <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="ml-2 p-2 rounded-md hover:bg-secondary">
-                                            {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-                                        </button>
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-
-                    {mobileMenuOpen && (
-                        <div className="md:hidden border-t border-border">
-                            <div className="px-4 py-3 space-y-2">
-                                <button onClick={()=>{onShowProfile(); setMobileMenuOpen(false);}} className="w-full justify-start flex items-center p-2 rounded-md hover:bg-secondary text-sm font-medium"> <User className="h-4 w-4 mr-2"/> My Profile</button>
-                                {isHouseholdView && (
-                                    <button onClick={()=>{onShowSettings(); setMobileMenuOpen(false);}} className="w-full justify-start flex items-center p-2 rounded-md hover:bg-secondary text-sm font-medium"> <Settings className="h-4 w-4 mr-2"/> Household Settings</button>
-                                )}
-                                <div className="border-t border-border"/>
-                                <Button onClick={signOut} variant="secondary" size="sm" className="w-full justify-start">
-                                    <LogOut className="h-4 w-4 mr-2" />
-                                    Logout
-                                </Button>
-                            </div>
-                        </div>
-                    )}
-                </header>
-                <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-                    {children}
-                </main>
-            </div>
-            <Toaster position="top-right" />
-        </>
-    );
-};
-
-
+/**
+ * Reusable loading spinner component for full-screen loading states
+ */
 const LoadingSpinner = () => (
     <div className="flex items-center justify-center p-4 min-h-screen bg-background">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
     </div>
 );
 
-const AuthForm: React.FC<{isRegisteringInitially: boolean}> = ({isRegisteringInitially}) => {
-    const { signIn, signUp, signInWithGoogle, signInWithPhone, verifyOtp } = useAuth();
-    const [email, setEmail] = useState('');
-    const [password, setPassword] = useState('');
-    const [name, setName] = useState('');
-    const [phone, setPhone] = useState('');
-    const [otp, setOtp] = useState('');
-    const [error, setError] = useState('');
-    const [isRegistering, setIsRegistering] = useState(isRegisteringInitially);
-    const [isLoading, setIsLoading] = useState(false);
-    const [authMethod, setAuthMethod] = useState<'email' | 'phone'>('email');
-    const [otpSent, setOtpSent] = useState(false);
 
-    const handleEmailSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setError('');
-        setIsLoading(true);
-        try {
-            const { error: authError } = isRegistering
-                ? await signUp(email, password, name)
-                : await signIn(email, password);
-            if (authError) setError(authError.message);
-        } catch (err: unknown) {
-            if (err instanceof Error) {
-                setError(err.message);
-            } else {
-                setError('An unexpected error occurred');
-            }
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
-    const handlePhoneSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setError('');
-        setIsLoading(true);
-        const { error } = await signInWithPhone(phone);
-        if (error) {
-            setError(error.message);
-        } else {
-            setOtpSent(true);
-        }
-        setIsLoading(false);
-    };
-
-    const handleOtpSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setError('');
-        setIsLoading(true);
-        const { error } = await verifyOtp(phone, otp);
-        if (error) setError(error.message);
-        // On success, onAuthStateChange handles the rest
-        setIsLoading(false);
-    };
-
-    const handleGoogleSignIn = async () => {
-        setError('');
-        setIsLoading(true);
-        try {
-            const { error: authError } = await signInWithGoogle();
-            if (authError) setError(authError.message);
-        } catch (err: unknown) {
-            if (err instanceof Error) {
-                setError(err.message);
-            } else {
-                setError('An unexpected error occurred with Google sign-in');
-            }
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
-    // Resets form state when switching auth methods
-    useEffect(() => {
-        setError('');
-        setEmail('');
-        setPassword('');
-        setPhone('');
-        setOtp('');
-        setOtpSent(false);
-    }, [authMethod, isRegistering]);
-
-    return (
-        <div className="min-h-screen flex items-center justify-center bg-background py-12 px-4 sm:px-6 lg:px-8">
-            <div className="max-w-md w-full space-y-8">
-                <div>
-                    <h2 className="mt-6 text-center text-3xl font-extrabold text-foreground">
-                        {isRegistering ? 'Create your account' : 'Welcome back'}
-                    </h2>
-                     <p className="mt-2 text-center text-sm text-secondary-foreground">
-                        {isRegistering ? 'Get started with Roomies today.' : 'Sign in to manage your shared living space'}
-                    </p>
-                </div>
-
-                <div className="mt-8 space-y-6">
-                    {/* Tabs for Email/Phone */}
-                    {!isRegistering && (
-                        <div className="grid grid-cols-2 gap-2 rounded-lg bg-secondary p-1">
-                            <button onClick={() => setAuthMethod('email')} className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${authMethod === 'email' ? 'bg-background text-foreground shadow-sm' : 'text-secondary-foreground hover:bg-background/50'}`}>
-                                <Mail className="inline h-4 w-4 mr-2" /> Email
-                            </button>
-                            <button onClick={() => setAuthMethod('phone')} className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${authMethod === 'phone' ? 'bg-background text-foreground shadow-sm' : 'text-secondary-foreground hover:bg-background/50'}`}>
-                                <Phone className="inline h-4 w-4 mr-2" /> Phone
-                            </button>
-                        </div>
-                    )}
-
-                    {authMethod === 'email' && (
-                        <form onSubmit={handleEmailSubmit} className="space-y-4">
-                            <div className="rounded-md shadow-sm -space-y-px">
-                                {isRegistering && (
-                                    <div>
-                                        <Input type="text" required className="rounded-b-none" placeholder="Name" value={name} onChange={(e) => setName(e.target.value)} />
-                                    </div>
-                                )}
-                                <div>
-                                    <Input type="email" required className={isRegistering ? '' : 'rounded-t-md'} placeholder="Email address" value={email} onChange={(e) => setEmail(e.target.value)} />
-                                </div>
-                                <div>
-                                    <Input type="password" required className="rounded-t-none" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} />
-                                </div>
-                            </div>
-                            <Button type="submit" disabled={isLoading} className="w-full">
-                                {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : (isRegistering ? 'Create Account' : 'Sign in')}
-                            </Button>
-                        </form>
-                    )}
-
-                    {authMethod === 'phone' && !isRegistering && (
-                        <>
-                            {!otpSent ? (
-                                <form onSubmit={handlePhoneSubmit} className="space-y-4">
-                                    <div>
-                                        <label htmlFor="phone" className="sr-only">Phone Number</label>
-                                        <Input id="phone" type="tel" placeholder="e.g., +14155552671" value={phone} onChange={(e) => setPhone(e.target.value)} required/>
-                                    </div>
-                                    <Button type="submit" disabled={isLoading} className="w-full">
-                                        {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Send Code'}
-                                    </Button>
-                                </form>
-                            ) : (
-                                <form onSubmit={handleOtpSubmit} className="space-y-4">
-                                    <div>
-                                        <label htmlFor="otp" className="sr-only">Verification Code</label>
-                                        <Input id="otp" type="text" inputMode="numeric" placeholder="123456" value={otp} onChange={(e) => setOtp(e.target.value)} required />
-                                    </div>
-                                    <Button type="submit" disabled={isLoading} className="w-full">
-                                        {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Verify and Sign In'}
-                                    </Button>
-                                </form>
-                            )}
-                        </>
-                    )}
-
-                    {error && (
-                        <div className="text-destructive text-sm text-center pt-2">{error}</div>
-                    )}
-                    
-                    <div className="relative">
-                        <div className="absolute inset-0 flex items-center">
-                            <div className="w-full border-t border-border" />
-                        </div>
-                        <div className="relative flex justify-center text-sm">
-                            <span className="px-2 bg-background text-secondary-foreground">Or</span>
-                        </div>
-                    </div>
-
-                    <div>
-                        <Button onClick={handleGoogleSignIn} variant="outline" className="w-full" disabled={isLoading}>
-                            <svg className="mr-2 -ml-1 w-4 h-4" aria-hidden="true" focusable="false" data-prefix="fab" data-icon="google" role="img" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 488 512"><path fill="currentColor" d="M488 261.8C488 403.3 381.5 512 244 512 110.3 512 0 401.8 0 261.8S110.3 11.8 244 11.8c70.3 0 120.5 28.5 160.8 66.2l-64.8 64.3c-32.3-30.5-73.8-50-129.5-50-101.5 0-184.5 83.3-184.5 186.2s83 186.2 184.5 186.2c104.5 0 162.5-74.8 162.5-149.3 0-25.5-3-50.5-8.8-74.8H244V261.8z"></path></svg>
-                            Sign in with Google
-                        </Button>
-                    </div>
-
-                    <div className="text-center">
-                        <button onClick={() => setIsRegistering(!isRegistering)} className="text-sm text-primary hover:text-primary/80" disabled={isLoading}>
-                            {isRegistering ? 'Already have an account? Sign in' : "Don't have an account? Sign up"}
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-    );
-};
-
+/**
+ * Component for joining an existing household using a 4-character invite code
+ */
 const JoinHouseholdWithCode: React.FC<{ onJoined: (household: Household) => void, onCancel: () => void }> = ({ onJoined, onCancel }) => {
     const [joinCode, setJoinCode] = useState('');
     const [error, setError] = useState('');
@@ -412,6 +112,9 @@ const JoinHouseholdWithCode: React.FC<{ onJoined: (household: Household) => void
     );
 };
 
+/**
+ * Welcome screen shown after successfully joining or creating a household
+ */
 const HouseholdWelcomeDisplay: React.FC<{ householdId: string; householdName?: string; onProceed: () => void }> = ({ householdId, householdName, onProceed }) => {
     const [fetchedHouseholdName, setFetchedHouseholdName] = useState(householdName);
     const [loading, setLoading] = useState(!householdName);
@@ -448,6 +151,9 @@ const HouseholdWelcomeDisplay: React.FC<{ householdId: string; householdName?: s
 };
 
 
+/**
+ * Main dashboard showing user's households list with navigation to create/join households
+ */
 const Dashboard: React.FC<{ setAppState: (state: AppState) => void }> = ({ setAppState }) => {
     const { user } = useAuth();
     const [households, setHouseholds] = useState<Household[]>([]);
@@ -527,9 +233,13 @@ const Dashboard: React.FC<{ setAppState: (state: AppState) => void }> = ({ setAp
 };
 
 
+// Tab types for the household detail view navigation
 type HouseholdDetailTab = 'money' | 'structuredChores' | 'communication' | 'rules';
 
 
+/**
+ * Modal for adding new house rules to a household
+ */
 const AddRuleModal: React.FC<{
     householdId: string;
     onClose: () => void;
@@ -583,6 +293,9 @@ const AddRuleModal: React.FC<{
     );
 };
 
+/**
+ * Modal for editing existing house rules
+ */
 const EditRuleModal: React.FC<{
     householdId: string;
     rule: HouseRule;
@@ -637,6 +350,9 @@ const EditRuleModal: React.FC<{
     );
 };
 
+/**
+ * Individual rule card component with edit/delete controls for admins
+ */
 const RuleCard: React.FC<{
     rule: HouseRule;
     isAdmin: boolean;
@@ -664,13 +380,16 @@ const RuleCard: React.FC<{
 };
 
 
+/**
+ * Main household detail view with tabs for money, chores, communication, and rules
+ * Handles complex state management for household data and modal interactions
+ */
 const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = ({ householdId, onBack }) => {
     const { user } = useAuth();
     const [activeTab, setActiveTab] = useState<HouseholdDetailTab>('money');
     const [household, setHousehold] = useState<Household | null>(null);
     const [members, setMembers] = useState<HouseholdMember[]>([]);
     const [expenses, setExpenses] = useState<Expense[]>([]);
-    const [settlements, setSettlements] = useState<Settlement[]>([]);
     const [balances, setBalances] = useState<Awaited<ReturnType<typeof getHouseholdBalances>>>([]);
     const [loadingData, setLoadingData] = useState(true);
     const [recurringExpenses, setRecurringExpenses] = useState<RecurringExpense[]>([]);
@@ -694,6 +413,7 @@ const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = (
 
     const isAdmin = useMemo(() => members.find(m => m.user_id === user?.id)?.role === 'admin', [members, user]);
 
+    // Optimized data fetching with loading states and race condition protection
     const refreshData = useCallback(async (showToast = false) => {
         if (isLoadingRef.current || !isMountedRef.current) return;
         isLoadingRef.current = true;
@@ -711,7 +431,6 @@ const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = (
             if (data.household) setHousehold(data.household);
             setMembers(data.members || []);
             setExpenses(data.recent_expenses || []);
-            setSettlements(data.recent_settlements || []);
             setRecurringExpenses(recurringData);
             setBalances(balanceData);
 
@@ -731,9 +450,10 @@ const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = (
         return () => { isMountedRef.current = false; };
     }, [householdId, refreshData]);
 
+    // Calculate intelligent settlement suggestions based on current balances
     const settlementSuggestions = useMemo(() => getSettlementSuggestions ? getSettlementSuggestions(balances) : [], [balances]);
 
-        // New: Calculate the current user's overall balance
+    // Calculate the current user's overall balance for settlement UI logic
     const currentUserBalance = useMemo(() => {
         return balances.find(b => b.userId === user?.id)?.balance || 0;
     }, [balances, user]);
@@ -746,7 +466,7 @@ const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = (
             );
     }
 
-    // This extracts the Profile from each HouseholdMember for the chat
+    // Extract profile data from household members for chat functionality
     const memberProfiles = members.map(m => m.profiles).filter((p): p is Profile => !!p);
 
     return (
@@ -992,8 +712,13 @@ const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = (
         };
 
 
+// Application state machine for top-level navigation and user flow
 type AppState = 'loading' | 'landing' | 'authForm' | 'onboardingChoice' | 'householdSetup' | 'dashboard' | 'joinWithCode' | 'householdWelcome';
 
+/**
+ * Main App component that manages authentication state and application routing
+ * Uses a state machine pattern to handle complex user flows and onboarding
+ */
 const App: React.FC = () => {
     const { user, loading: authLoading } = useAuth();
     const [appState, setAppState] = useState<AppState>('loading');
@@ -1002,6 +727,7 @@ const App: React.FC = () => {
     const [targetHouseholdAfterJoin, setTargetHouseholdAfterJoin] = useState<Household | null>(null);
     const [userHasHouseholds, setUserHasHouseholds] = useState<boolean | null>(null);
 
+    // Complex state determination logic that handles user authentication and onboarding flow
     useEffect(() => {
         const determineState = async () => {
             if (authLoading) {
@@ -1016,21 +742,26 @@ const App: React.FC = () => {
                 const userHouseholds = await getUserHouseholds();
                 setUserHasHouseholds(userHouseholds.length > 0);
                 
+                // Handle URL parameter for post-join welcome flow
                 const queryParams = new URLSearchParams(window.location.search);
                 const joinedHouseholdIdParam = queryParams.get('joinedHouseholdId');
                 if (joinedHouseholdIdParam) {
                     setWelcomeHouseholdId(joinedHouseholdIdParam);
                     setAppState('householdWelcome');
+                    // Clean URL after processing the parameter
                     const nextURL = new URL(window.location.href);
                     nextURL.searchParams.delete('joinedHouseholdId');
                     window.history.replaceState({}, '', nextURL.toString());
                 } else if (targetHouseholdAfterJoin) {
+                    // Handle in-app household join flow
                     setWelcomeHouseholdId(targetHouseholdAfterJoin.id);
                     setAppState('householdWelcome');
                     setTargetHouseholdAfterJoin(null);
                 } else if (userHouseholds.length === 0) {
+                    // New user onboarding
                     setAppState('onboardingChoice');
                 } else {
+                    // Existing user with households
                     setAppState('dashboard');
                 }
             } catch (error) {
@@ -1044,10 +775,12 @@ const App: React.FC = () => {
 
     if (appState === 'loading' || (user && userHasHouseholds === null)) return <LoadingSpinner />;
 
+    // Helper function to handle cancellation of household setup/join flows
     const handleCancelSetupOrJoin = () => {
         setAppState(userHasHouseholds ? 'dashboard' : 'onboardingChoice');
     };
 
+    // Main application router based on current state
     switch (appState) {
         case 'landing': return <LandingPageContent onSignIn={() => { setIsRegisteringForAuthForm(false); setAppState('authForm'); }} onSignUp={() => { setIsRegisteringForAuthForm(true); setAppState('authForm'); }} />;
         case 'authForm': return <AuthForm isRegisteringInitially={isRegisteringForAuthForm} />;
@@ -1091,6 +824,10 @@ const App: React.FC = () => {
     }
 };
 
+/**
+ * Root component that wraps the app with authentication context
+ * This is the entry point for the entire application
+ */
 export default function RoomiesApp() {
     return ( <AuthProvider> <App /> </AuthProvider> );
 }

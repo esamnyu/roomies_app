@@ -7,7 +7,7 @@ import { createExpenseWithCustomSplits } from '@/lib/api/expenses';
 import { toast } from 'react-hot-toast';
 import type { HouseholdMember } from '@/lib/types/types';
 import { useExpenseSplits } from '@/hooks/useExpenseSplits';
-import { useAuth } from './AuthProvider'; // NEW: Import useAuth
+import { useAuth } from '../AuthProvider'; // NEW: Import useAuth
 import { ExpenseSplitter } from '@/components/ExpenseSplitter';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';

@@ -2,19 +2,19 @@
 "use client";
 
 import React, { useState } from 'react';
-import { useAuth } from './AuthProvider';
+import { useAuth } from '../AuthProvider';
 import { 
   updateHouseholdSettings, 
   removeMember, 
   updateMemberRole, 
   leaveHousehold, 
   deleteHousehold 
-} from '../lib/api/households';
-import type { Household, HouseholdMember } from '../lib/types/types';
+} from '../../lib/api/households';
+import type { Household, HouseholdMember } from '../../lib/types/types';
 import { toast } from 'react-hot-toast';
 import { Loader2, Trash2, Shield, LogOut, AlertTriangle } from 'lucide-react';
-import { Button } from './ui/Button';
-import { Input } from './ui/Input';
+import { Button } from '../ui/Button';
+import { Input } from '../ui/Input';
 
 interface HouseholdSettingsModalProps {
     household: Household;

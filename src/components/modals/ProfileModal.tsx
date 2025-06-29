@@ -2,13 +2,13 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { getProfile, updateUserProfile } from '../lib/api/profile';
+import { getProfile, updateUserProfile } from '../../lib/api/profile';
 import { toast } from 'react-hot-toast';
 import { Loader2 } from 'lucide-react';
-import { Button } from './ui/Button';
-import { Input } from './ui/Input';
+import { Button } from '../ui/Button';
+import { Input } from '../ui/Input';
 import type { User as SupabaseUser } from '@supabase/supabase-js';
-import type { Profile } from '../lib/types/types';
+import type { Profile } from '../../lib/types/types';
 
 interface ProfileModalProps {
     user: SupabaseUser;
