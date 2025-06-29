@@ -2,17 +2,40 @@
 import { supabase } from '../supabase';
 import { subscriptionManager } from '../subscriptionManager';
 import type { Message, MessageWithProfileRPC } from '../types/types';
+import { validateInput, sendMessageSchema } from './validation/schemas';
+import { requireHouseholdMember } from './auth/middleware';
+import DOMPurify from 'isomorphic-dompurify';
 
 export const sendMessage = async (householdId: string, content: string): Promise<Message> => {
   const { data: { user } } = await supabase.auth.getUser(); 
   if (!user) throw new Error('Not authenticated');
   
+  // Validate input
+  const validatedInput = validateInput(sendMessageSchema, { householdId, content });
+  
+  // Verify user is a member of the household
+  await requireHouseholdMember(validatedInput.householdId, user.id);
+  
+  // Sanitize the content to prevent XSS attacks
+  // Allow only basic formatting tags
+  const sanitizedContent = DOMPurify.sanitize(validatedInput.content, {
+    ALLOWED_TAGS: ['b', 'i', 'em', 'strong', 'br'],
+    ALLOWED_ATTR: [],
+    KEEP_CONTENT: true,
+    FORCE_BODY: true
+  });
+  
+  // Additional check: if sanitization removed too much content, reject
+  if (sanitizedContent.length < validatedInput.content.length * 0.5) {
+    throw new Error('Message contains too much invalid content');
+  }
+  
   const { data, error } = await supabase
     .from('messages')
     .insert({ 
-      household_id: householdId, 
+      household_id: validatedInput.householdId, 
       user_id: user.id, 
-      content: content.trim() 
+      content: sanitizedContent.trim() 
     })
     .select()
     .single(); 
