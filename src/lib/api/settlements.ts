@@ -3,6 +3,20 @@ import { supabase } from '../supabase';
 import { subscriptionManager } from '../subscriptionManager';
 import type { Settlement, Profile } from '../types/types';
 
+// Define a simplified profile type for balances
+type BalanceProfile = {
+  id: string;
+  name: string;
+  avatar_url?: string | null;
+};
+
+// Define the HouseholdBalance interface
+interface HouseholdBalance {
+  userId: string;
+  balance: number;
+  profile: BalanceProfile;
+}
+
 // This function is updated to accept a single object.
 export const createSettlement = async (settlement: Omit<Settlement, 'id' | 'created_at' | 'payer_profile' | 'payee_profile'>) => {
   // MODIFIED: Changed RPC call to the correct function name 'create_settlement'
@@ -90,7 +104,7 @@ export const subscribeToSettlements = (householdId: string, onSettlement: (settl
 
 // --- NEW EFFICIENT BALANCE CALCULATION ---
 
-export const getHouseholdBalances = async (householdId: string) => {
+export const getHouseholdBalances = async (householdId: string): Promise<HouseholdBalance[]> => {
   const { data, error } = await supabase
     .rpc('calculate_household_balances', {
       p_household_id: householdId
@@ -101,16 +115,10 @@ export const getHouseholdBalances = async (householdId: string) => {
     throw error;
   }
   
-  interface HouseholdBalance {
-    userId: string;
-    balance: number;
-    profile: Profile;
-  }
-
   type RawBalance = {
     userid: string;
     balance: number;
-    profile: Profile;
+    profile: BalanceProfile;
   };
 
   return (data?.map((item: RawBalance): HouseholdBalance => ({
@@ -121,15 +129,21 @@ export const getHouseholdBalances = async (householdId: string) => {
 };
 
 // --- SETTLEMENT SUGGESTION HELPER ---
-export type SettlementSuggestion = { from: string; to: string; amount: number; fromProfile: Profile; toProfile: Profile };
+export type SettlementSuggestion = { 
+  from: string; 
+  to: string; 
+  amount: number; 
+  fromProfile: BalanceProfile; 
+  toProfile: BalanceProfile;
+};
 
-export const getSettlementSuggestions = (balances: Awaited<ReturnType<typeof getHouseholdBalances>>): SettlementSuggestion[] => {
+export const getSettlementSuggestions = (balances: HouseholdBalance[]): SettlementSuggestion[] => {
   const suggestions: SettlementSuggestion[] = [];
   
   interface BalanceWithProfile {
     userId: string;
     balance: number;
-    profile: Profile;
+    profile: BalanceProfile;
   }
 
   const debtors: BalanceWithProfile[] = JSON.parse(

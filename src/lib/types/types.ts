@@ -11,6 +11,13 @@ export interface Profile {
   vacation_end_date?: string | null;
 }
 
+// Add this simplified profile type for balances
+export interface BalanceProfile {
+  id: string;
+  name: string;
+  avatar_url?: string | null;
+}
+
 export interface HouseRule {
   id: string;
   category: string;
@@ -115,13 +122,13 @@ export interface Settlement {
   payee_profile?: Profile
 }
 
-// Added the missing SettlementSuggestion interface
+// Updated SettlementSuggestion to use BalanceProfile
 export interface SettlementSuggestion {
     from: string;
     to: string;
     amount: number;
-    fromProfile?: Profile | null;
-    toProfile?: Profile | null;
+    fromProfile?: BalanceProfile | null;  // Changed from Profile to BalanceProfile
+    toProfile?: BalanceProfile | null;    // Changed from Profile to BalanceProfile
 }
 
 export interface RecurringExpense {
@@ -222,4 +229,31 @@ export interface CreateHouseholdParams {
   core_chores?: string[];
   chore_frequency?: string;
   chore_framework?: string;
+}
+
+// src/lib/types/types.ts
+// Add this after the other interfaces (around line 240)
+
+export interface HouseholdFullData {
+  household: Household;
+  members: HouseholdMember[];
+  expenses: Expense[];
+  recurring_expenses: RecurringExpense[];
+  balances: Array<{
+    userId: string;
+    balance: number;
+    profile: BalanceProfile;  // Changed to use BalanceProfile for consistency
+  }>;
+  recent_settlements: Settlement[];
+  active_chores: Array<{
+    id: string;
+    due_date: string;
+    status: string;
+    chore_name: string;
+    assigned_to: {
+      id: string;
+      name: string;
+      avatar_url?: string | null;
+    };
+  }>;
 }

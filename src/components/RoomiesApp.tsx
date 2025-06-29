@@ -4,6 +4,7 @@
 
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { ChevronRight, Home, DollarSign, CheckSquare, Plus, LogOut, Menu, X, ArrowLeft, Loader2, CreditCard, MessageSquare, Settings, ClipboardList, User, Share2, LifeBuoy, Edit3, Trash2, Phone, Mail, Pencil, CheckCircle2 } from 'lucide-react'; // MODIFIED: Added CheckCircle2
+import { useHouseholdData } from '@/hooks/useHouseholdData';
 
 import * as api from '../lib/api';
 import { Household, HouseholdMember, Expense, Settlement, RecurringExpense, HouseRule, Profile } from '../lib/types/types';
@@ -649,13 +650,7 @@ const RuleCard: React.FC<{
 const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = ({ householdId, onBack }) => {
     const { user } = useAuth();
     const [activeTab, setActiveTab] = useState<HouseholdDetailTab>('money');
-    const [household, setHousehold] = useState<Household | null>(null);
-    const [members, setMembers] = useState<HouseholdMember[]>([]);
-    const [expenses, setExpenses] = useState<Expense[]>([]);
-    const [settlements, setSettlements] = useState<Settlement[]>([]);
-    const [balances, setBalances] = useState<Awaited<ReturnType<typeof api.getHouseholdBalances>>>([]);
-    const [loadingData, setLoadingData] = useState(true);
-    const [recurringExpenses, setRecurringExpenses] = useState<RecurringExpense[]>([]);
+
     const [expandedExpense, setExpandedExpense] = useState<string | null>(null);
 
     const [showAddRecurring, setShowAddRecurring] = useState(false);
@@ -670,48 +665,33 @@ const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = (
 
     const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
     
+    const {
+        data: fullData,
+        loading: loadingData,
+        refetch,
+        invalidateCache,
+        isStale
+    } = useHouseholdData(householdId);
 
-    const isLoadingRef = useRef(false);
-    const isMountedRef = useRef(true);
+    const household = fullData?.household || null;
+    const members = fullData?.members || [];
+    const expenses = fullData?.expenses || [];
+    const recurringExpenses = fullData?.recurring_expenses || [];
+    const balances = fullData?.balances || [];
+    const settlements = fullData?.recent_settlements || [];
+    
 
     const isAdmin = useMemo(() => members.find(m => m.user_id === user?.id)?.role === 'admin', [members, user]);
 
     const refreshData = useCallback(async (showToast = false) => {
-        if (isLoadingRef.current || !isMountedRef.current) return;
-        isLoadingRef.current = true;
-        if (!showToast) setLoadingData(true);
-        
         try {
-            const [data, recurringData, balanceData] = await Promise.all([
-                api.getHouseholdData(householdId),
-                api.getHouseholdRecurringExpenses(householdId),
-                api.getHouseholdBalances(householdId)
-            ]);
-
-            if (!isMountedRef.current) return;
-            
-            if (data.household) setHousehold(data.household);
-            setMembers(data.members || []);
-            setExpenses(data.recent_expenses || []);
-            setSettlements(data.recent_settlements || []);
-            setRecurringExpenses(recurringData);
-            setBalances(balanceData);
-
-            if (showToast) toast.success("Data refreshed!");
+          await refetch(true);
+          if (showToast) toast.success("Data refreshed!");
         } catch (error) {
-            console.error('Error loading household data:', error);
-            if (isMountedRef.current) toast.error('Failed to load household data.');
-        } finally {
-            if (isMountedRef.current) setLoadingData(false);
-            isLoadingRef.current = false;
+          console.error('Error refreshing data:', error);
+          if (showToast) toast.error('Failed to refresh data');
         }
-    }, [householdId]);
-
-    useEffect(() => {
-        isMountedRef.current = true;
-        refreshData();
-        return () => { isMountedRef.current = false; };
-    }, [householdId, refreshData]);
+      }, [refetch]);
 
     const settlementSuggestions = useMemo(() => api.getSettlementSuggestions ? api.getSettlementSuggestions(balances) : [], [balances]);
 
@@ -739,6 +719,11 @@ const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = (
             isHouseholdView={true}
             onShowProfile={() => setIsProfileModalOpen(true)}
             onShowSettings={() => setIsHouseholdSettingsModalOpen(true)}>
+            {isStale && (
+                <div className="bg-yellow-100 border-yellow-400 text-yellow-700 px-4 py-2 rounded mb-4">
+                    <p className="text-sm">Updating data...</p>
+                </div>
+            )}
             <div className="space-y-6">
                 <div className="border-b border-border">
                     <nav className="-mb-px flex space-x-4 sm:space-x-8 overflow-x-auto">
@@ -948,16 +933,16 @@ const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = (
                 )}
             </div>
 
-            {showAddExpense && <AddExpenseModal householdId={householdId} members={members} onClose={() => setShowAddExpense(false)} onExpenseAdded={() => refreshData(true)} />}
-            {showSettleUp && <SettleUpModal householdId={householdId} members={members} settlementSuggestions={settlementSuggestions} onClose={() => setShowSettleUp(false)} onSettlementCreated={() => refreshData(true)} />}
-            {showAddRecurring && <AddRecurringExpenseModal householdId={householdId} onClose={() => setShowAddRecurring(false)} onExpenseAdded={() => refreshData(true)} />}
-            {showManageJoinCode && householdId && <ManageJoinCodeModal householdId={householdId} currentCode={household?.join_code} onClose={() => setShowManageJoinCode(false)} onCodeRefreshed={(newCode) => { if(household) setHousehold({...household, join_code: newCode }); }} />}
+            {showAddExpense && <AddExpenseModal householdId={householdId} members={members} onClose={() => setShowAddExpense(false)} onExpenseAdded={() => { invalidateCache(); refreshData(true); }} />}
+            {showSettleUp && <SettleUpModal householdId={householdId} members={members} settlementSuggestions={settlementSuggestions} onClose={() => setShowSettleUp(false)} onSettlementCreated={() => { invalidateCache(); refreshData(true); }} />}
+            {showAddRecurring && <AddRecurringExpenseModal householdId={householdId} onClose={() => setShowAddRecurring(false)} onExpenseAdded={() => { invalidateCache(); refreshData(true); }} />}
+            {showManageJoinCode && householdId && <ManageJoinCodeModal householdId={householdId} currentCode={household?.join_code} onClose={() => setShowManageJoinCode(false)} onCodeRefreshed={(newCode) => { if(household) { invalidateCache(); refreshData(true); } }} />}
             
-            {isProfileModalOpen && user && <ProfileModal user={user} onClose={() => setIsProfileModalOpen(false)} onUpdate={() => refreshData(true)} />}
-            {isHouseholdSettingsModalOpen && household && <HouseholdSettingsModal household={household} members={members} onClose={() => setIsHouseholdSettingsModalOpen(false)} onUpdate={() => refreshData(true)} />}
+            {isProfileModalOpen && user && <ProfileModal user={user} onClose={() => setIsProfileModalOpen(false)} onUpdate={() => { invalidateCache(); refreshData(true); }} />}
+            {isHouseholdSettingsModalOpen && household && <HouseholdSettingsModal household={household} members={members} onClose={() => setIsHouseholdSettingsModalOpen(false)} onUpdate={() => { invalidateCache(); refreshData(true); }} />}
             
-            {showAddRuleModal && household && <AddRuleModal householdId={household.id} onClose={() => setShowAddRuleModal(false)} onRuleAdded={() => {setShowAddRuleModal(false); refreshData(true);}} />}
-            {showEditRuleModal && ruleToEdit && household && <EditRuleModal householdId={household.id} rule={ruleToEdit} onClose={() => setRuleToEdit(null)} onRuleUpdated={() => {setRuleToEdit(null); refreshData(true);}} />}
+            {showAddRuleModal && household && <AddRuleModal householdId={household.id} onClose={() => setShowAddRuleModal(false)} onRuleAdded={() => {setShowAddRuleModal(false); invalidateCache(); refreshData(true);}} />}
+            {showEditRuleModal && ruleToEdit && household && <EditRuleModal householdId={household.id} rule={ruleToEdit} onClose={() => setRuleToEdit(null)} onRuleUpdated={() => {setRuleToEdit(null); invalidateCache(); refreshData(true);}} />}
             {editingExpense && (
                 <EditExpenseModal
                     expense={editingExpense}
@@ -965,6 +950,7 @@ const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = (
                     onClose={() => setEditingExpense(null)}
                     onExpenseUpdated={() => {
                         setEditingExpense(null);
+                        invalidateCache();
                         refreshData(true);
                     }}
                 />
