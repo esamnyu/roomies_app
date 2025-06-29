@@ -4,6 +4,7 @@ import { Manrope } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/components/AuthProvider";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { AsyncErrorBoundary } from "@/components/AsyncErrorBoundary";
 
 // Setup for the new primary font
 const manrope = Manrope({
@@ -25,10 +26,12 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${manrope.variable} font-sans antialiased`}>
-        <ErrorBoundary>
-          <AuthProvider>
-            {children}
-          </AuthProvider>
+        <ErrorBoundary showReportButton={true}>
+          <AsyncErrorBoundary>
+            <AuthProvider>
+              {children}
+            </AuthProvider>
+          </AsyncErrorBoundary>
         </ErrorBoundary>
       </body>
     </html>

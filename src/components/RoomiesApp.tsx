@@ -48,6 +48,7 @@ import { HouseholdSettingsModal } from './modals/HouseholdSettingsModal';
 import { EditExpenseModal } from './modals/EditExpenseModal';
 import { AuthForm } from './AuthForm';
 import { Layout } from './Layout';
+import { AsyncErrorBoundary } from './AsyncErrorBoundary';
 
 
 
@@ -383,6 +384,7 @@ const RuleCard: React.FC<{
 /**
  * Main household detail view with tabs for money, chores, communication, and rules
  * Handles complex state management for household data and modal interactions
+ * Wrapped with AsyncErrorBoundary for better error handling of API failures
  */
 const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = ({ householdId, onBack }) => {
     const { user } = useAuth();
@@ -492,7 +494,11 @@ const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = (
                     </nav>
                 </div>
 
-                {activeTab === 'structuredChores' && householdId && <ChoreDashboard householdId={householdId} />}
+                {activeTab === 'structuredChores' && householdId && (
+                    <AsyncErrorBoundary isolate={true}>
+                        <ChoreDashboard householdId={householdId} />
+                    </AsyncErrorBoundary>
+                )}
 
                 {activeTab === 'money' && (
                     <div className="space-y-6">
@@ -653,7 +659,9 @@ const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = (
                         </div>
                         <div className="mt-6">
                             <h3 className="text-lg font-medium text-foreground mb-4">Household Chat</h3>
-                            <HouseholdChat householdId={householdId} members={memberProfiles} />
+                            <AsyncErrorBoundary isolate={true}>
+                                <HouseholdChat householdId={householdId} members={memberProfiles} />
+                            </AsyncErrorBoundary>
                         </div>
                     </div>
                 )}
