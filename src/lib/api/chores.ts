@@ -452,9 +452,7 @@ export const getChoreRotationUIData = async (
       completed_by_user_id,
       notes,
       created_at,
-      updated_at,
-      chore_definition:household_chores!chore_assignments_household_chore_id_fkey (id, name, description, is_core_chore, is_active, household_id, created_at, updated_at),
-      assigned_profile:profiles!chore_assignments_assigned_user_id_fkey (id, name, avatar_url)
+      updated_at
     `)
     .eq('household_id', householdId)
     .gte('due_date', new Date().toISOString().split('T')[0])
@@ -467,16 +465,40 @@ export const getChoreRotationUIData = async (
     throw error;
   }
 
-  // Transform the data to match our types since Supabase returns joined data differently
-  const transformedAssignments = (allAssignments || []).map((assignment: any) => ({
+  if (!allAssignments || allAssignments.length === 0) {
+    return {
+      allAssignments: [],
+      householdInfo,
+      members,
+    };
+  }
+
+  // Get unique chore IDs and user IDs for batch fetching
+  const choreIds = [...new Set(allAssignments.map(a => a.household_chore_id))];
+  const userIds = [...new Set(allAssignments.map(a => a.assigned_user_id).filter(Boolean))];
+
+  // Batch fetch chore definitions
+  const { data: chores } = await supabase
+    .from('household_chores')
+    .select('id, name, description, is_core_chore, is_active, household_id, created_at, updated_at')
+    .in('id', choreIds);
+
+  // Batch fetch profiles 
+  const { data: profiles } = await supabase
+    .from('profiles')
+    .select('id, name, avatar_url, created_at, updated_at, email, vacation_start_date, vacation_end_date')
+    .in('id', userIds.map(id => id as string)); // Convert to string array for UUID comparison
+
+  // Create lookup maps for better performance
+  const choreMap = new Map(chores?.map(c => [c.id, c]) || []);
+  const profileMap = new Map(profiles?.map(p => [p.id, p]) || []);
+
+  // Transform assignments with joined data
+  const transformedAssignments: ChoreAssignment[] = allAssignments.map(assignment => ({
     ...assignment,
-    chore_definition: Array.isArray(assignment.chore_definition) 
-      ? assignment.chore_definition[0] 
-      : assignment.chore_definition,
-    assigned_profile: Array.isArray(assignment.assigned_profile) 
-      ? assignment.assigned_profile[0] 
-      : assignment.assigned_profile,
-  })) as ChoreAssignment[];
+    chore_definition: choreMap.get(assignment.household_chore_id) || undefined,
+    assigned_profile: profileMap.get(assignment.assigned_user_id) || undefined,
+  }));
 
   return {
     allAssignments: transformedAssignments,
