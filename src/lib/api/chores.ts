@@ -20,7 +20,7 @@ const isUserOnVacation = (member: HouseholdMember): boolean => {
 export const getHouseholdChores = async (householdId: string): Promise<HouseholdChore[]> => {
     const { data, error } = await supabase
         .from('household_chores')
-        .select('*')
+        .select('id, name, description, is_core_chore, is_active, household_id, created_at, updated_at')
         .eq('household_id', householdId)
         .order('name', { ascending: true });
 
@@ -441,9 +441,20 @@ export const getChoreRotationUIData = async (
   const { data: allAssignments, error } = await supabase
     .from('chore_assignments')
     .select(`
-      *,
-      chore_definition:household_chore_id (*),
-      assigned_profile:profiles (id, name, avatar_url)
+      id,
+      household_chore_id,
+      household_id,
+      assigned_user_id,
+      cycle_start_date,
+      due_date,
+      status,
+      completed_at,
+      completed_by_user_id,
+      notes,
+      created_at,
+      updated_at,
+      chore_definition:household_chores!chore_assignments_household_chore_id_fkey (id, name, description, is_core_chore, is_active, household_id, created_at, updated_at),
+      assigned_profile:profiles!chore_assignments_assigned_user_id_fkey (id, name, avatar_url)
     `)
     .eq('household_id', householdId)
     .gte('due_date', new Date().toISOString().split('T')[0])
@@ -456,8 +467,19 @@ export const getChoreRotationUIData = async (
     throw error;
   }
 
+  // Transform the data to match our types since Supabase returns joined data differently
+  const transformedAssignments = (allAssignments || []).map((assignment: any) => ({
+    ...assignment,
+    chore_definition: Array.isArray(assignment.chore_definition) 
+      ? assignment.chore_definition[0] 
+      : assignment.chore_definition,
+    assigned_profile: Array.isArray(assignment.assigned_profile) 
+      ? assignment.assigned_profile[0] 
+      : assignment.assigned_profile,
+  })) as ChoreAssignment[];
+
   return {
-    allAssignments: allAssignments || [],
+    allAssignments: transformedAssignments,
     householdInfo,
     members,
   };
