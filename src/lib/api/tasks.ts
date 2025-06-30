@@ -1,12 +1,11 @@
 // src/lib/api/tasks.ts
 import { supabase } from '../supabase';
 import { withErrorHandling, handleSupabaseError, ValidationError, NotFoundError } from '@/lib/errors';
-import { requireAuth, requireHouseholdMember } from '@/lib/api/auth/middleware';
+import { requireHouseholdMember } from '@/lib/api/auth/middleware';
 import { 
   createTaskSchema, 
   validateInput, 
-  uuidSchema,
-  type CreateTaskInput 
+  uuidSchema
 } from '@/lib/api/validation/schemas';
 import type { Task } from '../types/types';
 
@@ -21,7 +20,7 @@ export const createTask = async (
   householdId: string, 
   title: string, 
   assignedTo?: string
-): Promise<Task> => {
+) => {
   return withErrorHandling(async () => {
     // Validate input
     const validatedData = validateInput(createTaskSchema, {
@@ -69,7 +68,7 @@ export const createTask = async (
  * @param householdId - The ID of the household.
  * @returns An array of tasks with associated profiles.
  */
-export const getHouseholdTasks = async (householdId: string): Promise<Task[]> => {
+export const getHouseholdTasks = async (householdId: string) => {
   return withErrorHandling(async () => {
     // Validate household ID
     const validatedId = validateInput(uuidSchema, householdId);
@@ -101,7 +100,7 @@ export const getHouseholdTasks = async (householdId: string): Promise<Task[]> =>
 export const updateTask = async (
   taskId: string, 
   updates: Partial<Task>
-): Promise<Task> => {
+) => {
   return withErrorHandling(async () => {
     // Validate task ID
     const validatedTaskId = validateInput(uuidSchema, taskId);
@@ -168,7 +167,7 @@ export const updateTask = async (
  * @param taskId - The ID of the task to complete.
  * @returns The completed task object.
  */
-export const completeTask = async (taskId: string): Promise<Task> => {
+export const completeTask = async (taskId: string) => {
   return withErrorHandling(async () => {
     return updateTask(taskId, { 
       completed: true, 
@@ -182,7 +181,7 @@ export const completeTask = async (taskId: string): Promise<Task> => {
  * @param taskId - The ID of the task to delete.
  * @returns void
  */
-export const deleteTask = async (taskId: string): Promise<void> => {
+export const deleteTask = async (taskId: string) => {
   return withErrorHandling(async () => {
     // Validate task ID
     const validatedTaskId = validateInput(uuidSchema, taskId);
@@ -199,7 +198,7 @@ export const deleteTask = async (taskId: string): Promise<void> => {
     }
 
     // Ensure the user is a member of the household (could be admin-only if you want)
-    const { memberRole } = await requireHouseholdMember(existingTask.household_id);
+    await requireHouseholdMember(existingTask.household_id);
     
     // Optional: Only allow admins to delete tasks
     // if (memberRole !== 'admin') {
@@ -226,7 +225,7 @@ export const deleteTask = async (taskId: string): Promise<void> => {
 export const bulkUpdateTasks = async (
   taskIds: string[], 
   updates: Partial<Task>
-): Promise<Task[]> => {
+) => {
   return withErrorHandling(async () => {
     // Validate all task IDs
     const validatedTaskIds = taskIds.map(id => validateInput(uuidSchema, id));
