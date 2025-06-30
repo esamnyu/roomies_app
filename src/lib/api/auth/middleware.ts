@@ -14,7 +14,14 @@ export async function requireAuth() {
 
 export async function requireHouseholdMember(householdId: string, userId?: string) {
   return withErrorHandling(async () => {
-    const user = userId || (await requireAuth()).id;
+    let user = userId;
+    if (!user) {
+      const { data: { user: authUser }, error } = await supabase.auth.getUser();
+      if (error || !authUser) {
+        throw new AuthenticationError('Authentication required');
+      }
+      user = authUser.id;
+    }
     
     const { data, error } = await supabase
       .from('household_members')
@@ -33,20 +40,41 @@ export async function requireHouseholdMember(householdId: string, userId?: strin
 
 export async function requireHouseholdAdmin(householdId: string) {
   return withErrorHandling(async () => {
-    const { userId, memberRole } = await requireHouseholdMember(householdId);
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+      throw new AuthenticationError('Authentication required');
+    }
     
-    if (memberRole !== 'admin') {
+    const { data, error } = await supabase
+      .from('household_members')
+      .select('id, role')
+      .eq('household_id', householdId)
+      .eq('user_id', user.id)
+      .single();
+      
+    if (error || !data) {
+      throw new AuthorizationError('Not a member of this household');
+    }
+    
+    if (data.role !== 'admin') {
       throw new AuthorizationError('Admin privileges required');
     }
     
-    return { userId, isAdmin: true };
+    return { userId: user.id, isAdmin: true };
   }, 'requireHouseholdAdmin');
 }
 
 // Check if user can modify an expense
 export async function requireExpenseAccess(expenseId: string, userId?: string) {
   return withErrorHandling(async () => {
-    const user = userId || (await requireAuth()).id;
+    let user = userId;
+    if (!user) {
+      const { data: { user: authUser }, error } = await supabase.auth.getUser();
+      if (error || !authUser) {
+        throw new AuthenticationError('Authentication required');
+      }
+      user = authUser.id;
+    }
     
     const { data: expense, error } = await supabase
       .from('expenses')
