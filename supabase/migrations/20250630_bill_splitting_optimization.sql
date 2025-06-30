@@ -389,6 +389,7 @@ DECLARE
     v_adjustment_reason text;
     v_total_paid numeric := 0;
     v_total_split numeric := 0;
+    v_new_amount numeric;
 BEGIN
     -- Lock and get current expense with version check
     SELECT * INTO v_expense
@@ -421,35 +422,37 @@ BEGIN
     
     -- Process payment changes
     FOR v_old_payment IN 
-        SELECT * FROM public.expense_payments 
+        SELECT * FROM public.expense_payments
         WHERE expense_id = p_expense_id
     LOOP
-        -- Check if this payer still exists in new payments
-        DECLARE
-            v_new_amount numeric;
         BEGIN
-            SELECT (p->>'amount')::numeric INTO v_new_amount
-            FROM jsonb_array_elements(p_payments) p
-            WHERE (p->>'payer_id')::uuid = v_old_payment.payer_id;
+            -- Find corresponding new payment
+            SELECT * INTO v_new_payment FROM jsonb_to_recordset(p_payments) 
+            AS x(payer_id uuid, amount numeric)
+            WHERE payer_id = v_old_payment.payer_id;
             
-            IF v_new_amount IS NULL THEN
-                -- Payer removed - reverse their payment
+            IF FOUND AND v_new_payment.amount != v_old_payment.amount THEN
+                -- Update payment amount
+                UPDATE public.expense_payments
+                SET amount = v_new_payment.amount
+                WHERE id = v_old_payment.id;
+                
+                -- Update ledger for payment change
+                PERFORM update_ledger_balance(
+                    v_expense.household_id,
+                    v_old_payment.payer_id,
+                    v_new_payment.amount - v_old_payment.amount
+                );
+            ELSIF NOT FOUND THEN
+                -- Remove old payer
+                DELETE FROM public.expense_payments WHERE id = v_old_payment.id;
+                
+                -- Update ledger
                 PERFORM update_ledger_balance(
                     v_expense.household_id,
                     v_old_payment.payer_id,
                     -v_old_payment.amount
                 );
-                DELETE FROM public.expense_payments WHERE id = v_old_payment.id;
-            ELSIF v_new_amount != v_old_payment.amount THEN
-                -- Amount changed - adjust ledger
-                PERFORM update_ledger_balance(
-                    v_expense.household_id,
-                    v_old_payment.payer_id,
-                    v_new_amount - v_old_payment.amount
-                );
-                UPDATE public.expense_payments
-                SET amount = v_new_amount
-                WHERE id = v_old_payment.id;
             END IF;
         END;
     END LOOP;
@@ -459,12 +462,25 @@ BEGIN
         SELECT * FROM jsonb_to_recordset(p_payments) 
         AS x(payer_id uuid, amount numeric)
     LOOP
-        INSERT INTO public.expense_payments (expense_id, payer_id, amount)
-        VALUES (p_expense_id, v_new_payment.payer_id, v_new_payment.amount)
-        ON CONFLICT (expense_id, payer_id) DO NOTHING;
-        
-        IF NOT FOUND THEN
-            -- New payer - update ledger
+        -- Check if payment exists
+        IF NOT EXISTS (
+            SELECT 1 FROM public.expense_payments
+            WHERE expense_id = p_expense_id
+            AND payer_id = v_new_payment.payer_id
+        ) THEN
+            -- New payer
+            INSERT INTO public.expense_payments (
+                expense_id, 
+                payer_id, 
+                amount
+            )
+            VALUES (
+                p_expense_id,
+                v_new_payment.payer_id,
+                v_new_payment.amount
+            );
+            
+            -- Update ledger
             PERFORM update_ledger_balance(
                 v_expense.household_id,
                 v_new_payment.payer_id,
@@ -473,64 +489,37 @@ BEGIN
         END IF;
     END LOOP;
     
-    -- Process split changes with adjustment tracking
+    -- Process split changes
     FOR v_old_split IN 
-        SELECT * FROM public.expense_splits 
+        SELECT * FROM public.expense_splits
         WHERE expense_id = p_expense_id
     LOOP
-        DECLARE
-            v_new_amount numeric;
         BEGIN
+            -- Find corresponding new split
             SELECT (s->>'amount')::numeric INTO v_new_amount
             FROM jsonb_array_elements(p_splits) s
             WHERE (s->>'user_id')::uuid = v_old_split.user_id;
             
-            IF v_new_amount IS NULL THEN
-                -- User removed from split
+            IF FOUND AND v_new_amount != v_old_split.amount THEN
+                -- Split amount changed
                 IF v_old_split.settled THEN
                     -- Create adjustment for settled split
                     INSERT INTO public.expense_split_adjustments (
-                        expense_split_id, 
-                        adjustment_amount, 
-                        reason, 
-                        created_by
+                        expense_split_id,
+                        original_amount,
+                        adjustment_amount,
+                        reason,
+                        created_at
                     )
                     VALUES (
                         v_old_split.id,
-                        -v_old_split.amount,
-                        'User removed from expense: ' || v_adjustment_reason,
-                        auth.uid()
-                    );
-                END IF;
-                
-                -- Update ledger
-                PERFORM update_ledger_balance(
-                    v_expense.household_id,
-                    v_old_split.user_id,
-                    v_old_split.amount
-                );
-                
-                -- Soft delete by marking amount as 0
-                UPDATE public.expense_splits
-                SET amount = 0
-                WHERE id = v_old_split.id;
-                
-            ELSIF v_new_amount != v_old_split.amount THEN
-                -- Amount changed
-                IF v_old_split.settled THEN
-                    -- Create adjustment for the difference
-                    INSERT INTO public.expense_split_adjustments (
-                        expense_split_id, 
-                        adjustment_amount, 
-                        reason, 
-                        created_by
-                    )
-                    VALUES (
-                        v_old_split.id,
+                        v_old_split.amount,
                         v_new_amount - v_old_split.amount,
                         v_adjustment_reason,
-                        auth.uid()
+                        NOW()
                     );
+                    
+                    -- Keep original split unchanged for audit trail
                 ELSE
                     -- Update unsettled split directly
                     UPDATE public.expense_splits
@@ -538,11 +527,22 @@ BEGIN
                     WHERE id = v_old_split.id;
                 END IF;
                 
-                -- Update ledger
+                -- FIXED: Correct ledger balance calculation
+                -- Negative of the increase in what they owe
                 PERFORM update_ledger_balance(
                     v_expense.household_id,
                     v_old_split.user_id,
-                    v_old_split.amount - v_new_amount
+                    -(v_new_amount - v_old_split.amount)
+                );
+            ELSIF NOT FOUND THEN
+                -- Remove old split user
+                DELETE FROM public.expense_splits WHERE id = v_old_split.id;
+                
+                -- Update ledger (user no longer owes this amount)
+                PERFORM update_ledger_balance(
+                    v_expense.household_id,
+                    v_old_split.user_id,
+                    v_old_split.amount
                 );
             END IF;
         END;

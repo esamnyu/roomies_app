@@ -36,7 +36,24 @@ const distributeRoundingError = (
     return splits;
   }
   
-  // Distribute error to the split with the largest amount
+  // For equal splits, distribute rounding errors evenly across users
+  // to maintain true equality when possible
+  const isEqualSplit = splits.every(s => Math.abs(s.amount - splits[0].amount) < PRECISION_THRESHOLD);
+  
+  if (isEqualSplit && Math.abs(difference) <= splits.length * 0.01) {
+    // Distribute error across multiple users for better equality
+    const errorPerSplit = Math.sign(difference) * 0.01;
+    const numSplitsToAdjust = Math.min(Math.abs(Math.round(difference * 100)), splits.length);
+    
+    return splits.map((s, index) => ({
+      ...s,
+      amount: index < numSplitsToAdjust 
+        ? roundCurrency(s.amount + errorPerSplit)
+        : s.amount
+    }));
+  }
+  
+  // Fallback: distribute error to the split with the largest amount
   const maxSplit = splits.reduce((max, s) => 
     s.amount > max.amount ? s : max, splits[0]
   );
