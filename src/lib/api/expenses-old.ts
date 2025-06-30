@@ -23,8 +23,7 @@ const UpdateExpenseSchema = z.object({
   amount: z.number().positive().max(999999.99),
   splits: z.array(ExpenseSplitSchema).min(1).max(50),
   paid_by: z.string().uuid(),
-  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  version: z.number().optional() // For optimistic concurrency
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/)
 });
 
 // --- CUSTOM ERROR CLASSES ---
@@ -60,8 +59,7 @@ export const getHouseholdExpenses = async (householdId: string): Promise<Expense
       expense_splits (*, 
         profiles:user_id (id, name, avatar_url),
         expense_split_adjustments (*, profiles:created_by(id, name, avatar_url))
-      ),
-      expense_payments (*, profiles:payer_id(id, name, avatar_url))
+      )
     `)
     .eq('household_id', validatedId)
     .order('date', { ascending: false })
@@ -70,21 +68,6 @@ export const getHouseholdExpenses = async (householdId: string): Promise<Expense
 
   if (error) {
     throw new ExpenseError(`Failed to fetch expenses: ${error.message}`, 'FETCH_ERROR');
-  }
-  
-  return data || [];
-};
-
-// NEW: Get household balances using the optimized function
-export const getHouseholdBalances = async (householdId: string) => {
-  const validatedId = z.string().uuid().parse(householdId);
-  
-  const { data, error } = await supabase.rpc('get_household_balances_fast', {
-    p_household_id: validatedId
-  });
-
-  if (error) {
-    throw new ExpenseError(`Failed to fetch balances: ${error.message}`, 'FETCH_ERROR');
   }
   
   return data || [];
@@ -111,16 +94,14 @@ export const markExpenseSettled = async (expenseId: string, userId: string) => {
   return data;
 };
 
-// UPDATED: Use the new atomic expense creation
 export const createExpenseWithCustomSplits = async (
   householdId: string,
   description: string,
   amount: number,
   splits: Array<{ user_id: string; amount: number }>,
   date?: string,
-  paidById?: string,
-  clientUuid?: string // For idempotency
-): Promise<{ id: string; idempotent: boolean }> => {
+  paidById?: string
+): Promise<{ id: string }> => {
   // Validate all inputs
   const validated = CreateExpenseSchema.parse({
     householdId,
@@ -140,82 +121,43 @@ export const createExpenseWithCustomSplits = async (
   
   const payerId = validated.paidById || user.id;
   
-  // Use the NEW atomic RPC function
-  const { data, error } = await supabase.rpc('create_expense_atomic', {
+  // Use the existing RPC function
+  const { data: expenseId, error } = await supabase.rpc('create_expense_with_splits', {
     p_household_id: validated.householdId,
     p_description: validated.description,
     p_amount: validated.amount,
-    p_payments: [{ payer_id: payerId, amount: validated.amount }], // Single payer
+    p_paid_by: payerId,
     p_splits: validated.splits,
-    p_date: validated.date || new Date().toISOString().split('T')[0],
-    p_client_uuid: clientUuid || null
+    p_date: validated.date || new Date().toISOString().split('T')[0]
   });
 
   if (error) {
     throw new ExpenseError(`Failed to create expense: ${error.message}`, 'CREATE_ERROR');
   }
 
-  // Notifications are now handled by the trigger
-  // No need for async notification creation
+  // Send notifications asynchronously
+  createExpenseNotifications(
+    validated.householdId,
+    payerId,
+    validated.description,
+    validated.splits
+  ).catch(console.error);
 
-  return { 
-    id: data.expense_id, 
-    idempotent: data.idempotent 
-  };
+  return { id: expenseId };
 };
 
-// NEW: Create multi-payer expense
-export const createMultiPayerExpense = async (
-  householdId: string,
-  description: string,
-  payments: Array<{ payer_id: string; amount: number }>,
-  splits: Array<{ user_id: string; amount: number }>,
-  date?: string,
-  clientUuid?: string
-): Promise<{ id: string; idempotent: boolean }> => {
-  const totalAmount = payments.reduce((sum, p) => sum + p.amount, 0);
-  
-  validateSplitTotal(splits, totalAmount);
-  
-  // Validate payment total
-  const paymentSum = payments.reduce((sum, p) => sum + p.amount, 0);
-  if (Math.abs(paymentSum - totalAmount) > 0.01) {
-    throw new ExpenseError('Payment amounts must equal total amount', 'INVALID_PAYMENT_TOTAL');
-  }
-  
-  const { data, error } = await supabase.rpc('create_expense_atomic', {
-    p_household_id: householdId,
-    p_description: description,
-    p_amount: totalAmount,
-    p_payments: payments,
-    p_splits: splits,
-    p_date: date || new Date().toISOString().split('T')[0],
-    p_client_uuid: clientUuid || null
-  });
-
-  if (error) {
-    throw new ExpenseError(`Failed to create multi-payer expense: ${error.message}`, 'CREATE_ERROR');
-  }
-
-  return { 
-    id: data.expense_id, 
-    idempotent: data.idempotent 
-  };
-};
-
-// UPDATED: Use the new adjustment-aware update
+// Update expense with the existing smart RPC
 interface UpdateExpensePayload {
   description: string;
   amount: number;
   splits: Array<{ user_id: string; amount: number }>;
   paid_by: string;
   date: string;
-  version?: number; // For optimistic concurrency
 }
 
 interface UpdateExpenseResponse {
   success: boolean;
-  version: number;
+  adjustments_made: boolean;
   message: string;
 }
 
@@ -223,26 +165,26 @@ export const updateExpense = async (
   expenseId: string, 
   payload: UpdateExpensePayload
 ): Promise<UpdateExpenseResponse> => {
+  // Validate expense ID
   const validatedId = z.string().uuid().parse(expenseId);
+  
+  // Validate payload
   const validated = UpdateExpenseSchema.parse(payload);
   
+  // Validate split totals
   validateSplitTotal(validated.splits, validated.amount);
   
-  // Use the NEW update RPC with adjustments
-  const { data, error } = await supabase.rpc('update_expense_with_adjustments', {
+  // Use the existing smart update RPC
+  const { data, error } = await supabase.rpc('update_expense_with_splits_smart', {
     p_expense_id: validatedId,
     p_description: validated.description,
     p_amount: validated.amount,
-    p_payments: [{ payer_id: validated.paid_by, amount: validated.amount }],
     p_splits: validated.splits,
-    p_date: validated.date,
-    p_expected_version: validated.version || null
+    p_paid_by: validated.paid_by,
+    p_date: validated.date
   });
 
   if (error) {
-    if (error.message.includes('modified by another user')) {
-      throw new ExpenseError('Expense was modified by another user. Please refresh and try again.', 'CONCURRENT_UPDATE');
-    }
     throw new ExpenseError(`Failed to update expense: ${error.message}`, 'UPDATE_ERROR');
   }
 
@@ -256,9 +198,48 @@ const RecurringExpenseSchema = z.object({
   amount: z.number().positive().max(999999.99),
   frequency: z.enum(['weekly', 'biweekly', 'monthly', 'quarterly', 'yearly']),
   startDate: z.date(),
-  dayOfMonth: z.number().min(1).max(31).optional(),
-  splits: z.array(ExpenseSplitSchema).optional() // Custom splits
+  dayOfMonth: z.number().min(1).max(31).optional()
 });
+
+const calculateNextDueDate = (
+  currentDate: Date, 
+  frequency: RecurringExpense['frequency'], 
+  dayOfMonth?: number
+): string => {
+  const date = new Date(currentDate);
+  
+  switch (frequency) {
+    case 'weekly': 
+      date.setDate(date.getDate() + 7); 
+      break;
+    case 'biweekly': 
+      date.setDate(date.getDate() + 14); 
+      break;
+    case 'monthly': 
+      date.setMonth(date.getMonth() + 1); 
+      if (dayOfMonth) { 
+        const lastDay = new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate(); 
+        date.setDate(Math.min(dayOfMonth, lastDay));
+      } 
+      break;
+    case 'quarterly': 
+      date.setMonth(date.getMonth() + 3); 
+      if (dayOfMonth) { 
+        const lastDay = new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate(); 
+        date.setDate(Math.min(dayOfMonth, lastDay));
+      } 
+      break;
+    case 'yearly': 
+      date.setFullYear(date.getFullYear() + 1); 
+      if (dayOfMonth && date.getMonth() === 1) { // Handle Feb 29
+        const lastDay = new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate(); 
+        date.setDate(Math.min(dayOfMonth, lastDay));
+      }
+      break;
+  }
+  
+  return date.toISOString().split('T')[0];
+};
 
 export const createRecurringExpense = async (
   householdId: string, 
@@ -266,8 +247,7 @@ export const createRecurringExpense = async (
   amount: number, 
   frequency: RecurringExpense['frequency'], 
   startDate: Date, 
-  dayOfMonth?: number,
-  splits?: Array<{ user_id: string; amount: number }>
+  dayOfMonth?: number
 ): Promise<RecurringExpense> => {
   const validated = RecurringExpenseSchema.parse({
     householdId,
@@ -275,8 +255,7 @@ export const createRecurringExpense = async (
     amount,
     frequency,
     startDate,
-    dayOfMonth,
-    splits
+    dayOfMonth
   });
   
   const { data: { user } } = await supabase.auth.getUser();
@@ -284,10 +263,7 @@ export const createRecurringExpense = async (
     throw new ExpenseError('Not authenticated', 'AUTH_ERROR');
   }
   
-  // Validate custom splits if provided
-  if (validated.splits) {
-    validateSplitTotal(validated.splits, validated.amount);
-  }
+  const nextDueDate = calculateNextDueDate(validated.startDate, validated.frequency, validated.dayOfMonth);
   
   const { data, error } = await supabase
     .from('recurring_expenses')
@@ -297,10 +273,9 @@ export const createRecurringExpense = async (
       amount: validated.amount, 
       frequency: validated.frequency, 
       day_of_month: validated.dayOfMonth, 
-      next_due_date: validated.startDate.toISOString().split('T')[0], 
+      next_due_date: nextDueDate, 
       created_by: user.id, 
-      is_active: true,
-      splits: validated.splits || null // Store custom splits
+      is_active: true 
     })
     .select()
     .single();
@@ -330,21 +305,41 @@ export const getHouseholdRecurringExpenses = async (householdId: string): Promis
   return data || [];
 };
 
-// UPDATED: Use the new robust recurring expense processor
-export const processDueRecurringExpenses = async (householdId: string): Promise<{ processed: number; errors: number }> => {
+// Keep this since it uses an existing RPC
+export const processDueRecurringExpenses = async (householdId: string): Promise<void> => {
   const validatedId = z.string().uuid().parse(householdId);
   
-  const { data, error } = await supabase.rpc('process_recurring_expenses_robust', {
+  const { error } = await supabase.rpc('process_due_recurring_expenses', {
     p_household_id: validatedId,
-    p_batch_size: 100
   });
 
   if (error) {
     throw new ExpenseError(`Failed to process recurring expenses: ${error.message}`, 'PROCESS_ERROR');
   }
-
-  return {
-    processed: data.processed || 0,
-    errors: data.errors || 0
-  };
 };
+
+// Async notification helper
+async function createExpenseNotifications(
+  householdId: string,
+  payerId: string,
+  description: string,
+  splits: Array<{ user_id: string; amount: number }>
+): Promise<void> {
+  const otherMembers = splits.filter(split => split.user_id !== payerId);
+  if (otherMembers.length === 0) return;
+  
+  const payerProfile = await getProfile(payerId);
+  if (!payerProfile) return;
+  
+  const notifications = otherMembers.map(split => ({
+    user_id: split.user_id,
+    household_id: householdId,
+    type: 'expense_added' as const,
+    title: 'New Expense Added',
+    message: `${payerProfile.name} added "${description}" - You owe $${split.amount.toFixed(2)}`,
+    data: { amount: split.amount, payer_id: payerId },
+    is_read: false
+  }));
+  
+  await supabase.from('notifications').insert(notifications);
+}

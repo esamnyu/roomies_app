@@ -80,17 +80,12 @@ export const EditExpenseModal: React.FC<EditExpenseModalProps> = ({ expense, mem
         
         setSubmitting(true);
         try {
-            const result = await updateExpense(expense.id, payload);
+            await updateExpense(expense.id, payload);
 
-            if (result.adjustments_made) {
-                setPendingUpdatePayload(payload);
-                setShowWarning(true);
-            } else {
-                toast.success('Expense updated!');
-                onExpenseUpdated();
-                // We close the modal here by calling onClose
-                onClose(); 
-            }
+            // The new API always handles adjustments automatically
+            toast.success('Expense updated!');
+            onExpenseUpdated();
+            onClose();
         } catch (error) {
             console.error('Error updating expense:', error);
             toast.error((error as Error).message || 'Failed to update expense');

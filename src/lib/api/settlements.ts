@@ -92,7 +92,7 @@ export const subscribeToSettlements = (householdId: string, onSettlement: (settl
 
 export const getHouseholdBalances = async (householdId: string) => {
   const { data, error } = await supabase
-    .rpc('calculate_household_balances', {
+    .rpc('get_household_balances_fast', {
       p_household_id: householdId
     });
 
@@ -108,13 +108,13 @@ export const getHouseholdBalances = async (householdId: string) => {
   }
 
   type RawBalance = {
-    userid: string;
+    user_id: string;
     balance: number;
     profile: Profile;
   };
 
   return (data?.map((item: RawBalance): HouseholdBalance => ({
-    userId: item.userid,
+    userId: item.user_id,
     balance: item.balance,
     profile: item.profile
   })) || []) as HouseholdBalance[];
