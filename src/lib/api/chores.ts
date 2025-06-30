@@ -3,6 +3,7 @@
 import { supabase } from '../supabase';
 import type { Household, HouseholdChore, ChoreAssignment, HouseholdMember, Profile } from '../types/types';
 import { getHouseholdDetails, getHouseholdMembers } from './households';
+import { requireHouseholdMember, requireHouseholdAdmin } from './auth/middleware';
 
 // Helper to check if a user is on vacation
 const isUserOnVacation = (member: HouseholdMember): boolean => {
@@ -18,6 +19,8 @@ const isUserOnVacation = (member: HouseholdMember): boolean => {
 };
 
 export const getHouseholdChores = async (householdId: string): Promise<HouseholdChore[]> => {
+    await requireHouseholdMember(householdId);
+    
     const { data, error } = await supabase
         .from('household_chores')
         .select('id, name, description, is_core_chore, is_active, household_id, created_at, updated_at')
@@ -32,6 +35,16 @@ export const getHouseholdChores = async (householdId: string): Promise<Household
 };
 
 export const updateHouseholdChore = async (choreId: string, updates: Partial<Pick<HouseholdChore, 'name' | 'description'>>) => {
+    // Get household ID first to check permissions
+    const { data: chore } = await supabase
+        .from('household_chores')
+        .select('household_id')
+        .eq('id', choreId)
+        .single();
+        
+    if (!chore) throw new Error('Chore not found');
+    await requireHouseholdMember(chore.household_id);
+    
     const { data, error } = await supabase
         .from('household_chores')
         .update(updates)
@@ -47,6 +60,16 @@ export const updateHouseholdChore = async (choreId: string, updates: Partial<Pic
 
 // **NEW** Function to delete a chore definition
 export const deleteHouseholdChore = async (choreId: string): Promise<void> => {
+    // Get household ID first to check admin permissions
+    const { data: chore } = await supabase
+        .from('household_chores')
+        .select('household_id')
+        .eq('id', choreId)
+        .single();
+        
+    if (!chore) throw new Error('Chore not found');
+    await requireHouseholdAdmin(chore.household_id);
+    
     const { error } = await supabase
         .from('household_chores')
         .delete()
@@ -59,6 +82,16 @@ export const deleteHouseholdChore = async (choreId: string): Promise<void> => {
 };
 
 export const toggleChoreActive = async (choreId: string, isActive: boolean) => {
+    // Get household ID first to check admin permissions
+    const { data: chore } = await supabase
+        .from('household_chores')
+        .select('household_id')
+        .eq('id', choreId)
+        .single();
+        
+    if (!chore) throw new Error('Chore not found');
+    await requireHouseholdAdmin(chore.household_id);
+    
     const { data, error } = await supabase
         .from('household_chores')
         .update({ is_active: isActive })
@@ -73,8 +106,7 @@ export const toggleChoreActive = async (choreId: string, isActive: boolean) => {
 };
 
 export const addCustomChoreToHousehold = async (householdId: string, name: string, description?: string): Promise<HouseholdChore | null> => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error('Not authenticated');
+    await requireHouseholdAdmin(householdId);
 
     const { data: newChore, error } = await supabase
         .from('household_chores')
