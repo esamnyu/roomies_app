@@ -120,15 +120,69 @@ export const ChoreTaskCard: React.FC<ChoreTaskCardProps> = ({
                             </p>
                         )}
                     </div>
-                    {isPlaceholder ? (
-                        <div className="h-10 w-10 bg-gray-200 rounded-full flex items-center justify-center">
-                            <UserPlus className="h-5 w-5 text-gray-500" />
-                        </div>
-                    ) : (
-                        <div className="h-10 w-10 bg-primary/10 rounded-full flex items-center justify-center text-sm font-semibold text-primary">
-                            {getInitials(profile?.name)}
-                        </div>
-                    )}
+                    <div className="flex items-start gap-2">
+                        {isPlaceholder ? (
+                            <div className="h-10 w-10 bg-gray-200 rounded-full flex items-center justify-center">
+                                <UserPlus className="h-5 w-5 text-gray-500" />
+                            </div>
+                        ) : (
+                            <div className="h-10 w-10 bg-primary/10 rounded-full flex items-center justify-center text-sm font-semibold text-primary">
+                                {getInitials(profile?.name)}
+                            </div>
+                        )}
+                        {/* Quick Actions Menu */}
+                        {assignment.status === 'pending' && !isPlaceholder && (
+                            <div className="relative">
+                                <button
+                                    onClick={() => setShowActionsMenu(!showActionsMenu)}
+                                    className="p-1 rounded-lg hover:bg-gray-100 transition-colors"
+                                >
+                                    <MoreVertical className="h-4 w-4 text-gray-500" />
+                                </button>
+                                
+                                {showActionsMenu && (
+                                    <div className="absolute top-8 right-0 bg-white rounded-lg shadow-lg border p-1 z-10 min-w-[160px]">
+                                        {(isAssignedToCurrentUser || isAdmin) && (
+                                            <button
+                                                onClick={() => {
+                                                    setModalAction('snooze');
+                                                    setShowActionsMenu(false);
+                                                }}
+                                                className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-gray-100 rounded"
+                                            >
+                                                <RefreshCw className="h-4 w-4" />
+                                                Reschedule
+                                            </button>
+                                        )}
+                                        {isAssignedToCurrentUser && (
+                                            <button
+                                                onClick={() => {
+                                                    setModalAction('swap');
+                                                    setShowActionsMenu(false);
+                                                }}
+                                                className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-gray-100 rounded"
+                                            >
+                                                <Users className="h-4 w-4" />
+                                                Swap
+                                            </button>
+                                        )}
+                                        {(isAssignedToCurrentUser || isAdmin) && (
+                                            <button
+                                                onClick={() => {
+                                                    setModalAction('delegate');
+                                                    setShowActionsMenu(false);
+                                                }}
+                                                className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-gray-100 rounded"
+                                            >
+                                                <UserCheck className="h-4 w-4" />
+                                                Delegate
+                                            </button>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                    </div>
                 </div>
 
                 {/* Assignment Info */}
@@ -188,59 +242,6 @@ export const ChoreTaskCard: React.FC<ChoreTaskCardProps> = ({
                     <p className="text-xs text-center text-gray-500 mt-2">
                         Can only mark complete within 3 days of due date
                     </p>
-                )}
-
-                {/* Quick Actions */}
-                {assignment.status === 'pending' && !isPlaceholder && (
-                    <div className="relative">
-                        <button
-                            onClick={() => setShowActionsMenu(!showActionsMenu)}
-                            className="absolute top-2 right-2 p-1 rounded-lg hover:bg-gray-100 transition-colors"
-                        >
-                            <MoreVertical className="h-4 w-4 text-gray-500" />
-                        </button>
-                        
-                        {showActionsMenu && (
-                            <div className="absolute top-8 right-2 bg-white rounded-lg shadow-lg border p-1 z-10 min-w-[160px]">
-                                {(isAssignedToCurrentUser || isAdmin) && (
-                                    <button
-                                        onClick={() => {
-                                            setModalAction('snooze');
-                                            setShowActionsMenu(false);
-                                        }}
-                                        className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-gray-100 rounded"
-                                    >
-                                        <RefreshCw className="h-4 w-4" />
-                                        Reschedule
-                                    </button>
-                                )}
-                                {isAssignedToCurrentUser && (
-                                    <button
-                                        onClick={() => {
-                                            setModalAction('swap');
-                                            setShowActionsMenu(false);
-                                        }}
-                                        className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-gray-100 rounded"
-                                    >
-                                        <Users className="h-4 w-4" />
-                                        Swap
-                                    </button>
-                                )}
-                                {(isAssignedToCurrentUser || isAdmin) && (
-                                    <button
-                                        onClick={() => {
-                                            setModalAction('delegate');
-                                            setShowActionsMenu(false);
-                                        }}
-                                        className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-gray-100 rounded"
-                                    >
-                                        <UserCheck className="h-4 w-4" />
-                                        Delegate
-                                    </button>
-                                )}
-                            </div>
-                        )}
-                    </div>
                 )}
             </div>
             

@@ -8,6 +8,7 @@ import { ChoreProvider, useChoreContext } from './ChoreProvider';
 import { ChoreHistory } from './ChoreHistory';
 import { UpcomingRotations } from './UpcomingRotations';
 import { ChoreCalendar } from './ChoreCalendar';
+import { DraggableChoreCalendar } from './DraggableChoreCalendar';
 import { ChoreTaskCard } from './ChoreTaskCard';
 import { EmptyChoreState } from './EmptyChoreState';
 import { AddChoreModal } from '@/components/modals/AddChoreModal';
@@ -29,11 +30,13 @@ const ChoreHubContent: React.FC<ChoreHubContentProps> = ({ householdId }) => {
         handleMarkComplete,
         handleGenerateSchedule,
         refreshData,
+        updateChoreDate,
     } = useChoreContext();
 
     const { user } = useAuth();
     const [showAddChoreModal, setShowAddChoreModal] = useState(false);
     const [showManageChoresModal, setShowManageChoresModal] = useState(false);
+    const [useDraggableCalendar, setUseDraggableCalendar] = useState(true);
 
     if (isLoading) {
         return (
@@ -140,11 +143,28 @@ const ChoreHubContent: React.FC<ChoreHubContentProps> = ({ householdId }) => {
             {hasChores && (
                 <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
                     <div className="xl:col-span-2 space-y-4">
-                        <div className="flex items-center gap-2 mb-2">
-                            <Calendar className="h-5 w-5 text-primary" />
-                            <h2 className="text-lg font-semibold">Monthly Overview</h2>
+                        <div className="flex items-center gap-2 mb-2 justify-between">
+                            <div className="flex items-center gap-2">
+                                <Calendar className="h-5 w-5 text-primary" />
+                                <h2 className="text-lg font-semibold">Monthly Overview</h2>
+                            </div>
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => setUseDraggableCalendar(!useDraggableCalendar)}
+                                className="text-xs"
+                            >
+                                {useDraggableCalendar ? 'Switch to Simple View' : 'Switch to Drag & Drop View'}
+                            </Button>
                         </div>
-                        <ChoreCalendar assignments={assignments} />
+                        {useDraggableCalendar ? (
+                            <DraggableChoreCalendar 
+                                assignments={assignments} 
+                                onChoreMove={isAdmin ? updateChoreDate : undefined}
+                            />
+                        ) : (
+                            <ChoreCalendar assignments={assignments} />
+                        )}
                     </div>
                     <div className="space-y-6">
                         <div>
