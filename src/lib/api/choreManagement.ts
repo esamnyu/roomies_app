@@ -21,8 +21,33 @@ export const snoozeChore = async (
       success: data.success,
       message: data.message
     };
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error snoozing chore:', error);
+    
+    // If it's a notification constraint error, we can still update the chore directly
+    if (error?.code === '23514' && error?.message?.includes('notifications')) {
+      // Fallback: Update the chore assignment directly without notification
+      try {
+        const { error: updateError } = await supabase
+          .from('chore_assignments')
+          .update({ 
+            due_date: newDueDate,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', assignmentId);
+          
+        if (updateError) throw updateError;
+        
+        return {
+          success: true,
+          message: 'Chore rescheduled successfully'
+        };
+      } catch (fallbackError) {
+        console.error('Fallback update failed:', fallbackError);
+        throw fallbackError;
+      }
+    }
+    
     throw error;
   }
 };

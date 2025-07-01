@@ -143,7 +143,7 @@ export interface Notification {
   id: string;
   user_id: string;
   household_id: string | null;
-  type: 'expense_added' | 'payment_reminder' | 'task_assigned' | 'task_completed' | 'settlement_recorded' | 'recurring_expense_added' | 'member_joined' | 'member_left' | 'household_invitation' | 'message_sent' | 'chore_assigned' | 'chore_reminder' | 'chore_completed' | 'chore_missed';
+  type: 'expense_added' | 'payment_reminder' | 'task_assigned' | 'task_completed' | 'settlement_recorded' | 'recurring_expense_added' | 'member_joined' | 'member_left' | 'household_invitation' | 'message_sent' | 'chore_assigned' | 'chore_reminder' | 'chore_completed' | 'chore_missed' | 'chore_snoozed' | 'chores_swapped' | 'chore_delegated' | 'chores_assigned';
   title: string;
   message: string;
   data: Record<string, unknown> | null;
