@@ -8,7 +8,7 @@ import { toast } from 'react-hot-toast';
 import { updateExpense } from '@/lib/api/expenses';
 import type { Expense, HouseholdMember, UpdateExpensePayload } from '@/lib/types/types';
 import { useExpenseSplits } from '@/hooks/useExpenseSplits';
-import { ExpenseSplitter } from '@/components/ExpenseSplitter';
+import { ExpenseSplitterV2 } from '@/components/ExpenseSplitterV2';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 
@@ -171,7 +171,7 @@ export const EditExpenseModal: React.FC<EditExpenseModalProps> = ({ expense, mem
                             />
                         </div>
                         
-                        <ExpenseSplitter
+                        <ExpenseSplitterV2
                             members={members}
                             amount={amount}
                             splitType={splitType}

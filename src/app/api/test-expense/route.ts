@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { createExpenseWithCustomSplits, createMultiPayerExpense, getHouseholdBalances } from '@/lib/api/expenses';
+import { createExpenseWithCustomSplits, createMultiPayerExpense } from '@/lib/api/expenses';
+import { getHouseholdBalances } from '@/lib/api/settlements';
 
 // Example API route to test the new expense system
 export async function POST(request: Request) {

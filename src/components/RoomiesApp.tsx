@@ -39,7 +39,7 @@ import HouseholdChat from './HouseholdChat';
 import { ChoreDashboard } from './ChoreDashboard';
 import { AddExpenseModal } from './modals/AddExpenseModal';
 import { AddRecurringExpenseModal } from './modals/AddRecurringExpenseModal';
-import { SettleUpModal } from './modals/SettleUpModal';
+import { SettleUpModalV2 } from './modals/SettleUpModalV2';
 import { ManageJoinCodeModal } from './modals/ManageJoinCodeModal';
 import { Button } from './ui/Button';
 import { Input } from './ui/Input';
@@ -48,6 +48,8 @@ import { HouseholdSettingsModal } from './modals/HouseholdSettingsModal';
 import { EditExpenseModal } from './modals/EditExpenseModal';
 import { AuthForm } from './AuthForm';
 import { Layout } from './Layout';
+import { BalanceSummaryCard } from './BalanceSummaryCard';
+import { ExpenseCard } from './ExpenseCard';
 import { AsyncErrorBoundary } from './AsyncErrorBoundary';
 
 
@@ -502,54 +504,29 @@ const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = (
 
                 {activeTab === 'money' && (
                     <div className="space-y-6">
-                        <div className="bg-background rounded-lg shadow p-6 border border-border">
-                            <div className="flex justify-between items-center mb-4">
-                                <h3 className="text-lg font-medium text-foreground">Balance Summary</h3>
+                        {/* Enhanced Balance Summary */}
+                        <div className="flex justify-between items-start mb-6">
+                            <h3 className="text-xl font-semibold text-foreground">Money Management</h3>
+                            <div className="flex space-x-2">
                                 <Button onClick={() => setShowSettleUp(true)} size="sm" disabled={currentUserBalance >= 0}>
                                     <CreditCard className="h-4 w-4 mr-1" />Settle Up
                                 </Button>
+                                <Button onClick={() => setShowAddExpense(true)} size="sm" variant="default">
+                                    <Plus className="h-4 w-4 mr-1" />Add Expense
+                                </Button>
                             </div>
-                            {/* New Overall Summary for the current user */}
-                            <div className="mb-4 text-center p-3 bg-secondary rounded-lg">
-                                <p className="text-base text-secondary-foreground">
-                                    {Math.abs(currentUserBalance) < 0.01 && "You are all settled up."}
-                                    {currentUserBalance > 0.01 && `Overall, you are owed `}
-                                    {currentUserBalance < -0.01 && `Overall, you owe `}
-                                    {Math.abs(currentUserBalance) >= 0.01 &&
-                                        <span className={`font-bold ${currentUserBalance > 0 ? 'text-primary' : 'text-destructive'}`}>
-                                            ${Math.abs(currentUserBalance).toFixed(2)}
-                                        </span>
-                                    }
-                                </p>
-                            </div>
-                            {/* Revamped Balances List */}
-                            <div className="space-y-1">
-                                {balances.length > 0 ? balances.map(balance => {
-                                    if (Math.abs(balance.balance) < 0.01) {
-                                        return (
-                                                <div key={balance.userId} className="flex justify-between items-center text-sm text-secondary-foreground p-2">
-                                                    <span>{balance.profile?.name} {balance.userId === user?.id && '(You)'}</span>
-                                                    <span className="italic">is settled up</span>
-                                                </div>
-                                        );
-                                    }
-
-                                    const isOwed = balance.balance > 0;
-
-                                    return (
-                                        <div key={balance.userId} className={`flex justify-between items-center p-2 rounded-md text-sm ${balance.userId === user?.id ? 'bg-secondary' : ''}`}>
-                                            <span className="font-medium text-foreground">{balance.profile?.name} {balance.userId === user?.id && '(You)'}</span>
-                                            <div className={`font-medium ${isOwed ? 'text-primary' : 'text-destructive'}`}>
-                        {isOwed ? 'gets back ' : 'owes '}
-                        <span>
-                            ${Math.abs(balance.balance).toFixed(2)}
-                        </span>
-                    </div>
-                </div>
-            );
-        }) : <p className="text-sm text-secondary-foreground">No balances to show yet. Add some expenses!</p>}
-    </div>
-</div>
+                        </div>
+                        
+                        {/* New Balance Summary Card */}
+                        <BalanceSummaryCard 
+                            balances={balances}
+                            currentUserId={user?.id || ''}
+                            settlementSuggestions={settlementSuggestions}
+                            onSettleUp={(suggestion) => {
+                                setShowSettleUp(true);
+                                // Pass the suggestion to the settle up modal via state if needed
+                            }}
+                        />
 <div className="bg-secondary rounded-lg p-4">
     <div className="flex justify-between items-center mb-3">
         <h4 className="text-sm font-medium text-foreground">Recurring Expenses</h4>
@@ -575,69 +552,26 @@ const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = (
                         </div>
                         <div className="space-y-4">
                             <div className="flex justify-between items-center">
-                                <h3 className="text-lg font-medium text-foreground">One-Time Expenses</h3>
-                                <Button onClick={() => setShowAddExpense(true)} size="sm">
-                                    <Plus className="h-4 w-4 mr-1" />Add Expense
-                                </Button>
+                                <h3 className="text-lg font-medium text-foreground">Recent Expenses</h3>
                             </div>
                             <div className="space-y-3">
-                                {loadingData && expenses.length === 0 ? <LoadingSpinner/> : expenses.length === 0 ? <p className="text-secondary-foreground text-center py-4">No one-time expenses.</p> : ( 
+                                {loadingData && expenses.length === 0 ? (
+                                    <LoadingSpinner/>
+                                ) : expenses.length === 0 ? (
+                                    <p className="text-secondary-foreground text-center py-8">No expenses yet. Add one to get started!</p>
+                                ) : (
                                     expenses.map(expense => (
-                                        // MODIFIED: This whole block is new to handle collapsible expenses and display splits/adjustments
-                                        <div key={expense.id} className="bg-background rounded-lg shadow border border-border overflow-hidden">
-                                            <div 
-                                                className="p-4 flex justify-between items-start cursor-pointer hover:bg-secondary/50"
-                                                onClick={() => setExpandedExpense(expandedExpense === expense.id ? null : expense.id)}
-                                            >
-                                                <div className="flex-1">
-                                                    <h4 className="font-medium text-foreground">{expense.description}</h4>
-                                                    <p className="text-sm text-secondary-foreground">Paid by {expense.profiles?.name} • {new Date(expense.date + (expense.date.includes('T') ? '' : 'T00:00:00')).toLocaleDateString()}</p>
-                                                </div>
-                                                <div className="flex items-center space-x-2">
-                                                    <p className="font-medium text-foreground text-right">${expense.amount.toFixed(2)}</p>
-                                                    <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); setEditingExpense(expense); }}>
-                                                        <Pencil className="h-4 w-4" />
-                                                    </Button>
-                                                </div>
-                                            </div>
-                                            {/* Collapsible content for splits */}
-                                            {expandedExpense === expense.id && (
-                                                <div className="px-4 pb-4 border-t border-border bg-secondary/30">
-                                                    <h5 className="text-sm font-semibold text-foreground mt-3 mb-2">Splits</h5>
-                                                    <div className="space-y-2">
-                                                        {expense.expense_splits && expense.expense_splits.length > 0 ? expense.expense_splits.map(split => (
-                                                            <div key={split.id} className="text-sm">
-                                                                <div className="flex justify-between items-center">
-                                                                    <div className="flex items-center">
-                                                                        {split.settled ? (
-                                                                            <><CheckCircle2 className="h-4 w-4 text-primary mr-2" /><span className="sr-only">Settled</span></>
-                                                                        ) : (
-                                                                            <div className="w-4 h-4 mr-2" />
-                                                                        )}
-                                                                        <span>{split.profiles?.name || 'Unknown User'}</span>
-                                                                    </div>
-                                                                    <span className={split.settled ? 'text-secondary-foreground' : 'text-foreground font-medium'}>
-                                                                        ${split.amount.toFixed(2)}
-                                                                    </span>
-                                                                </div>
-                                                                {/* --- NEW: UI to Display Adjustments --- */}
-                                                                {split.expense_split_adjustments && split.expense_split_adjustments.length > 0 && (
-                                                                    <div className="ml-6 mt-1 space-y-1 border-l-2 border-dashed border-border pl-3">
-                                                                        {split.expense_split_adjustments.map(adj => (
-                                                                            <div key={adj.id} className="text-xs text-secondary-foreground italic">
-                                                                                Adjustment: {adj.adjustment_amount > 0 ? `+` : ''}${adj.adjustment_amount.toFixed(2)} by {adj.profiles?.name || 'system'}
-                                                                                {adj.reason && ` (${adj.reason})`}
-                                                                            </div>
-                                                                        ))}
-                                                                    </div>
-                                                                )}
-                                                            </div>
-                                                        )) : <p className="text-sm text-secondary-foreground">This was a personal expense.</p>}
-                                                    </div>
-                                                </div>
+                                        <ExpenseCard
+                                            key={expense.id}
+                                            expense={expense}
+                                            currentUserId={user?.id || ''}
+                                            isExpanded={expandedExpense === expense.id}
+                                            onToggleExpand={() => setExpandedExpense(
+                                                expandedExpense === expense.id ? null : expense.id
                                             )}
-                                        </div>
-                                    )) 
+                                            onEdit={() => setEditingExpense(expense)}
+                                        />
+                                    ))
                                 )}
                             </div>
                         </div>
@@ -695,7 +629,7 @@ const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = (
             </div>
 
             {showAddExpense && <AddExpenseModal householdId={householdId} members={members} onClose={() => setShowAddExpense(false)} onExpenseAdded={() => refreshData(true)} />}
-            {showSettleUp && <SettleUpModal householdId={householdId} members={members} settlementSuggestions={settlementSuggestions} onClose={() => setShowSettleUp(false)} onSettlementCreated={() => refreshData(true)} />}
+            {showSettleUp && <SettleUpModalV2 householdId={householdId} members={members} settlementSuggestions={settlementSuggestions} onClose={() => setShowSettleUp(false)} onSettlementCreated={() => refreshData(true)} />}
             {showAddRecurring && <AddRecurringExpenseModal householdId={householdId} onClose={() => setShowAddRecurring(false)} onExpenseAdded={() => refreshData(true)} />}
             {showManageJoinCode && householdId && <ManageJoinCodeModal householdId={householdId} currentCode={household?.join_code} onClose={() => setShowManageJoinCode(false)} onCodeRefreshed={(newCode) => { if(household) setHousehold({...household, join_code: newCode }); }} />}
             

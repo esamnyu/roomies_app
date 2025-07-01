@@ -75,20 +75,7 @@ export const getHouseholdExpenses = async (householdId: string): Promise<Expense
   return data || [];
 };
 
-// NEW: Get household balances using the optimized function
-export const getHouseholdBalances = async (householdId: string) => {
-  const validatedId = z.string().uuid().parse(householdId);
-  
-  const { data, error } = await supabase.rpc('get_household_balances_fast', {
-    p_household_id: validatedId
-  });
-
-  if (error) {
-    throw new ExpenseError(`Failed to fetch balances: ${error.message}`, 'FETCH_ERROR');
-  }
-  
-  return data || [];
-};
+// NOTE: getHouseholdBalances is now exported from settlements.ts to avoid duplication
 
 export const markExpenseSettled = async (expenseId: string, userId: string) => {
   const validatedExpenseId = z.string().uuid().parse(expenseId);
