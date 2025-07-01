@@ -37,6 +37,14 @@ const ChoreHubContent: React.FC<ChoreHubContentProps> = ({ householdId }) => {
     const [showAddChoreModal, setShowAddChoreModal] = useState(false);
     const [showManageChoresModal, setShowManageChoresModal] = useState(false);
     const [useDraggableCalendar, setUseDraggableCalendar] = useState(true);
+    
+    // Debug logging
+    console.log('ChoreHub Debug:', {
+        user: user?.id,
+        isAdmin,
+        hasChores: assignments.length > 0,
+        assignmentsCount: assignments.length
+    });
 
     if (isLoading) {
         return (
@@ -65,7 +73,7 @@ const ChoreHubContent: React.FC<ChoreHubContentProps> = ({ householdId }) => {
                         </h1>
                         <p className="text-muted-foreground mt-1">Keep your household running smoothly</p>
                     </div>
-                    {isAdmin && (
+                    {isAdmin ? (
                         <div className="flex flex-wrap items-center gap-2">
                             <Button 
                                 onClick={() => setShowAddChoreModal(true)} 
@@ -98,6 +106,10 @@ const ChoreHubContent: React.FC<ChoreHubContentProps> = ({ householdId }) => {
                                 )}
                                 Generate Schedule
                             </Button>
+                        </div>
+                    ) : (
+                        <div className="text-sm text-muted-foreground">
+                            <p>Admin features are available to household admins only</p>
                         </div>
                     )}
                 </div>
