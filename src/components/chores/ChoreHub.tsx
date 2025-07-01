@@ -128,6 +128,8 @@ const ChoreHubContent: React.FC<ChoreHubContentProps> = ({ householdId }) => {
                                 currentUserId={user?.id}
                                 onMarkComplete={handleMarkComplete}
                                 isLoadingCompletion={!!isLoadingCompletion[assignment.id]}
+                                isAdmin={isAdmin}
+                                onRefresh={refreshData}
                             />
                         ))}
                     </div>

@@ -1,8 +1,9 @@
 // src/components/chores/ChoreTaskCard.tsx
 "use client";
-import React, { useMemo } from 'react';
-import { CheckCircle, Loader2, Clock, AlertCircle, User, UserPlus, Calendar, ChevronRight } from 'lucide-react';
+import React, { useMemo, useState } from 'react';
+import { CheckCircle, Loader2, Clock, AlertCircle, User, UserPlus, Calendar, ChevronRight, MoreVertical, RefreshCw, Users, UserCheck } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
+import { ChoreActionsModal } from '@/components/modals/ChoreActionsModal';
 import type { ChoreAssignment } from '@/lib/types/types';
 
 // Utility to get initials from a name
@@ -17,14 +18,20 @@ interface ChoreTaskCardProps {
     currentUserId: string | undefined;
     onMarkComplete: (assignmentId: string) => void;
     isLoadingCompletion: boolean;
+    isAdmin?: boolean;
+    onRefresh?: () => void;
 }
 
 export const ChoreTaskCard: React.FC<ChoreTaskCardProps> = ({ 
     assignment, 
     currentUserId, 
     onMarkComplete, 
-    isLoadingCompletion 
+    isLoadingCompletion,
+    isAdmin = false,
+    onRefresh
 }) => {
+    const [showActionsMenu, setShowActionsMenu] = useState(false);
+    const [modalAction, setModalAction] = useState<'snooze' | 'swap' | 'delegate' | null>(null);
     const { chore_definition: chore, assigned_profile: profile, assigned_user_id, due_date } = assignment;
     
     const dueDate = useMemo(() => new Date(due_date + 'T00:00:00'), [due_date]);
@@ -183,16 +190,74 @@ export const ChoreTaskCard: React.FC<ChoreTaskCardProps> = ({
                     </p>
                 )}
 
-                {/* Quick Actions (future implementation) */}
-                {false && assignment.status === 'pending' && (
-                    <div className="flex items-center justify-between pt-2 border-t">
-                        <button className="text-xs text-gray-500 hover:text-primary flex items-center gap-1">
-                            Reassign
-                            <ChevronRight className="h-3 w-3" />
+                {/* Quick Actions */}
+                {assignment.status === 'pending' && !isPlaceholder && (
+                    <div className="relative">
+                        <button
+                            onClick={() => setShowActionsMenu(!showActionsMenu)}
+                            className="absolute top-2 right-2 p-1 rounded-lg hover:bg-gray-100 transition-colors"
+                        >
+                            <MoreVertical className="h-4 w-4 text-gray-500" />
                         </button>
+                        
+                        {showActionsMenu && (
+                            <div className="absolute top-8 right-2 bg-white rounded-lg shadow-lg border p-1 z-10 min-w-[160px]">
+                                {(isAssignedToCurrentUser || isAdmin) && (
+                                    <button
+                                        onClick={() => {
+                                            setModalAction('snooze');
+                                            setShowActionsMenu(false);
+                                        }}
+                                        className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-gray-100 rounded"
+                                    >
+                                        <RefreshCw className="h-4 w-4" />
+                                        Reschedule
+                                    </button>
+                                )}
+                                {isAssignedToCurrentUser && (
+                                    <button
+                                        onClick={() => {
+                                            setModalAction('swap');
+                                            setShowActionsMenu(false);
+                                        }}
+                                        className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-gray-100 rounded"
+                                    >
+                                        <Users className="h-4 w-4" />
+                                        Swap
+                                    </button>
+                                )}
+                                {(isAssignedToCurrentUser || isAdmin) && (
+                                    <button
+                                        onClick={() => {
+                                            setModalAction('delegate');
+                                            setShowActionsMenu(false);
+                                        }}
+                                        className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-gray-100 rounded"
+                                    >
+                                        <UserCheck className="h-4 w-4" />
+                                        Delegate
+                                    </button>
+                                )}
+                            </div>
+                        )}
                     </div>
                 )}
             </div>
+            
+            {/* Action Modal */}
+            {modalAction && currentUserId && (
+                <ChoreActionsModal
+                    assignment={assignment}
+                    action={modalAction}
+                    currentUserId={currentUserId}
+                    isAdmin={isAdmin}
+                    onClose={() => setModalAction(null)}
+                    onActionComplete={() => {
+                        setModalAction(null);
+                        onRefresh?.();
+                    }}
+                />
+            )}
         </div>
     );
 };

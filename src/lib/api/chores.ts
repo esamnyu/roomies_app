@@ -5,6 +5,9 @@ import type { Household, HouseholdChore, ChoreAssignment, HouseholdMember, Profi
 import { getHouseholdDetails, getHouseholdMembers } from './households';
 import { requireHouseholdMember, requireHouseholdAdmin } from './auth/middleware';
 
+// Re-export chore management functions
+export * from './choreManagement';
+
 // Helper to check if a user is on vacation
 const isUserOnVacation = (member: HouseholdMember): boolean => {
     const profile = member.profiles;
