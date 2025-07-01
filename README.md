@@ -1,109 +1,199 @@
-# Roomies: Shared Living, Simplified
+# 🏠 Roomies: Shared Living, Simplified
 
-Roomies is a [Next.js](https://nextjs.org/) application designed to simplify shared living by helping roommates manage expenses, chores, and communication. It uses [Supabase](https://supabase.io/) for its backend, including authentication, database storage, and real-time features.
+Roomies is a modern web application that transforms how roommates manage their shared living spaces. Say goodbye to awkward money conversations, forgotten chores, and miscommunication!
 
-## Key Features
+## ✨ What is Roomies?
 
-* **Authentication**: Secure user sign-up and sign-in.
-* **Household Management**: Create, join, and manage households with unique join codes.
-* **Expense Tracking**: Add expenses with custom splits (equal, by amount, or by percentage).
-* **Recurring Expenses**: Set up and automatically process recurring bills like rent and utilities.
-* **Chore Management**: A comprehensive chore system with automated rotations and assignments.
-* **Task Management**: Create and assign one-off tasks within a household.
-* **Settlements**: Record payments between members and get suggestions for settling up.
-* **Real-time Notifications**: Receive instant notifications for important household activities.
-* **Household Chat**: A built-in chat for seamless communication.
-* **House Rules**: Establish and manage a clear set of house rules.
+Roomies is your all-in-one household management platform that helps roommates:
+- 💰 **Track shared expenses** with smart splitting options
+- 🧹 **Manage chores** with automated rotation schedules
+- 💬 **Communicate effectively** through built-in chat
+- 📋 **Organize tasks** and household responsibilities
+- 🤝 **Settle up easily** with payment tracking
 
-## Technologies Used
+## 🚀 Key Features
 
-* **Framework**: [Next.js](https://nextjs.org/)
-* **Language**: [TypeScript](https://www.typescriptlang.org/)
-* **Backend**: [Supabase](https://supabase.io/) (for Auth, Database, Realtime)
-* **Styling**: [Tailwind CSS](https://tailwindcss.com/)
-* **UI Components**: [Lucide React](https://lucide.dev/) (for icons)
-* **UI Primitives**: [Radix UI](https://www.radix-ui.com/)
-* **Notifications**: [React Hot Toast](https://react-hot-toast.com/)
-* **Linting**: [ESLint](https://eslint.org/)
-* **Font**: [Manrope](https://fonts.google.com/specimen/Manrope) (from Google Fonts)
-* **Testing**: [Jest](https://jestjs.io/), [React Testing Library](https://testing-library.com/)
+### 💸 Smart Expense Management
+- Add one-time or recurring expenses (rent, utilities, groceries)
+- Flexible splitting: equal, custom amounts, or percentages
+- Automatic monthly bill processing
+- Real-time balance tracking
 
-## Getting Started
+### 🔄 Automated Chore System
+- Create recurring chores with custom schedules
+- Fair rotation between household members
+- Swap, delegate, or snooze chores when needed
+- Progress tracking and completion history
 
-Follow these instructions to get a copy of the project up and running on your local machine for development and testing purposes.
+### 💬 Built-in Communication
+- Household chat for important discussions
+- Real-time notifications for household activities
+- @mentions for direct communication
+- House rules documentation
 
-### Prerequisites
+### 🏡 Household Management
+- Easy setup with unique join codes
+- Multiple household support
+- Member roles and permissions
+- Activity feed for transparency
 
-* Node.js (v20 or later)
-* npm (comes with Node.js)
-* A Supabase project
+### 🤖 AI Assistant
+- Get personalized household insights
+- Smart suggestions for expense splitting
+- Chore schedule optimization
+- Quick answers about household data
 
-### Setup Environment Variables
+## 🛠️ Technology Stack
 
-1.  Create a Supabase project at [database.new](https://database.new).
-2.  In the root of your project, create a new file named `.env.local`.
-3.  Add your Supabase URL and Anon Key to this file:
+Built with modern, reliable technologies:
 
-    ```env
-    NEXT_PUBLIC_SUPABASE_URL=YOUR_SUPABASE_URL
-    NEXT_PUBLIC_SUPABASE_ANON_KEY=YOUR_SUPABASE_ANON_KEY
-    ```
+- **Frontend**: Next.js 14 with TypeScript
+- **Backend**: Supabase (PostgreSQL + Auth + Realtime)
+- **Styling**: Tailwind CSS with Radix UI components
+- **Testing**: Jest & React Testing Library
+- **Icons**: Lucide React
 
-    You can find these keys in your Supabase project's **Settings > API** section.
+## 📋 Prerequisites
 
-### Installation
+Before you begin, ensure you have:
+- Node.js 20+ installed
+- npm or yarn package manager
+- A Supabase account (free tier available)
 
-1.  Clone the repository:
-    ```bash
-    git clone <repository-url>
-    cd roomies_app
-    ```
+## 🔧 Installation
 
-2.  Install the dependencies:
-    ```bash
-    npm install
-    ```
+### 1. Clone the Repository
+```bash
+git clone <repository-url>
+cd roomies_app
+```
 
-### Running the Development Server
+### 2. Install Dependencies
+```bash
+npm install
+# or
+yarn install
+```
 
-1.  Start the Next.js development server:
-    ```bash
-    npm run dev
-    ```
+### 3. Set Up Environment Variables
 
-2.  Open [http://localhost:3000](http://localhost:3000) in your browser to see the application.
+Create a `.env.local` file in the root directory:
 
-## Available Scripts
+```env
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+```
 
-In the project directory, you can run the following commands:
+> 💡 Find these values in your Supabase project dashboard under Settings → API
 
-* `npm run dev`: Runs the app in development mode.
-* `npm run build`: Builds the app for production.
-* `npm run start`: Starts the production server.
-* `npm run lint`: Lints the project files using ESLint.
-* `npm test`: Runs the test suite with Jest.
+### 4. Set Up Database
 
-## Project Structure
+1. Create a new Supabase project at [supabase.com](https://supabase.com)
+2. Run the database migrations (located in `supabase/migrations/`)
+3. Enable Row Level Security (RLS) policies
 
-A brief overview of the project's directory structure:
+### 5. Start Development Server
+```bash
+npm run dev
+# or
+yarn dev
+```
 
-* `public/`: Static assets.
-* `src/app/`: Next.js App Router pages and layouts.
-* `src/components/`: Reusable React components.
-* `src/hooks/`: Custom React hooks.
-* `src/lib/`:
-    * `api/`: Functions for interacting with the Supabase backend.
-    * `supabase.ts`: Supabase client initialization.
-    * `types/`: TypeScript type definitions.
-* `eslint.config.mjs`: ESLint configuration.
-* `next.config.ts`: Next.js configuration.
-* `jest.config.js`: Jest configuration.
-* `package.json`: Project dependencies and scripts.
-* `tailwind.config.ts`: Tailwind CSS configuration.
-* `tsconfig.json`: TypeScript configuration.
+Visit `http://localhost:3000` to see your application running!
 
-## Deployment
+## 📝 Available Scripts
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new), from the creators of Next.js.
+| Command | Description |
+|---------|-------------|
+| `npm run dev` | Start development server with hot reload |
+| `npm run build` | Build for production |
+| `npm run start` | Run production server |
+| `npm run lint` | Check code quality |
+| `npm run test` | Run test suite |
+| `npm run test:watch` | Run tests in watch mode |
 
-Check out the [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## 📁 Project Structure
+
+```
+roomies_app/
+├── public/           # Static assets
+├── src/
+│   ├── app/         # Next.js pages and layouts
+│   ├── components/  # Reusable UI components
+│   ├── hooks/       # Custom React hooks
+│   └── lib/         # Utilities and configurations
+│       ├── api/     # Backend API functions
+│       └── types/   # TypeScript definitions
+├── supabase/        # Database migrations and config
+└── tests/           # Test files
+```
+
+## 🚀 Deployment
+
+### Vercel (Recommended)
+1. Push your code to GitHub
+2. Import project in [Vercel](https://vercel.com)
+3. Add environment variables
+4. Deploy!
+
+### Other Platforms
+Roomies can be deployed to any platform that supports Next.js applications:
+- Netlify
+- AWS Amplify
+- Railway
+- Self-hosted with Docker
+
+## 🤝 Contributing
+
+We welcome contributions! Please follow these steps:
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+### Development Guidelines
+- Write tests for new features
+- Follow the existing code style
+- Update documentation as needed
+- Keep commits atomic and descriptive
+
+## 🐛 Troubleshooting
+
+### Common Issues
+
+**Database connection errors**
+- Verify your Supabase URL and anon key
+- Check if your Supabase project is active
+- Ensure RLS policies are properly configured
+
+**Build failures**
+- Clear `.next` folder and rebuild
+- Check for TypeScript errors with `npm run lint`
+- Ensure all dependencies are installed
+
+**Authentication issues**
+- Verify email confirmations are enabled in Supabase
+- Check redirect URLs in authentication settings
+
+## 📚 Learn More
+
+- [Next.js Documentation](https://nextjs.org/docs)
+- [Supabase Documentation](https://supabase.com/docs)
+- [Tailwind CSS](https://tailwindcss.com/docs)
+
+## 📄 License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
+
+## 💡 Support
+
+Need help? 
+- Check our [FAQ section](#)
+- Open an issue on GitHub
+- Contact support at support@roomiesapp.com
+
+---
+
+Built with ❤️ by the Roomies team. Making shared living simpler, one household at a time.
