@@ -21,11 +21,12 @@ interface Expense {
   date: string;
 }
 
-interface ExpenseSplitterV3Props {
+interface ExpenseSplitterV3CompactProps {
   householdMembers: Array<{ id: string; name: string; avatar?: string }>;
   currentUserId: string;
   onAddExpense: (expense: Omit<Expense, 'id'>) => Promise<void>;
   onCancel?: () => void;
+  isModal?: boolean; // New prop to control layout
 }
 
 type Step = 'details' | 'split' | 'review';
@@ -39,11 +40,12 @@ const categories = [
   { id: 'other', label: 'Other', icon: '📦' },
 ];
 
-export const ExpenseSplitterV3: React.FC<ExpenseSplitterV3Props> = ({
+export const ExpenseSplitterV3Compact: React.FC<ExpenseSplitterV3CompactProps> = ({
   householdMembers,
   currentUserId,
   onAddExpense,
   onCancel,
+  isModal = false,
 }) => {
   const [step, setStep] = useState<Step>('details');
   const [loading, setLoading] = useState(false);
@@ -107,18 +109,34 @@ export const ExpenseSplitterV3: React.FC<ExpenseSplitterV3Props> = ({
     }
   };
   
+  const containerClass = isModal 
+    ? "bg-white rounded-xl max-w-lg mx-auto" 
+    : "min-h-screen bg-secondary-50";
+    
+  const headerClass = isModal
+    ? "sticky top-0 z-10 bg-white border-b border-secondary-200 rounded-t-xl"
+    : "sticky top-0 z-sticky bg-white border-b border-secondary-200";
+    
+  const contentClass = isModal
+    ? "px-4 py-4 max-h-[60vh] overflow-y-auto"
+    : "px-4 py-6";
+    
+  const footerClass = isModal
+    ? "sticky bottom-0 p-4 bg-white border-t border-secondary-200 rounded-b-xl"
+    : "fixed bottom-0 left-0 right-0 p-4 bg-white border-t border-secondary-200";
+  
   return (
-    <div className="min-h-screen bg-secondary-50 md:bg-transparent md:min-h-0">
-      {/* Mobile-optimized header */}
-      <header className="sticky top-0 z-sticky bg-white border-b border-secondary-200">
-        <div className="flex items-center justify-between px-4 h-14">
+    <div className={containerClass}>
+      {/* Header */}
+      <header className={headerClass}>
+        <div className="flex items-center justify-between px-4 h-12 md:h-14">
           <button 
             onClick={onCancel}
             className="p-2 -ml-2 rounded-lg hover:bg-secondary-100 active:scale-95"
           >
             <ArrowLeft className="w-5 h-5" />
           </button>
-          <h1 className="font-semibold text-lg">Add Expense</h1>
+          <h1 className="font-semibold text-base md:text-lg">Add Expense</h1>
           <button
             onClick={() => {
               if (step === 'review') handleSubmit();
@@ -126,14 +144,14 @@ export const ExpenseSplitterV3: React.FC<ExpenseSplitterV3Props> = ({
               else if (step === 'split') setStep('review');
             }}
             disabled={!canProceed() || loading}
-            className="text-primary-500 font-medium disabled:opacity-50"
+            className="text-primary-500 font-medium disabled:opacity-50 text-sm md:text-base"
           >
             {step === 'review' ? 'Save' : 'Next'}
           </button>
         </div>
         
         {/* Progress indicator */}
-        <div className="flex gap-2 px-4 pb-3">
+        <div className="flex gap-1.5 px-4 pb-2">
           {(['details', 'split', 'review'] as Step[]).map((s, i) => (
             <div
               key={s}
@@ -156,7 +174,7 @@ export const ExpenseSplitterV3: React.FC<ExpenseSplitterV3Props> = ({
           animate={{ x: 0, opacity: 1 }}
           exit={{ x: -100, opacity: 0 }}
           transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-          className="px-4 py-6"
+          className={contentClass}
         >
           {step === 'details' && (
             <ExpenseDetailsStep
@@ -169,6 +187,7 @@ export const ExpenseSplitterV3: React.FC<ExpenseSplitterV3Props> = ({
               paidBy={paidBy}
               setPaidBy={setPaidBy}
               householdMembers={householdMembers}
+              compact={isModal}
             />
           )}
           
@@ -182,6 +201,7 @@ export const ExpenseSplitterV3: React.FC<ExpenseSplitterV3Props> = ({
               customSplits={customSplits}
               setCustomSplits={setCustomSplits}
               householdMembers={householdMembers}
+              compact={isModal}
             />
           )}
           
@@ -193,18 +213,19 @@ export const ExpenseSplitterV3: React.FC<ExpenseSplitterV3Props> = ({
               paidBy={paidBy}
               calculatedSplits={calculatedSplits}
               householdMembers={householdMembers}
+              compact={isModal}
             />
           )}
         </motion.div>
       </AnimatePresence>
       
       {/* Fixed bottom navigation */}
-      <div className="fixed bottom-0 left-0 right-0 p-4 bg-white border-t border-secondary-200">
+      <div className={footerClass}>
         <div className="flex gap-3">
           {step !== 'details' && (
             <Button
               variant="outline"
-              size="lg"
+              size={isModal ? "md" : "lg"}
               onClick={() => {
                 if (step === 'split') setStep('details');
                 else if (step === 'review') setStep('split');
@@ -215,7 +236,7 @@ export const ExpenseSplitterV3: React.FC<ExpenseSplitterV3Props> = ({
             </Button>
           )}
           <Button
-            size="lg"
+            size={isModal ? "md" : "lg"}
             onClick={() => {
               if (step === 'review') handleSubmit();
               else if (step === 'details') setStep('split');
@@ -233,9 +254,10 @@ export const ExpenseSplitterV3: React.FC<ExpenseSplitterV3Props> = ({
   );
 };
 
-// Step Components
+// Step Components with compact mode support
 interface StepProps {
   householdMembers: Array<{ id: string; name: string; avatar?: string }>;
+  compact?: boolean;
 }
 
 const ExpenseDetailsStep: React.FC<{
@@ -257,11 +279,15 @@ const ExpenseDetailsStep: React.FC<{
   paidBy,
   setPaidBy,
   householdMembers,
+  compact = false,
 }) => {
+  const spacingClass = compact ? "space-y-4" : "space-y-6";
+  const bottomPadding = compact ? "pb-20" : "pb-32";
+  
   return (
-    <div className="space-y-6 pb-32">
+    <div className={cn(spacingClass, bottomPadding)}>
       <div>
-        <label className="text-sm font-medium text-secondary-700 mb-2 block">
+        <label className="text-sm font-medium text-secondary-700 mb-1.5 block">
           What's this expense for?
         </label>
         <Input
@@ -269,13 +295,14 @@ const ExpenseDetailsStep: React.FC<{
           placeholder="e.g., Groceries, Utilities"
           value={description}
           onChange={(e) => setDescription(e.target.value)}
-          className="text-lg"
+          inputSize={compact ? "md" : "lg"}
+          className={compact ? "" : "text-lg"}
           autoFocus
         />
       </div>
       
       <div>
-        <label className="text-sm font-medium text-secondary-700 mb-2 block">
+        <label className="text-sm font-medium text-secondary-700 mb-1.5 block">
           Amount
         </label>
         <Input
@@ -284,37 +311,38 @@ const ExpenseDetailsStep: React.FC<{
           placeholder="0.00"
           value={amount}
           onChange={(e) => setAmount(e.target.value)}
-          leftIcon={<DollarSign className="h-5 w-5" />}
-          inputSize="lg"
-          className="text-2xl font-semibold"
+          leftIcon={<DollarSign className={compact ? "h-4 w-4" : "h-5 w-5"} />}
+          inputSize={compact ? "md" : "lg"}
+          className={compact ? "text-xl font-semibold" : "text-2xl font-semibold"}
         />
       </div>
       
       <div>
-        <label className="text-sm font-medium text-secondary-700 mb-2 block">
+        <label className="text-sm font-medium text-secondary-700 mb-1.5 block">
           Category
         </label>
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-3 gap-2">
           {categories.map((cat) => (
             <button
               key={cat.id}
               onClick={() => setCategory(cat.id)}
               className={cn(
-                'p-4 rounded-xl border-2 transition-all',
+                'p-3 rounded-lg border-2 transition-all',
                 category === cat.id
                   ? 'border-primary-500 bg-primary-50'
-                  : 'border-secondary-200 hover:border-secondary-300'
+                  : 'border-secondary-200 hover:border-secondary-300',
+                compact && 'p-2'
               )}
             >
-              <div className="text-2xl mb-1">{cat.icon}</div>
-              <div className="text-sm font-medium">{cat.label}</div>
+              <div className={compact ? "text-xl mb-0.5" : "text-2xl mb-1"}>{cat.icon}</div>
+              <div className={compact ? "text-xs font-medium" : "text-sm font-medium"}>{cat.label}</div>
             </button>
           ))}
         </div>
       </div>
       
       <div>
-        <label className="text-sm font-medium text-secondary-700 mb-2 block">
+        <label className="text-sm font-medium text-secondary-700 mb-1.5 block">
           Who paid?
         </label>
         <div className="space-y-2">
@@ -323,22 +351,28 @@ const ExpenseDetailsStep: React.FC<{
               key={member.id}
               onClick={() => setPaidBy(member.id)}
               className={cn(
-                'w-full flex items-center p-3 rounded-xl border-2 transition-all',
+                'w-full flex items-center p-2.5 rounded-lg border-2 transition-all',
                 paidBy === member.id
                   ? 'border-primary-500 bg-primary-50'
-                  : 'border-secondary-200 hover:border-secondary-300'
+                  : 'border-secondary-200 hover:border-secondary-300',
+                compact && 'p-2'
               )}
             >
-              <div className="w-10 h-10 rounded-full bg-secondary-200 flex items-center justify-center mr-3">
+              <div className={cn(
+                "rounded-full bg-secondary-200 flex items-center justify-center mr-3",
+                compact ? "w-8 h-8" : "w-10 h-10"
+              )}>
                 {member.avatar ? (
                   <img src={member.avatar} alt={member.name} className="w-full h-full rounded-full" />
                 ) : (
-                  <span className="text-sm font-medium">{member.name[0]}</span>
+                  <span className={compact ? "text-xs font-medium" : "text-sm font-medium"}>
+                    {member.name[0]}
+                  </span>
                 )}
               </div>
-              <span className="font-medium">{member.name}</span>
+              <span className={compact ? "text-sm font-medium" : "font-medium"}>{member.name}</span>
               {paidBy === member.id && (
-                <CheckCircle className="ml-auto h-5 w-5 text-primary-500" />
+                <CheckCircle className={cn("ml-auto text-primary-500", compact ? "h-4 w-4" : "h-5 w-5")} />
               )}
             </button>
           ))}
@@ -365,6 +399,7 @@ const ExpenseSplitStep: React.FC<{
   customSplits,
   setCustomSplits,
   householdMembers,
+  compact = false,
 }) => {
   const toggleMember = (memberId: string) => {
     setSelectedMembers(
@@ -374,54 +409,60 @@ const ExpenseSplitStep: React.FC<{
     );
   };
   
+  const spacingClass = compact ? "space-y-4" : "space-y-6";
+  const bottomPadding = compact ? "pb-20" : "pb-32";
+  
   return (
-    <div className="space-y-6 pb-32">
+    <div className={cn(spacingClass, bottomPadding)}>
       <div>
-        <label className="text-sm font-medium text-secondary-700 mb-2 block">
+        <label className="text-sm font-medium text-secondary-700 mb-1.5 block">
           How to split?
         </label>
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-3 gap-2">
           <button
             onClick={() => setSplitType('equal')}
             className={cn(
-              'p-3 rounded-xl border-2 transition-all',
+              'p-2.5 rounded-lg border-2 transition-all',
               splitType === 'equal'
                 ? 'border-primary-500 bg-primary-50'
-                : 'border-secondary-200'
+                : 'border-secondary-200',
+              compact && 'p-2'
             )}
           >
-            <Users className="h-5 w-5 mx-auto mb-1" />
-            <div className="text-sm font-medium">Equal</div>
+            <Users className={compact ? "h-4 w-4 mx-auto mb-0.5" : "h-5 w-5 mx-auto mb-1"} />
+            <div className={compact ? "text-xs font-medium" : "text-sm font-medium"}>Equal</div>
           </button>
           <button
             onClick={() => setSplitType('custom')}
             className={cn(
-              'p-3 rounded-xl border-2 transition-all',
+              'p-2.5 rounded-lg border-2 transition-all',
               splitType === 'custom'
                 ? 'border-primary-500 bg-primary-50'
-                : 'border-secondary-200'
+                : 'border-secondary-200',
+              compact && 'p-2'
             )}
           >
-            <DollarSign className="h-5 w-5 mx-auto mb-1" />
-            <div className="text-sm font-medium">Amount</div>
+            <DollarSign className={compact ? "h-4 w-4 mx-auto mb-0.5" : "h-5 w-5 mx-auto mb-1"} />
+            <div className={compact ? "text-xs font-medium" : "text-sm font-medium"}>Amount</div>
           </button>
           <button
             onClick={() => setSplitType('percentage')}
             className={cn(
-              'p-3 rounded-xl border-2 transition-all',
+              'p-2.5 rounded-lg border-2 transition-all',
               splitType === 'percentage'
                 ? 'border-primary-500 bg-primary-50'
-                : 'border-secondary-200'
+                : 'border-secondary-200',
+              compact && 'p-2'
             )}
           >
-            <Calculator className="h-5 w-5 mx-auto mb-1" />
-            <div className="text-sm font-medium">Percent</div>
+            <Calculator className={compact ? "h-4 w-4 mx-auto mb-0.5" : "h-5 w-5 mx-auto mb-1"} />
+            <div className={compact ? "text-xs font-medium" : "text-sm font-medium"}>Percent</div>
           </button>
         </div>
       </div>
       
       <div>
-        <label className="text-sm font-medium text-secondary-700 mb-2 block">
+        <label className="text-sm font-medium text-secondary-700 mb-1.5 block">
           Split between
         </label>
         <div className="space-y-2">
@@ -436,25 +477,31 @@ const ExpenseSplitStep: React.FC<{
                   ? 'border-primary-500 bg-primary-50'
                   : ''
               )}
+              padding={compact ? "sm" : "md"}
             >
-              <CardContent className="flex items-center p-3">
-                <div className="w-10 h-10 rounded-full bg-secondary-200 flex items-center justify-center mr-3">
+              <CardContent className={cn("flex items-center", compact ? "p-2" : "p-3")}>
+                <div className={cn(
+                  "rounded-full bg-secondary-200 flex items-center justify-center mr-3",
+                  compact ? "w-8 h-8" : "w-10 h-10"
+                )}>
                   {member.avatar ? (
                     <img src={member.avatar} alt={member.name} className="w-full h-full rounded-full" />
                   ) : (
-                    <span className="text-sm font-medium">{member.name[0]}</span>
+                    <span className={compact ? "text-xs font-medium" : "text-sm font-medium"}>
+                      {member.name[0]}
+                    </span>
                   )}
                 </div>
                 <div className="flex-1">
-                  <div className="font-medium">{member.name}</div>
+                  <div className={compact ? "text-sm font-medium" : "font-medium"}>{member.name}</div>
                   {splitType === 'equal' && selectedMembers.includes(member.id) && (
-                    <div className="text-sm text-secondary-600">
+                    <div className={compact ? "text-xs text-secondary-600" : "text-sm text-secondary-600"}>
                       ${(amount / selectedMembers.length).toFixed(2)}
                     </div>
                   )}
                 </div>
                 {selectedMembers.includes(member.id) && (
-                  <CheckCircle className="h-5 w-5 text-primary-500" />
+                  <CheckCircle className={cn("text-primary-500", compact ? "h-4 w-4" : "h-5 w-5")} />
                 )}
               </CardContent>
             </Card>
@@ -463,7 +510,10 @@ const ExpenseSplitStep: React.FC<{
       </div>
       
       {splitType !== 'equal' && (
-        <div className="text-center text-sm text-secondary-600 p-4 bg-warning-50 rounded-lg">
+        <div className={cn(
+          "text-center text-sm text-secondary-600 p-3 bg-warning-50 rounded-lg",
+          compact && "text-xs p-2"
+        )}>
           Custom split options coming soon!
         </div>
       )}
@@ -484,22 +534,29 @@ const ExpenseReviewStep: React.FC<{
   paidBy,
   calculatedSplits,
   householdMembers,
+  compact = false,
 }) => {
   const payer = householdMembers.find(m => m.id === paidBy);
   const categoryInfo = categories.find(c => c.id === category);
   
+  const spacingClass = compact ? "space-y-4" : "space-y-6";
+  const bottomPadding = compact ? "pb-20" : "pb-32";
+  
   return (
-    <div className="space-y-6 pb-32">
+    <div className={cn(spacingClass, bottomPadding)}>
       <Card>
-        <CardContent className="p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold">{description}</h3>
-            <span className="text-2xl font-bold text-primary-600">
+        <CardContent className={compact ? "p-4" : "p-6"}>
+          <div className="flex items-center justify-between mb-3">
+            <h3 className={compact ? "text-base font-semibold" : "text-lg font-semibold"}>{description}</h3>
+            <span className={cn(
+              "font-bold text-primary-600",
+              compact ? "text-xl" : "text-2xl"
+            )}>
               ${amount.toFixed(2)}
             </span>
           </div>
           
-          <div className="space-y-3 text-sm">
+          <div className={cn("space-y-2", compact ? "text-xs" : "text-sm")}>
             <div className="flex items-center justify-between">
               <span className="text-secondary-600">Category</span>
               <span className="font-medium flex items-center">
@@ -515,7 +572,10 @@ const ExpenseReviewStep: React.FC<{
       </Card>
       
       <div>
-        <h4 className="text-sm font-medium text-secondary-700 mb-3">Split breakdown</h4>
+        <h4 className={cn(
+          "font-medium text-secondary-700 mb-2",
+          compact ? "text-xs" : "text-sm"
+        )}>Split breakdown</h4>
         <Card>
           <CardContent className="p-0">
             {Object.entries(calculatedSplits).map(([userId, amount], index) => {
@@ -526,21 +586,29 @@ const ExpenseReviewStep: React.FC<{
                 <div
                   key={userId}
                   className={cn(
-                    'flex items-center justify-between p-4',
+                    'flex items-center justify-between',
+                    compact ? 'p-3' : 'p-4',
                     !isLast && 'border-b border-secondary-100'
                   )}
                 >
                   <div className="flex items-center">
-                    <div className="w-8 h-8 rounded-full bg-secondary-200 flex items-center justify-center mr-3">
+                    <div className={cn(
+                      "rounded-full bg-secondary-200 flex items-center justify-center mr-2",
+                      compact ? "w-6 h-6" : "w-8 h-8"
+                    )}>
                       {member?.avatar ? (
                         <img src={member.avatar} alt={member.name} className="w-full h-full rounded-full" />
                       ) : (
-                        <span className="text-xs font-medium">{member?.name[0]}</span>
+                        <span className={compact ? "text-[10px] font-medium" : "text-xs font-medium"}>
+                          {member?.name[0]}
+                        </span>
                       )}
                     </div>
-                    <span className="font-medium">{member?.name}</span>
+                    <span className={compact ? "text-sm font-medium" : "font-medium"}>{member?.name}</span>
                   </div>
-                  <span className="font-semibold">${amount.toFixed(2)}</span>
+                  <span className={compact ? "text-sm font-semibold" : "font-semibold"}>
+                    ${amount.toFixed(2)}
+                  </span>
                 </div>
               );
             })}
@@ -548,17 +616,19 @@ const ExpenseReviewStep: React.FC<{
         </Card>
       </div>
       
-      <div className="flex items-center justify-center p-6">
-        <motion.div
-          initial={{ scale: 0 }}
-          animate={{ scale: 1 }}
-          transition={{ delay: 0.2, type: 'spring', stiffness: 200 }}
-        >
-          <div className="w-20 h-20 rounded-full bg-success-light flex items-center justify-center">
-            <Receipt className="h-10 w-10 text-white" />
-          </div>
-        </motion.div>
-      </div>
+      {!compact && (
+        <div className="flex items-center justify-center p-6">
+          <motion.div
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            transition={{ delay: 0.2, type: 'spring', stiffness: 200 }}
+          >
+            <div className="w-20 h-20 rounded-full bg-success-light flex items-center justify-center">
+              <Receipt className="h-10 w-10 text-white" />
+            </div>
+          </motion.div>
+        </div>
+      )}
     </div>
   );
 };
