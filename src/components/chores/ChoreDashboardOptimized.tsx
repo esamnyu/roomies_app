@@ -5,16 +5,16 @@ import { PlusCircle, RefreshCw, ClipboardList, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { useAuth } from '../AuthProvider';
 import { ChoreProvider, useChoreContext } from './ChoreProvider';
-import { ActivityLog } from './ActivityLog';
-import { RotationSchedule } from './RotationSchedule';
+import { ChoreHistory } from './ChoreHistory';
+import { UpcomingRotations } from './UpcomingRotations';
 import { ChoreCalendar } from './ChoreCalendar';
-import { ChoreCard } from './ChoreCard';
+import { ChoreTaskCard } from './ChoreTaskCard';
 
 // Separate component for the dashboard content to use context
 const ChoreDashboardContent: React.FC = () => {
     const {
         assignments,
-        upcomingPendingChores,
+        dueSoonTasks,
         isLoading,
         isGenerating,
         isLoadingCompletion,
@@ -71,14 +71,14 @@ const ChoreDashboardContent: React.FC = () => {
             </div>
 
             {/* Upcoming Chores */}
-            {upcomingPendingChores.length > 0 && (
+            {dueSoonTasks.length > 0 && (
                 <div>
                     <h2 className="text-xl font-semibold mb-3">
-                        Upcoming Chores (Due: {new Date(upcomingPendingChores[0].due_date + 'T00:00:00').toLocaleDateString()})
+                        Upcoming Chores (Due: {new Date(dueSoonTasks[0].due_date + 'T00:00:00').toLocaleDateString()})
                     </h2>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                        {upcomingPendingChores.map(assignment => (
-                            <ChoreCard
+                        {dueSoonTasks.map(assignment => (
+                            <ChoreTaskCard
                                 key={assignment.id}
                                 assignment={assignment}
                                 currentUserId={user?.id}
@@ -96,8 +96,8 @@ const ChoreDashboardContent: React.FC = () => {
                     <ChoreCalendar assignments={assignments} />
                 </div>
                 <div className="grid grid-rows-2 gap-6">
-                    <RotationSchedule assignments={assignments} />
-                    <ActivityLog assignments={assignments} />
+                    <UpcomingRotations assignments={assignments} />
+                    <ChoreHistory assignments={assignments} />
                 </div>
             </div>
         </div>

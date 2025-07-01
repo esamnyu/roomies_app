@@ -17,7 +17,7 @@ interface ChoreContextType {
     household: Household | null;
     members: HouseholdMember[];
     allChores: HouseholdChore[];
-    upcomingPendingChores: ChoreAssignment[];
+    dueSoonTasks: ChoreAssignment[];
     
     // Loading states
     isLoading: boolean;
@@ -67,7 +67,7 @@ export const ChoreProvider: React.FC<ChoreProviderProps> = ({ householdId, child
         [members, user]
     );
 
-    const upcomingPendingChores = useMemo(() => {
+    const dueSoonTasks = useMemo(() => {
         const pending = assignments.filter(a => a.status === 'pending');
         if (pending.length === 0) return [];
         
@@ -156,7 +156,7 @@ export const ChoreProvider: React.FC<ChoreProviderProps> = ({ householdId, child
         household,
         members,
         allChores,
-        upcomingPendingChores,
+        dueSoonTasks,
         
         // Loading states
         isLoading,
@@ -176,7 +176,7 @@ export const ChoreProvider: React.FC<ChoreProviderProps> = ({ householdId, child
         household,
         members,
         allChores,
-        upcomingPendingChores,
+        dueSoonTasks,
         isLoading,
         isGenerating,
         isLoadingCompletion,

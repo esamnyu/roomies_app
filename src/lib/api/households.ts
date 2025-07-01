@@ -430,5 +430,30 @@ export const joinHouseholdWithCode = async (joinCode: string): Promise<Household
   const { error: addMemberError } = await supabase
     .from('household_members').insert({ household_id: household.id, user_id: user.id, role: 'member' });
   if (addMemberError) { console.error('Error adding member to household:', addMemberError); throw new Error('Failed to join household. Please try again.'); }
+  
+  // Assign any placeholder chores to the new member
+  await handleNewMemberJoined(household.id, user.id);
+  
   return household as Household;
+};
+
+// Function to handle new member joining - assigns placeholder chores
+export const handleNewMemberJoined = async (
+  householdId: string, 
+  userId: string
+): Promise<void> => {
+  try {
+    // Import at the top of the file if not already imported
+    const { assignPlaceholderChoresToMember } = await import('./choreManagement');
+    
+    // Assign any placeholder chores to the new member
+    const result = await assignPlaceholderChoresToMember(householdId, userId);
+    
+    if (result.assignmentsUpdated > 0) {
+      console.log(`Assigned ${result.assignmentsUpdated} chores to new member`);
+    }
+  } catch (error) {
+    console.error('Error assigning chores to new member:', error);
+    // Don't throw - this is a non-critical operation
+  }
 };
