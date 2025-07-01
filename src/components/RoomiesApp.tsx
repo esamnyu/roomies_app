@@ -36,7 +36,7 @@ import { LandingPageContent } from './LandingPageContent';
 import { HouseholdSetupForm } from './HouseholdSetupForm';
 import { OnboardingChoice } from './OnboardingChoice';
 import HouseholdChat from './HouseholdChat';
-import { ChoreDashboard } from './ChoreDashboard';
+import { ChoreHub } from './chores/ChoreHub';
 import { AddExpenseModal } from './modals/AddExpenseModal';
 import { AddRecurringExpenseModal } from './modals/AddRecurringExpenseModal';
 import { SettleUpModalV2 } from './modals/SettleUpModalV2';
@@ -498,7 +498,7 @@ const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = (
 
                 {activeTab === 'structuredChores' && householdId && (
                     <AsyncErrorBoundary isolate={true}>
-                        <ChoreDashboard householdId={householdId} />
+                        <ChoreHub householdId={householdId} />
                     </AsyncErrorBoundary>
                 )}
 
