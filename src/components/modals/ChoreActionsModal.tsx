@@ -95,9 +95,17 @@ export const ChoreActionsModal: React.FC<ChoreActionsModalProps> = ({
       toast.success('Chore rescheduled successfully');
       onActionComplete();
       onClose();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error snoozing chore:', error);
-      toast.error('Failed to reschedule chore');
+      
+      // Check for permission error
+      if (error?.message?.includes('Only the assigned user or admin')) {
+        toast.error("You can only reschedule chores assigned to you");
+      } else if (error?.message?.includes('Assignment not found or no permission')) {
+        toast.error("You don't have permission to reschedule this chore");
+      } else {
+        toast.error('Failed to reschedule chore');
+      }
     } finally {
       setIsLoading(false);
     }
@@ -115,9 +123,15 @@ export const ChoreActionsModal: React.FC<ChoreActionsModalProps> = ({
       toast.success('Chores swapped successfully');
       onActionComplete();
       onClose();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error swapping chores:', error);
-      toast.error('Failed to swap chores');
+      
+      // Check for permission error
+      if (error?.message?.includes('permission') || error?.message?.includes('not assigned to you')) {
+        toast.error("You can only swap chores that are assigned to you");
+      } else {
+        toast.error('Failed to swap chores');
+      }
     } finally {
       setIsLoading(false);
     }
@@ -135,9 +149,15 @@ export const ChoreActionsModal: React.FC<ChoreActionsModalProps> = ({
       toast.success(`Chore delegated to ${result.newAssigneeName}`);
       onActionComplete();
       onClose();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error delegating chore:', error);
-      toast.error('Failed to delegate chore');
+      
+      // Check for permission error
+      if (error?.message?.includes('permission') || error?.message?.includes('not assigned to you')) {
+        toast.error("You can only delegate chores that are assigned to you");
+      } else {
+        toast.error('Failed to delegate chore');
+      }
     } finally {
       setIsLoading(false);
     }

@@ -148,11 +148,6 @@ export const ChoreProvider: React.FC<ChoreProviderProps> = ({ householdId, child
     }, [isAdmin, householdId, fetchData]);
 
     const updateChoreDate = useCallback(async (choreId: string, newDate: string) => {
-        if (!isAdmin) {
-            toast.error("Only admins can reschedule chores.");
-            return;
-        }
-        
         // Find the chore being moved
         const choreToMove = assignments.find(a => a.id === choreId);
         if (!choreToMove) {
@@ -187,14 +182,16 @@ export const ChoreProvider: React.FC<ChoreProviderProps> = ({ householdId, child
             // Check for specific error messages
             if (error?.message?.includes('future')) {
                 toast.error('Chores can only be rescheduled to future dates');
-            } else if (error?.message?.includes('permission')) {
+            } else if (error?.message?.includes('Only the assigned user or admin')) {
+                toast.error('You can only reschedule chores assigned to you');
+            } else if (error?.message?.includes('Assignment not found or no permission')) {
                 toast.error('You do not have permission to reschedule this chore');
             } else {
                 toast.error('Failed to reschedule chore. Please try again.');
             }
             setAssignments(originalAssignments);
         }
-    }, [isAdmin, assignments]);
+    }, [assignments]);
 
     // Effects
     useEffect(() => { 
