@@ -579,23 +579,76 @@ const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = (
                 )}
 
                 {activeTab === 'communication' && (
-                    <div className="space-y-4">
-                        <div className="flex justify-between items-center">
-                            <h3 className="text-lg font-medium text-foreground">Members</h3>
-                            {isAdmin && (
-                                <Button onClick={() => setShowManageJoinCode(true)} variant="secondary" size="sm">
-                                    <Share2 className="h-4 w-4 mr-1" /> Manage Join Code
-                                </Button>
-                            )}
+                    <div className="flex flex-col lg:flex-row gap-6 h-full">
+                        {/* Members Sidebar */}
+                        <div className="lg:w-80 flex-shrink-0">
+                            <div className="bg-background rounded-xl shadow-sm border border-border/50 overflow-hidden">
+                                <div className="px-6 py-4 bg-gradient-to-r from-primary/5 to-primary/10 border-b border-border/50">
+                                    <div className="flex justify-between items-center">
+                                        <div>
+                                            <h3 className="text-lg font-semibold text-foreground">Household Members</h3>
+                                            <p className="text-sm text-muted-foreground mt-0.5">{members.length} members</p>
+                                        </div>
+                                        {isAdmin && (
+                                            <Button 
+                                                onClick={() => setShowManageJoinCode(true)} 
+                                                variant="outline" 
+                                                size="sm"
+                                                className="bg-background/80 backdrop-blur-sm"
+                                            >
+                                                <Share2 className="h-4 w-4" />
+                                            </Button>
+                                        )}
+                                    </div>
+                                </div>
+                                <div className="p-4 space-y-2 max-h-[400px] overflow-y-auto">
+                                    {loadingData && members.length === 0 ? (
+                                        <div className="flex justify-center py-8">
+                                            <LoadingSpinner/>
+                                        </div>
+                                    ) : (
+                                        members.map(member => (
+                                            <div 
+                                                key={member.id} 
+                                                className="group flex items-center gap-3 p-3 rounded-lg hover:bg-secondary/30 transition-colors cursor-pointer"
+                                            >
+                                                <div className="relative">
+                                                    <div className="h-10 w-10 rounded-full bg-gradient-to-br from-primary/20 to-primary/30 flex items-center justify-center text-primary font-semibold">
+                                                        {member.profiles?.name?.charAt(0).toUpperCase() || <User className="h-5 w-5" />}
+                                                    </div>
+                                                    <div className="absolute bottom-0 right-0 h-3 w-3 bg-green-500 rounded-full border-2 border-background"></div>
+                                                </div>
+                                                <div className="flex-1 min-w-0">
+                                                    <p className="font-medium text-foreground truncate">
+                                                        {member.profiles?.name}
+                                                        {member.user_id === user?.id && (
+                                                            <span className="ml-2 text-xs text-muted-foreground">(You)</span>
+                                                        )}
+                                                    </p>
+                                                    <p className="text-xs text-muted-foreground capitalize">
+                                                        {member.role}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        ))
+                                    )}
+                                </div>
+                            </div>
                         </div>
-                        <div className="space-y-3">
-                            {loadingData && members.length === 0 ? <LoadingSpinner/> : members.map(member => (<div key={member.id} className="bg-background rounded-lg shadow p-4 border border-border"><div className="flex items-center justify-between"><div className="flex items-center"><div className="h-10 w-10 rounded-full bg-secondary flex items-center justify-center text-secondary-foreground">{member.profiles?.name?.charAt(0).toUpperCase() || <User className="h-5 w-5" />}</div><div className="ml-3"><p className="font-medium text-foreground">{member.profiles?.name}</p><p className="text-xs text-secondary-foreground">{member.role}</p></div></div></div></div>))}
-                        </div>
-                        <div className="mt-6">
-                            <h3 className="text-lg font-medium text-foreground mb-4">Household Chat</h3>
-                            <AsyncErrorBoundary isolate={true}>
-                                <HouseholdChat householdId={householdId} members={memberProfiles} />
-                            </AsyncErrorBoundary>
+
+                        {/* Chat Area */}
+                        <div className="flex-1 min-h-0 flex flex-col">
+                            <div className="flex-1 bg-background rounded-xl shadow-sm border border-border/50 overflow-hidden flex flex-col">
+                                <div className="flex-shrink-0 px-6 py-4 bg-gradient-to-r from-primary/5 to-primary/10 border-b border-border/50">
+                                    <h3 className="text-lg font-semibold text-foreground">Conversations</h3>
+                                    <p className="text-sm text-muted-foreground mt-0.5">Chat with your household or AI assistant</p>
+                                </div>
+                                <div className="flex-1 min-h-0">
+                                    <AsyncErrorBoundary isolate={true}>
+                                        <HouseholdChat householdId={householdId} members={memberProfiles} />
+                                    </AsyncErrorBoundary>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 )}
