@@ -10,7 +10,11 @@ class SubscriptionManager {
     const existing = this.subscriptions.get(key);
     if (existing) {
       console.log(`Cleaning up existing subscription for: ${key}`);
-      existing.unsubscribe();
+      try {
+        existing.unsubscribe();
+      } catch (error) {
+        console.error(`Error unsubscribing from ${key}:`, error);
+      }
       this.subscriptions.delete(key);
     }
 
@@ -28,7 +32,11 @@ class SubscriptionManager {
     const sub = this.subscriptions.get(key);
     if (sub) {
       // Immediate unsubscribe without delay
-      sub.unsubscribe();
+      try {
+        sub.unsubscribe();
+      } catch (error) {
+        console.error(`Error unsubscribing from ${key}:`, error);
+      }
       this.subscriptions.delete(key);
       console.log(`Subscription removed: ${key}`);
     }

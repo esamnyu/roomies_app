@@ -7,8 +7,8 @@ import { createExpenseWithCustomSplits } from '@/lib/api/expenses';
 import { toast } from 'react-hot-toast';
 import type { HouseholdMember } from '@/lib/types/types';
 import { useExpenseSplits } from '@/hooks/useExpenseSplits';
-import { useAuth } from './AuthProvider'; // NEW: Import useAuth
-import { ExpenseSplitter } from '@/components/ExpenseSplitter';
+import { useAuth } from '../AuthProvider'; // NEW: Import useAuth
+import { ExpenseSplitterV2 } from '@/components/ExpenseSplitterV2';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 
@@ -122,7 +122,7 @@ export const AddExpenseModal: React.FC<AddExpenseModalProps> = ({ householdId, m
               />
           </div>
           
-          <ExpenseSplitter
+          <ExpenseSplitterV2
             members={members}
             amount={amount}
             splitType={splitType}

@@ -8,7 +8,7 @@ import { toast } from 'react-hot-toast';
 import { updateExpense } from '@/lib/api/expenses';
 import type { Expense, HouseholdMember, UpdateExpensePayload } from '@/lib/types/types';
 import { useExpenseSplits } from '@/hooks/useExpenseSplits';
-import { ExpenseSplitter } from '@/components/ExpenseSplitter';
+import { ExpenseSplitterV2 } from '@/components/ExpenseSplitterV2';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 
@@ -80,17 +80,12 @@ export const EditExpenseModal: React.FC<EditExpenseModalProps> = ({ expense, mem
         
         setSubmitting(true);
         try {
-            const result = await updateExpense(expense.id, payload);
+            await updateExpense(expense.id, payload);
 
-            if (result.adjustments_made) {
-                setPendingUpdatePayload(payload);
-                setShowWarning(true);
-            } else {
-                toast.success('Expense updated!');
-                onExpenseUpdated();
-                // We close the modal here by calling onClose
-                onClose(); 
-            }
+            // The new API always handles adjustments automatically
+            toast.success('Expense updated!');
+            onExpenseUpdated();
+            onClose();
         } catch (error) {
             console.error('Error updating expense:', error);
             toast.error((error as Error).message || 'Failed to update expense');
@@ -176,7 +171,7 @@ export const EditExpenseModal: React.FC<EditExpenseModalProps> = ({ expense, mem
                             />
                         </div>
                         
-                        <ExpenseSplitter
+                        <ExpenseSplitterV2
                             members={members}
                             amount={amount}
                             splitType={splitType}

@@ -92,7 +92,7 @@ export const subscribeToSettlements = (householdId: string, onSettlement: (settl
 
 export const getHouseholdBalances = async (householdId: string) => {
   const { data, error } = await supabase
-    .rpc('calculate_household_balances', {
+    .rpc('get_household_balances_fast', {
       p_household_id: householdId
     });
 
@@ -108,13 +108,13 @@ export const getHouseholdBalances = async (householdId: string) => {
   }
 
   type RawBalance = {
-    userid: string;
+    user_id: string;
     balance: number;
     profile: Profile;
   };
 
   return (data?.map((item: RawBalance): HouseholdBalance => ({
-    userId: item.userid,
+    userId: item.user_id,
     balance: item.balance,
     profile: item.profile
   })) || []) as HouseholdBalance[];
@@ -132,14 +132,15 @@ export const getSettlementSuggestions = (balances: Awaited<ReturnType<typeof get
     profile: Profile;
   }
 
-  const debtors: BalanceWithProfile[] = JSON.parse(
-    JSON.stringify(
-      (balances as BalanceWithProfile[])
-        .filter((b: BalanceWithProfile) => b.balance < -0.01)
-        .sort((a: BalanceWithProfile, b: BalanceWithProfile) => a.balance - b.balance)
-    )
-  );
-  const creditors = JSON.parse(JSON.stringify(balances.filter(b => b.balance > 0.01).sort((a: { balance: number; }, b: { balance: number; }) => b.balance - a.balance)));
+  const debtors: BalanceWithProfile[] = (balances as BalanceWithProfile[])
+    .filter((b: BalanceWithProfile) => b.balance < -0.01)
+    .sort((a: BalanceWithProfile, b: BalanceWithProfile) => a.balance - b.balance)
+    .map(b => ({ ...b, balance: b.balance })); // Shallow clone for modification
+    
+  const creditors = balances
+    .filter(b => b.balance > 0.01)
+    .sort((a: { balance: number; }, b: { balance: number; }) => b.balance - a.balance)
+    .map(b => ({ ...b, balance: b.balance })); // Shallow clone for modification
 
   while (debtors.length > 0 && creditors.length > 0) {
     const debtor = debtors[0];

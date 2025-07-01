@@ -1,30 +1,13 @@
 // src/lib/api/tasks.ts
 import { supabase } from '../supabase';
+import { withErrorHandling, handleSupabaseError, ValidationError, NotFoundError } from '@/lib/errors';
+import { requireHouseholdMember } from '@/lib/api/auth/middleware';
+import { 
+  createTaskSchema, 
+  validateInput, 
+  uuidSchema
+} from '@/lib/api/validation/schemas';
 import type { Task } from '../types/types';
-
-/**
- * A helper function to verify if the current user is a member of the household.
- * Throws an error if the user is not authenticated or not a member.
- */
-const ensureUserIsMember = async (householdId: string): Promise<string> => {
-  const { data: { user }, error: authError } = await supabase.auth.getUser();
-  if (authError || !user) {
-    throw new Error('Not authenticated. Please log in.');
-  }
-
-  const { data: membership, error: memberError } = await supabase
-    .from('household_members')
-    .select('id')
-    .eq('household_id', householdId)
-    .eq('user_id', user.id)
-    .single();
-
-  if (memberError || !membership) {
-    throw new Error('You are not authorized to perform actions in this household.');
-  }
-
-  return user.id;
-};
 
 /**
  * Creates a new task in a household.
@@ -33,45 +16,51 @@ const ensureUserIsMember = async (householdId: string): Promise<string> => {
  * @param assignedTo - (Optional) The user ID of the person the task is assigned to.
  * @returns The newly created task, with the assignee's profile if applicable.
  */
-export const createTask = async (householdId: string, title: string, assignedTo?: string): Promise<Task> => {
-  // First, ensure the user is authenticated and a member of the household.
-  await ensureUserIsMember(householdId);
+export const createTask = async (
+  householdId: string, 
+  title: string, 
+  assignedTo?: string
+) => {
+  return withErrorHandling(async () => {
+    // Validate input
+    const validatedData = validateInput(createTaskSchema, {
+      householdId,
+      title,
+      assignedTo
+    });
 
-  // If a user is assigned, verify they are also a member of the household.
-  if (assignedTo) {
-    const { error: assigneeError } = await supabase
-      .from('household_members')
-      .select('id')
-      .eq('household_id', householdId)
-      .eq('user_id', assignedTo)
+    // Ensure the user is authenticated and a member of the household
+    await requireHouseholdMember(validatedData.householdId);
+
+    // If a user is assigned, verify they are also a member of the household
+    if (validatedData.assignedTo) {
+      await requireHouseholdMember(validatedData.householdId, validatedData.assignedTo);
+    }
+
+    const taskData: Partial<Task> = {
+      household_id: validatedData.householdId,
+      title: validatedData.title,
+      completed: false,
+      assigned_to: validatedData.assignedTo || undefined,
+    };
+    
+    // Insert the new task and immediately select it with the profile information
+    const { data: insertedTask, error } = await supabase
+      .from('tasks')
+      .insert(taskData)
+      .select('*, profiles:assigned_to (id, name, avatar_url)')
       .single();
 
-    if (assigneeError) {
-      throw new Error('Assigned user is not a member of this household.');
+    if (error) {
+      handleSupabaseError(error);
     }
-  }
 
-  const taskData: Partial<Task> = {
-    household_id: householdId,
-    title,
-    completed: false,
-    assigned_to: assignedTo || undefined,
-  };
-  
-  // Insert the new task and immediately select it with the profile information.
-  // This avoids a second database call.
-  const { data: insertedTask, error: insertError } = await supabase
-    .from('tasks')
-    .insert(taskData)
-    .select('*, profiles:assigned_to (id, name, avatar_url)')
-    .single();
+    if (!insertedTask) {
+      throw new Error('Failed to create task');
+    }
 
-  if (insertError) {
-    console.error('Supabase error creating task:', insertError);
-    throw insertError;
-  }
-
-  return insertedTask;
+    return insertedTask;
+  }, 'createTask');
 };
 
 /**
@@ -79,19 +68,27 @@ export const createTask = async (householdId: string, title: string, assignedTo?
  * @param householdId - The ID of the household.
  * @returns An array of tasks with associated profiles.
  */
-export const getHouseholdTasks = async (householdId: string): Promise<Task[]> => {
-  const { data, error } = await supabase
-    .from('tasks')
-    .select('*, profiles:assigned_to (id, name, avatar_url)')
-    .eq('household_id', householdId)
-    .order('completed', { ascending: true })
-    .order('created_at', { ascending: false });
+export const getHouseholdTasks = async (householdId: string) => {
+  return withErrorHandling(async () => {
+    // Validate household ID
+    const validatedId = validateInput(uuidSchema, householdId);
 
-  if (error) {
-    throw error;
-  }
-  
-  return data || [];
+    // Ensure the user is a member of the household
+    await requireHouseholdMember(validatedId);
+
+    const { data, error } = await supabase
+      .from('tasks')
+      .select('*, profiles:assigned_to (id, name, avatar_url)')
+      .eq('household_id', validatedId)
+      .order('completed', { ascending: true })
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      handleSupabaseError(error);
+    }
+    
+    return data || [];
+  }, 'getHouseholdTasks');
 };
 
 /**
@@ -100,21 +97,69 @@ export const getHouseholdTasks = async (householdId: string): Promise<Task[]> =>
  * @param updates - An object containing the fields to update.
  * @returns The updated task object with profile information.
  */
-export const updateTask = async (taskId: string, updates: Partial<Task>): Promise<Task> => {
-  // Combine the update and select into a single query for efficiency.
-  const { data: updatedTask, error: updateError } = await supabase
-    .from('tasks')
-    .update(updates)
-    .eq('id', taskId)
-    .select('*, profiles:assigned_to (id, name, avatar_url)')
-    .single();
+export const updateTask = async (
+  taskId: string, 
+  updates: Partial<Task>
+) => {
+  return withErrorHandling(async () => {
+    // Validate task ID
+    const validatedTaskId = validateInput(uuidSchema, taskId);
 
-  if (updateError) {
-    console.error('Error updating task:', updateError);
-    throw updateError;
-  }
+    // Validate updates - ensure no invalid fields are being updated
+    const allowedUpdates: Partial<Task> = {};
+    
+    // Handle each field explicitly to maintain type safety
+    if ('title' in updates && updates.title !== undefined) {
+      allowedUpdates.title = updates.title;
+    }
+    if ('assigned_to' in updates && updates.assigned_to !== undefined) {
+      validateInput(uuidSchema, updates.assigned_to);
+      allowedUpdates.assigned_to = updates.assigned_to;
+    }
+    if ('completed' in updates && updates.completed !== undefined) {
+      allowedUpdates.completed = updates.completed;
+    }
+    if ('completed_at' in updates && updates.completed_at !== undefined) {
+      allowedUpdates.completed_at = updates.completed_at;
+    }
 
-  return updatedTask;
+    // First, get the task to check household membership
+    const { data: existingTask, error: fetchError } = await supabase
+      .from('tasks')
+      .select('household_id')
+      .eq('id', validatedTaskId)
+      .single();
+
+    if (fetchError || !existingTask) {
+      throw new NotFoundError('Task');
+    }
+
+    // Ensure the user is a member of the household
+    await requireHouseholdMember(existingTask.household_id);
+
+    // If assigning to someone new, verify they are a member of the household
+    if (allowedUpdates.assigned_to) {
+      await requireHouseholdMember(existingTask.household_id, allowedUpdates.assigned_to);
+    }
+
+    // Perform the update
+    const { data: updatedTask, error: updateError } = await supabase
+      .from('tasks')
+      .update(allowedUpdates)
+      .eq('id', validatedTaskId)
+      .select('*, profiles:assigned_to (id, name, avatar_url)')
+      .single();
+
+    if (updateError) {
+      handleSupabaseError(updateError);
+    }
+
+    if (!updatedTask) {
+      throw new Error('Failed to update task');
+    }
+
+    return updatedTask;
+  }, 'updateTask');
 };
 
 /**
@@ -122,6 +167,103 @@ export const updateTask = async (taskId: string, updates: Partial<Task>): Promis
  * @param taskId - The ID of the task to complete.
  * @returns The completed task object.
  */
-export const completeTask = async (taskId: string): Promise<Task> => {
-  return updateTask(taskId, { completed: true, completed_at: new Date().toISOString() });
+export const completeTask = async (taskId: string) => {
+  return withErrorHandling(async () => {
+    return updateTask(taskId, { 
+      completed: true, 
+      completed_at: new Date().toISOString() 
+    });
+  }, 'completeTask');
+};
+
+/**
+ * Deletes a task from the household.
+ * @param taskId - The ID of the task to delete.
+ * @returns void
+ */
+export const deleteTask = async (taskId: string) => {
+  return withErrorHandling(async () => {
+    // Validate task ID
+    const validatedTaskId = validateInput(uuidSchema, taskId);
+
+    // First, get the task to check household membership
+    const { data: existingTask, error: fetchError } = await supabase
+      .from('tasks')
+      .select('household_id')
+      .eq('id', validatedTaskId)
+      .single();
+
+    if (fetchError || !existingTask) {
+      throw new NotFoundError('Task');
+    }
+
+    // Ensure the user is a member of the household (could be admin-only if you want)
+    await requireHouseholdMember(existingTask.household_id);
+    
+    // Optional: Only allow admins to delete tasks
+    // if (memberRole !== 'admin') {
+    //   throw new AuthorizationError('Only admins can delete tasks');
+    // }
+
+    const { error: deleteError } = await supabase
+      .from('tasks')
+      .delete()
+      .eq('id', validatedTaskId);
+
+    if (deleteError) {
+      handleSupabaseError(deleteError);
+    }
+  }, 'deleteTask');
+};
+
+/**
+ * Bulk update multiple tasks at once (e.g., mark all as complete).
+ * @param taskIds - Array of task IDs to update.
+ * @param updates - The updates to apply to all tasks.
+ * @returns Array of updated tasks.
+ */
+export const bulkUpdateTasks = async (
+  taskIds: string[], 
+  updates: Partial<Task>
+) => {
+  return withErrorHandling(async () => {
+    // Validate all task IDs
+    const validatedTaskIds = taskIds.map(id => validateInput(uuidSchema, id));
+
+    if (validatedTaskIds.length === 0) {
+      throw new ValidationError('No task IDs provided');
+    }
+
+    // Get all tasks to verify household membership
+    const { data: tasks, error: fetchError } = await supabase
+      .from('tasks')
+      .select('id, household_id')
+      .in('id', validatedTaskIds);
+
+    if (fetchError || !tasks || tasks.length === 0) {
+      throw new NotFoundError('Tasks');
+    }
+
+    // Verify all tasks are from the same household
+    const householdIds = [...new Set(tasks.map(t => t.household_id))];
+    if (householdIds.length > 1) {
+      throw new ValidationError('Tasks must all be from the same household');
+    }
+
+    // Check user is a member of the household
+    await requireHouseholdMember(householdIds[0]);
+
+    // Perform bulk update
+    const { data: updatedTasks, error: updateError } = await supabase
+      .from('tasks')
+      .update(updates)
+      .in('id', validatedTaskIds)
+      .select('*, profiles:assigned_to (id, name, avatar_url)');
+
+    if (updateError) {
+      handleSupabaseError(updateError);
+    }
+
+    return updatedTasks || [];
+  }, 'bulkUpdateTasks');
 };

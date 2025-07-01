@@ -17,5 +17,13 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
       // Throttle events to a maximum of 5 per second
       eventsPerSecond: 5,
     },
+    // Add timeout and heartbeat configurations
+    timeout: 10000,
+    heartbeatIntervalMs: 30000,
+  },
+  auth: {
+    // Ensure auth state is properly synchronized with realtime
+    persistSession: true,
+    autoRefreshToken: true,
   },
 })

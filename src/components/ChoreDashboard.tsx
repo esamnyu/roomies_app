@@ -236,12 +236,18 @@ export const ChoreDashboard: React.FC<{ householdId: string; }> = ({ householdId
     const fetchData = useCallback(async (showLoading = true) => {
         if (showLoading) setIsLoading(true);
         try {
-            const [choreData, householdChores] = await Promise.all([ getChoreRotationUIData(householdId), getHouseholdChores(householdId) ]);
+            // Batch API calls for better performance
+            const [choreData, householdChores] = await Promise.all([
+                getChoreRotationUIData(householdId), 
+                getHouseholdChores(householdId)
+            ]);
+            
             setAssignments(choreData.allAssignments || []);
             setHousehold(choreData.householdInfo);
             setMembers(choreData.members);
             setAllChores(householdChores);
         } catch (error) {
+            console.error('Failed to load chore data:', error);
             toast.error('Failed to load chore information.');
         } finally {
             if (showLoading) setIsLoading(false);
@@ -253,7 +259,15 @@ export const ChoreDashboard: React.FC<{ householdId: string; }> = ({ householdId
     const upcomingPendingChores = useMemo(() => {
         const pending = assignments.filter(a => a.status === 'pending');
         if (pending.length === 0) return [];
-        const nextDueDate = pending.sort((a, b) => a.due_date.localeCompare(b.due_date))[0].due_date;
+        
+        // Find the earliest due date more efficiently
+        let nextDueDate = pending[0].due_date;
+        for (let i = 1; i < pending.length; i++) {
+            if (pending[i].due_date < nextDueDate) {
+                nextDueDate = pending[i].due_date;
+            }
+        }
+        
         return pending.filter(a => a.due_date === nextDueDate);
     }, [assignments]);
 
@@ -275,11 +289,18 @@ export const ChoreDashboard: React.FC<{ householdId: string; }> = ({ householdId
         if (!user) return;
         setIsLoadingCompletion(prev => ({ ...prev, [assignmentId]: true }));
         const originalAssignments = [...assignments];
-        setAssignments(prev => prev.map(a => a.id === assignmentId ? { ...a, status: 'completed' } : a));
+        
+        // Optimistic update with completion timestamp
+        setAssignments(prev => prev.map(a => 
+            a.id === assignmentId 
+                ? { ...a, status: 'completed' as const, completed_at: new Date().toISOString() } 
+                : a
+        ));
+        
         try {
             await markChoreAssignmentComplete(assignmentId, user.id);
             toast.success('Chore marked as complete!');
-            await fetchData(false);
+            // Removed unnecessary fetchData call - optimistic update is sufficient
         } catch (error) {
             toast.error('Could not mark chore as complete.');
             setAssignments(originalAssignments);

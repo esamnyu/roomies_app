@@ -1,7 +1,37 @@
 // src/lib/api/households.ts
 import { supabase } from '../supabase';
-import type { Household, HouseholdMember, HouseRule, CreateHouseholdParams } from '../types/types';
+import type { Household, HouseholdMember, HouseRule, CreateHouseholdParams, Expense, RecurringExpense, Settlement, ChoreAssignment } from '../types/types';
 import { initializeChoresForHousehold } from './chores';
+import { requireAuth, requireHouseholdMember, requireHouseholdAdmin } from './auth/middleware';
+
+// Type for the full household data response
+export interface HouseholdFullData {
+  household: Household;
+  members: HouseholdMember[];
+  expenses: Expense[];
+  recurring_expenses: RecurringExpense[];
+  balances: Array<{
+    userId: string;
+    balance: number;
+    profile: {
+      id: string;
+      name: string;
+      avatar_url?: string | null;
+    };
+  }>;
+  recent_settlements: Settlement[];
+  active_chores: Array<{
+    id: string;
+    due_date: string;
+    status: string;
+    chore_name: string;
+    assigned_to: {
+      id: string;
+      name: string;
+      avatar_url?: string | null;
+    };
+  }>;
+}
 
 // --- HOUSEHOLD FUNCTIONS ---
 export const createHousehold = async (params: CreateHouseholdParams) => {
@@ -57,13 +87,41 @@ export const getUserHouseholds = async () => {
 }
 
 export const getHouseholdData = async (householdId: string) => {
+  await requireHouseholdMember(householdId);
+  
   const { data, error } = await supabase
     .rpc('get_household_data', { p_household_id: householdId })
   if (error) throw error
   return data
 }
 
+// NEW: Optimized function to get all household data in a single query
+export const getHouseholdFullData = async (householdId: string): Promise<HouseholdFullData> => {
+  await requireHouseholdMember(householdId);
+  
+  const { data, error } = await supabase
+    .rpc('get_household_full_data', { p_household_id: householdId });
+    
+  if (error) {
+    console.error('Error fetching full household data:', error);
+    throw error;
+  }
+  
+  // Parse the JSON response and ensure proper typing
+  return {
+    household: data.household || null,
+    members: data.members || [],
+    expenses: data.expenses || [],
+    recurring_expenses: data.recurring_expenses || [],
+    balances: data.balances || [],
+    recent_settlements: data.recent_settlements || [],
+    active_chores: data.active_chores || []
+  };
+};
+
 export const getHouseholdDetails = async (householdId: string): Promise<Household | null> => {
+  await requireHouseholdMember(householdId);
+  
   const { data, error } = await supabase
     .from('households')
     .select('*, rules, rules_last_updated')
@@ -80,6 +138,8 @@ export const getHouseholdDetails = async (householdId: string): Promise<Househol
 // --- MEMBER MANAGEMENT ---
 
 export const getHouseholdMembers = async (householdId: string): Promise<HouseholdMember[]> => {
+  await requireHouseholdMember(householdId);
+  
   const { data, error } = await supabase
     .from('household_members')
     .select(`
@@ -97,6 +157,16 @@ export const getHouseholdMembers = async (householdId: string): Promise<Househol
 };
 
 export const updateMemberRole = async (memberId: string, role: 'admin' | 'member') => {
+    // Get household ID first to check admin permissions
+    const { data: member } = await supabase
+        .from('household_members')
+        .select('household_id')
+        .eq('id', memberId)
+        .single();
+        
+    if (!member) throw new Error('Member not found');
+    await requireHouseholdAdmin(member.household_id);
+    
     const { data, error } = await supabase
         .from('household_members')
         .update({ role })
@@ -111,6 +181,16 @@ export const updateMemberRole = async (memberId: string, role: 'admin' | 'member
 };
 
 export const removeMember = async (memberId: string) => {
+    // Get household ID first to check admin permissions
+    const { data: member } = await supabase
+        .from('household_members')
+        .select('household_id')
+        .eq('id', memberId)
+        .single();
+        
+    if (!member) throw new Error('Member not found');
+    await requireHouseholdAdmin(member.household_id);
+    
     const { error } = await supabase
         .from('household_members')
         .delete()

@@ -27,10 +27,15 @@ const HouseholdChat: React.FC<HouseholdChatProps> = ({ householdId, members }) =
   };
 
   const handleNewMessage = useCallback((incomingMessage: Message) => {
+    console.log('New message received:', incomingMessage);
     setMessages(prev => {
       const exists = prev.some(m => m.id === incomingMessage.id);
-      if (exists) return prev;
+      if (exists) {
+        console.log('Message already exists, skipping:', incomingMessage.id);
+        return prev;
+      }
       const updated = [...prev, incomingMessage];
+      console.log('Messages updated, total count:', updated.length);
       return updated.slice(-100);
     });
     setTimeout(scrollToBottom, 100);
@@ -65,13 +70,18 @@ const HouseholdChat: React.FC<HouseholdChatProps> = ({ householdId, members }) =
       const subscription = subscribeToMessages(householdId, (message) => {
         if (mounted) {
           handleNewMessage(message);
+        } else {
+          console.warn('Received message but component is unmounted');
         }
       });
 
       return () => {
         mounted = false;
-        if (subscription) {
+        if (subscription && subscription.unsubscribe) {
+          console.log('Unsubscribing from messages for household:', householdId);
           subscription.unsubscribe();
+        } else {
+          console.warn('No subscription to unsubscribe from');
         }
       };
     }
@@ -86,6 +96,20 @@ const HouseholdChat: React.FC<HouseholdChatProps> = ({ householdId, members }) =
 
     try {
       await sendMessageAPI(householdId, messageText);
+      // Message should appear via realtime subscription
+      // If it doesn't appear within 2 seconds, reload messages
+      setTimeout(async () => {
+        const currentMessages = messages;
+        if (!currentMessages.some(m => m.content === messageText && m.user_id === user?.id)) {
+          console.warn('Message not received via realtime, reloading...');
+          try {
+            const freshMessages = await getHouseholdMessages(householdId);
+            setMessages(freshMessages);
+          } catch (error) {
+            console.error('Error reloading messages:', error);
+          }
+        }
+      }, 2000);
     } catch (error) {
       console.error('Error sending message:', error);
       toast.error("Could not send message.");
@@ -95,7 +119,7 @@ const HouseholdChat: React.FC<HouseholdChatProps> = ({ householdId, members }) =
     }
   };
 
-  const handleKeyPress = (e: React.KeyboardEvent) => {
+  const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSendMessage();
@@ -189,7 +213,7 @@ const HouseholdChat: React.FC<HouseholdChatProps> = ({ householdId, members }) =
                 type="text"
                 value={newMessage}
                 onChange={(e) => setNewMessage(e.target.value)}
-                onKeyPress={handleKeyPress}
+                onKeyDown={handleKeyDown}
                 placeholder="Type a message..."
                 className="flex-1"
                 disabled={sending}
