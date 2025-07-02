@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { ExpenseSplitterV3Compact } from './ExpenseSplitterV3Compact';
+import { ExpenseSplitterSingleScreen } from './ExpenseSplitterSingleScreen';
 import { Modal } from './surfaces/Modal';
 import { Maximize2 } from 'lucide-react';
 import { Button } from './primitives/Button';
@@ -68,8 +69,8 @@ export const AddExpense: React.FC<AddExpenseProps> = ({
   // Mobile or forced full screen - render full screen version
   if (!shouldUseModal) {
     return (
-      <div className="fixed inset-0 z-modal">
-        <ExpenseSplitterV3Compact
+      <div className="fixed inset-0 z-modal bg-white">
+        <ExpenseSplitterSingleScreen
           householdId={householdId}
           householdMembers={householdMembers}
           currentUserId={currentUserId}
@@ -103,7 +104,7 @@ export const AddExpense: React.FC<AddExpenseProps> = ({
         </Button>
       </div>
       
-      <ExpenseSplitterV3Compact
+      <ExpenseSplitterSingleScreen
         householdId={householdId}
         householdMembers={householdMembers}
         currentUserId={currentUserId}
