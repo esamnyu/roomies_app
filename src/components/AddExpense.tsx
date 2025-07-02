@@ -7,6 +7,7 @@ import { Maximize2 } from 'lucide-react';
 import { Button } from './primitives/Button';
 
 interface AddExpenseProps {
+  householdId: string;
   householdMembers: Array<{ id: string; name: string; avatar?: string }>;
   currentUserId: string;
   onAddExpense: (expense: any) => Promise<void>;
@@ -41,6 +42,7 @@ const useMediaQuery = (query: string): boolean => {
 };
 
 export const AddExpense: React.FC<AddExpenseProps> = ({
+  householdId,
   householdMembers,
   currentUserId,
   onAddExpense,
@@ -51,9 +53,8 @@ export const AddExpense: React.FC<AddExpenseProps> = ({
   const isMobile = useMediaQuery('(max-width: 768px)');
   const [forceFullScreen, setForceFullScreen] = useState(false);
   
-  // Determine if we should use modal or full screen
-  const isQuickAdd = context === 'settlement' || context === 'chat';
-  const shouldUseModal = !isMobile && isQuickAdd && !forceFullScreen;
+  // Simple logic: mobile always full screen, desktop always modal (unless expanded)
+  const shouldUseModal = !isMobile && !forceFullScreen;
   
   // Reset force full screen when modal closes
   useEffect(() => {
@@ -69,6 +70,7 @@ export const AddExpense: React.FC<AddExpenseProps> = ({
     return (
       <div className="fixed inset-0 z-modal">
         <ExpenseSplitterV3Compact
+          householdId={householdId}
           householdMembers={householdMembers}
           currentUserId={currentUserId}
           onAddExpense={onAddExpense}
@@ -102,6 +104,7 @@ export const AddExpense: React.FC<AddExpenseProps> = ({
       </div>
       
       <ExpenseSplitterV3Compact
+        householdId={householdId}
         householdMembers={householdMembers}
         currentUserId={currentUserId}
         onAddExpense={onAddExpense}

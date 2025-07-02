@@ -22,9 +22,10 @@ interface Expense {
 }
 
 interface ExpenseSplitterV3CompactProps {
+  householdId: string;
   householdMembers: Array<{ id: string; name: string; avatar?: string }>;
   currentUserId: string;
-  onAddExpense: (expense: Omit<Expense, 'id'>) => Promise<void>;
+  onAddExpense: (expense: any) => Promise<void>;
   onCancel?: () => void;
   isModal?: boolean; // New prop to control layout
 }
@@ -41,6 +42,7 @@ const categories = [
 ];
 
 export const ExpenseSplitterV3Compact: React.FC<ExpenseSplitterV3CompactProps> = ({
+  householdId,
   householdMembers,
   currentUserId,
   onAddExpense,
@@ -77,15 +79,33 @@ export const ExpenseSplitterV3Compact: React.FC<ExpenseSplitterV3CompactProps> =
   const handleSubmit = async () => {
     setLoading(true);
     try {
+      const expenseAmount = parseFloat(amount);
+      
+      // Create splits array in API format
+      let splits: Array<{ user_id: string; amount: number }>;
+      
+      if (splitType === 'equal') {
+        // Equal split among selected members
+        const splitAmount = expenseAmount / selectedMembers.length;
+        splits = selectedMembers.map(userId => ({
+          user_id: userId,
+          amount: splitAmount
+        }));
+      } else {
+        // Custom or percentage splits
+        splits = selectedMembers.map(userId => ({
+          user_id: userId,
+          amount: customSplits[userId] || expenseAmount / selectedMembers.length
+        }));
+      }
+      
       await onAddExpense({
+        householdId,
         description,
-        amount: parseFloat(amount),
-        category,
-        paidBy,
-        splitBetween: selectedMembers,
-        splitType,
-        customSplits: splitType !== 'equal' ? customSplits : undefined,
-        date: new Date().toISOString(),
+        amount: expenseAmount,
+        splits,
+        date: new Date().toISOString().split('T')[0], // Format as YYYY-MM-DD
+        paidById: paidBy,
       });
       toast.success('Expense added successfully!');
       onCancel?.();
