@@ -8,6 +8,7 @@ import { UserMenu } from './UserMenu';
 import { Button } from './primitives/Button';
 import { BottomNav, BottomNavSpacer, NavItemId } from './navigation/BottomNav';
 import { Modal } from './surfaces/Modal';
+import { cn } from '@/lib/utils';
 import { SkipToContent } from './accessibility';
 import { Toaster } from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -22,6 +23,7 @@ interface LayoutV2Props {
   onShowSettings?: () => void;
   activeNavItem?: NavItemId;
   onNavigate?: (item: NavItemId) => void;
+  showBottomNav?: boolean;
 }
 
 export const LayoutV2: React.FC<LayoutV2Props> = ({
@@ -33,7 +35,8 @@ export const LayoutV2: React.FC<LayoutV2Props> = ({
   onShowProfile = () => {},
   onShowSettings = () => {},
   activeNavItem = 'home',
-  onNavigate = () => {}
+  onNavigate = () => {},
+  showBottomNav = true
 }) => {
   const { user, signOut } = useAuth();
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
@@ -80,7 +83,10 @@ export const LayoutV2: React.FC<LayoutV2Props> = ({
         {/* Main Content */}
         <main 
           id="main-content"
-          className="pb-14 md:pb-0"
+          className={cn(
+            "md:pb-0",
+            showBottomNav ? "pb-14" : "pb-4"
+          )}
         >
           <div className="px-4 pt-6 pb-4 md:px-6 md:py-6 lg:px-8 lg:py-8 max-w-7xl mx-auto">
             {/* Mobile Title and Back Button */}
@@ -113,7 +119,7 @@ export const LayoutV2: React.FC<LayoutV2Props> = ({
         </main>
 
         {/* Mobile Bottom Navigation */}
-        {user && (
+        {user && showBottomNav && (
           <BottomNav 
             activeItem={activeNavItem}
             onNavigate={onNavigate}

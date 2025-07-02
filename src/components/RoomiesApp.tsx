@@ -191,8 +191,7 @@ const Dashboard: React.FC<{ setAppState: (state: AppState) => void }> = ({ setAp
             title={"My Households"} 
             isHouseholdView={false} 
             onShowProfile={()=>setIsProfileModalOpen(true)}
-            activeNavItem="home"
-            onNavigate={() => {}}>
+            showBottomNav={false}>
             <div className="space-y-6">
                 <div className="flex justify-between items-center">
                     <h2 className="text-2xl font-bold text-foreground">Your Households</h2>
@@ -475,8 +474,7 @@ const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = (
                     showBack 
                     onBack={onBack} 
                     isHouseholdView={false}
-                    activeNavItem="home"
-                    onNavigate={() => {}}>
+                    showBottomNav={false}>
                     <LoadingSpinner />
                 </LayoutV2>
             );
@@ -857,8 +855,7 @@ const App: React.FC = () => {
                     title="Create Household" 
                     showBack 
                     onBack={handleCancelSetupOrJoin}
-                    activeNavItem="home"
-                    onNavigate={() => {}}>
+                    showBottomNav={false}>
                     <div className="flex justify-center">
                             <HouseholdSetupForm
                                 onHouseholdCreated={(hid) => {
@@ -878,8 +875,7 @@ const App: React.FC = () => {
                     title="Join Household" 
                     showBack 
                     onBack={handleCancelSetupOrJoin}
-                    activeNavItem="home"
-                    onNavigate={() => {}}>
+                    showBottomNav={false}>
                     <JoinHouseholdWithCode
                         onJoined={(household) => {
                             setUserHasHouseholds(true);
