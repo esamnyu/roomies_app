@@ -25,4 +25,71 @@
     --input: 214.3 31.8% 91.4%;
     --ring: 158 79% 25%;
   }
+
+  /* Ensure minimum touch target sizes on mobile */
+  @media (max-width: 768px) {
+    button, a, [role="button"], input, select, textarea {
+      min-height: 44px;
+    }
+  }
+
+  /* Safe area insets for mobile devices */
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom, 0);
+  }
+  
+  .pt-safe {
+    padding-top: env(safe-area-inset-top, 0);
+  }
+
+  /* Improve text rendering */
+  body {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* Prevent layout shift from scrollbar */
+  html {
+    overflow-y: scroll;
+  }
+
+  /* Focus visible styles */
+  *:focus-visible {
+    outline: 2px solid hsl(var(--primary));
+    outline-offset: 2px;
+  }
+
+  /* Reduced motion preferences */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+@layer utilities {
+  /* Touch manipulation for better mobile interaction */
+  .touch-manipulation {
+    touch-action: manipulation;
+  }
+
+  /* Custom shimmer animation */
+  @keyframes shimmer {
+    0% {
+      transform: translateX(-100%);
+    }
+    100% {
+      transform: translateX(100%);
+    }
+  }
+  
+  .animate-shimmer {
+    animation: shimmer 2s ease-in-out infinite;
+  }
 }

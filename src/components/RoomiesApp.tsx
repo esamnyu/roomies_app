@@ -37,7 +37,8 @@ import { HouseholdSetupForm } from './HouseholdSetupForm';
 import { OnboardingChoice } from './OnboardingChoice';
 import HouseholdChat from './HouseholdChat';
 import { ChoreHub } from './chores/ChoreHub';
-import { AddExpenseModal } from './modals/AddExpenseModal';
+import { AddExpense } from './AddExpense';
+import { createExpenseWithCustomSplits } from '@/lib/api/expenses';
 import { AddRecurringExpenseModal } from './modals/AddRecurringExpenseModal';
 import { SettleUpModalV2 } from './modals/SettleUpModalV2';
 import { ManageJoinCodeModal } from './modals/ManageJoinCodeModal';
@@ -681,7 +682,36 @@ const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = (
                 )}
             </div>
 
-            {showAddExpense && <AddExpenseModal householdId={householdId} members={members} onClose={() => setShowAddExpense(false)} onExpenseAdded={() => refreshData(true)} />}
+            {showAddExpense && (
+                <AddExpense
+                    householdId={householdId}
+                    householdMembers={members.map(m => ({ 
+                        id: m.user_id, 
+                        name: m.profiles?.name || 'Unknown', 
+                        avatar: m.profiles?.avatar_url || undefined
+                    }))}
+                    isOpen={showAddExpense}
+                    onCancel={() => setShowAddExpense(false)}
+                    onAddExpense={async (expense) => {
+                        try {
+                            await createExpenseWithCustomSplits(
+                                expense.householdId,
+                                expense.description,
+                                expense.amount,
+                                expense.splits,
+                                expense.date,
+                                expense.paidById
+                            );
+                            await refreshData(true);
+                            setShowAddExpense(false);
+                        } catch (error) {
+                            console.error('Failed to add expense:', error);
+                            toast.error('Failed to add expense');
+                        }
+                    }}
+                    currentUserId={user?.id || ''}
+                />
+            )}
             {showSettleUp && <SettleUpModalV2 householdId={householdId} members={members} settlementSuggestions={settlementSuggestions} onClose={() => setShowSettleUp(false)} onSettlementCreated={() => refreshData(true)} />}
             {showAddRecurring && <AddRecurringExpenseModal householdId={householdId} onClose={() => setShowAddRecurring(false)} onExpenseAdded={() => refreshData(true)} />}
             {showManageJoinCode && householdId && <ManageJoinCodeModal householdId={householdId} currentCode={household?.join_code} onClose={() => setShowManageJoinCode(false)} onCodeRefreshed={(newCode) => { if(household) setHousehold({...household, join_code: newCode }); }} />}
