@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { ArrowLeft } from 'lucide-react';
 import { useAuth } from './AuthProvider';
-import { NotificationBell } from './NotificationsPanel';
+import { NotificationBell, NotificationsPanel } from './NotificationsPanel';
 import { UserMenu } from './UserMenu';
 import { Button } from './primitives/Button';
 import { BottomNav, BottomNavSpacer, NavItemId } from './navigation/BottomNav';
@@ -37,6 +37,7 @@ export const LayoutV2: React.FC<LayoutV2Props> = ({
 }) => {
   const { user, signOut } = useAuth();
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
   
   return (
     <>
@@ -132,11 +133,14 @@ export const LayoutV2: React.FC<LayoutV2Props> = ({
             <button
               onClick={() => {
                 setMoreMenuOpen(false);
+                setShowNotifications(true);
               }}
               className="w-full flex items-center p-3 rounded-lg hover:bg-secondary-100 transition-colors"
             >
               <div className="h-10 w-10 rounded-full bg-primary-100 flex items-center justify-center mr-3">
-                <NotificationBell />
+                <svg className="h-5 w-5 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                </svg>
               </div>
               <span className="text-base font-medium">Notifications</span>
             </button>
@@ -192,6 +196,13 @@ export const LayoutV2: React.FC<LayoutV2Props> = ({
             </button>
           </div>
         </Modal>
+        
+        {/* Notifications Panel - Separate from More Menu */}
+        <NotificationsPanel
+          isOpen={showNotifications}
+          onClose={() => setShowNotifications(false)}
+          onNotificationCountChange={() => {}}
+        />
       </div>
       <Toaster 
         position="top-center"
