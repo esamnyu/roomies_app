@@ -1,64 +1,54 @@
 import * as React from 'react';
-import { usePathname } from 'next/navigation';
-import Link from 'next/link';
 import { Home, Receipt, CalendarCheck, MessageSquare, Menu } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
 
+export type NavItemId = 'home' | 'expenses' | 'chores' | 'chat' | 'more';
+
 interface NavItem {
+  id: NavItemId;
   icon: React.ElementType;
   label: string;
-  path?: string;
-  action?: string;
 }
 
 const bottomNavItems: NavItem[] = [
-  { icon: Home, label: 'Home', path: '/' },
-  { icon: Receipt, label: 'Expenses', path: '/expenses' },
-  { icon: CalendarCheck, label: 'Chores', path: '/chores' },
-  { icon: MessageSquare, label: 'Chat', path: '/chat' },
-  { icon: Menu, label: 'More', action: 'sheet' },
+  { id: 'home', icon: Home, label: 'Home' },
+  { id: 'expenses', icon: Receipt, label: 'Expenses' },
+  { id: 'chores', icon: CalendarCheck, label: 'Chores' },
+  { id: 'chat', icon: MessageSquare, label: 'Chat' },
+  { id: 'more', icon: Menu, label: 'More' },
 ];
 
 interface BottomNavProps {
+  activeItem: NavItemId;
+  onNavigate: (item: NavItemId) => void;
   onMenuClick?: () => void;
 }
 
-export const BottomNav: React.FC<BottomNavProps> = ({ onMenuClick }) => {
-  const pathname = usePathname();
-  
+export const BottomNav: React.FC<BottomNavProps> = ({ activeItem, onNavigate, onMenuClick }) => {
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-fixed border-t border-secondary-200 bg-white px-2 pb-safe md:hidden">
       <div className="flex items-center justify-around">
         {bottomNavItems.map((item) => {
-          const isActive = item.path ? pathname === item.path : false;
+          const isActive = activeItem === item.id;
           const Icon = item.icon;
           
-          if (item.action === 'sheet') {
-            return (
-              <button
-                key={item.label}
-                onClick={onMenuClick}
-                className={cn(
-                  'relative flex min-h-[56px] flex-1 flex-col items-center justify-center gap-1 text-secondary-600 transition-colors active:scale-95'
-                )}
-              >
-                <Icon className="h-5 w-5" />
-                <span className="text-xs font-medium">{item.label}</span>
-              </button>
-            );
-          }
-          
           return (
-            <Link
-              key={item.path}
-              href={item.path!}
+            <button
+              key={item.id}
+              onClick={() => {
+                if (item.id === 'more') {
+                  onMenuClick?.();
+                } else {
+                  onNavigate(item.id);
+                }
+              }}
               className={cn(
                 'relative flex min-h-[56px] flex-1 flex-col items-center justify-center gap-1 text-secondary-600 transition-colors active:scale-95',
                 isActive && 'text-primary-500'
               )}
             >
-              {isActive && (
+              {isActive && item.id !== 'more' && (
                 <motion.div
                   layoutId="bottomNavIndicator"
                   className="absolute inset-0 bg-primary-50"
@@ -74,7 +64,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({ onMenuClick }) => {
               <span className={cn('relative text-xs font-medium', isActive && 'text-primary-500')}>
                 {item.label}
               </span>
-            </Link>
+            </button>
           );
         })}
       </div>

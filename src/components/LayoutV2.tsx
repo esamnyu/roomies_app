@@ -6,7 +6,7 @@ import { useAuth } from './AuthProvider';
 import { NotificationBell } from './NotificationsPanel';
 import { UserMenu } from './UserMenu';
 import { Button } from './primitives/Button';
-import { BottomNav, BottomNavSpacer } from './navigation/BottomNav';
+import { BottomNav, BottomNavSpacer, NavItemId } from './navigation/BottomNav';
 import { Modal } from './surfaces/Modal';
 import { SkipToContent } from './accessibility';
 import { Toaster } from 'react-hot-toast';
@@ -20,6 +20,8 @@ interface LayoutV2Props {
   isHouseholdView?: boolean;
   onShowProfile?: () => void;
   onShowSettings?: () => void;
+  activeNavItem?: NavItemId;
+  onNavigate?: (item: NavItemId) => void;
 }
 
 export const LayoutV2: React.FC<LayoutV2Props> = ({
@@ -29,7 +31,9 @@ export const LayoutV2: React.FC<LayoutV2Props> = ({
   onBack,
   isHouseholdView = false,
   onShowProfile = () => {},
-  onShowSettings = () => {}
+  onShowSettings = () => {},
+  activeNavItem = 'home',
+  onNavigate = () => {}
 }) => {
   const { user, signOut } = useAuth();
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
@@ -38,8 +42,8 @@ export const LayoutV2: React.FC<LayoutV2Props> = ({
     <>
       <SkipToContent />
       <div className="min-h-screen bg-secondary-50">
-        {/* Mobile Header */}
-        <header className="sticky top-0 z-sticky bg-white shadow-sm border-b border-secondary-200 md:relative">
+        {/* Desktop Header - Only show on md and above */}
+        <header className="hidden md:block relative bg-white shadow-sm border-b border-secondary-200">
           <div className="px-4 md:px-6 lg:px-8">
             <div className="flex justify-between items-center h-14 md:h-16">
               <div className="flex items-center">
@@ -58,7 +62,7 @@ export const LayoutV2: React.FC<LayoutV2Props> = ({
               {user && (
                 <div className="flex items-center space-x-1">
                   <NotificationBell />
-                  <div className="hidden md:flex">
+                  <div className="flex">
                     <UserMenu
                       onProfileClick={onShowProfile}
                       onSettingsClick={onShowSettings}
@@ -77,7 +81,22 @@ export const LayoutV2: React.FC<LayoutV2Props> = ({
           id="main-content"
           className="pb-14 md:pb-0"
         >
-          <div className="px-4 py-4 md:px-6 md:py-6 lg:px-8 lg:py-8 max-w-7xl mx-auto">
+          <div className="px-4 pt-6 pb-4 md:px-6 md:py-6 lg:px-8 lg:py-8 max-w-7xl mx-auto">
+            {/* Mobile Title and Back Button */}
+            <div className="md:hidden mb-4">
+              <div className="flex items-center">
+                {showBack && (
+                  <button 
+                    onClick={onBack} 
+                    className="mr-3 p-2 -ml-2 rounded-lg hover:bg-secondary-100 active:scale-95"
+                    aria-label="Go back"
+                  >
+                    <ArrowLeft className="h-5 w-5" />
+                  </button>
+                )}
+                <h1 className="text-xl font-semibold text-secondary-900">{title}</h1>
+              </div>
+            </div>
             <AnimatePresence mode="wait">
               <motion.div
                 key={title}
@@ -94,7 +113,11 @@ export const LayoutV2: React.FC<LayoutV2Props> = ({
 
         {/* Mobile Bottom Navigation */}
         {user && (
-          <BottomNav onMenuClick={() => setMoreMenuOpen(true)} />
+          <BottomNav 
+            activeItem={activeNavItem}
+            onNavigate={onNavigate}
+            onMenuClick={() => setMoreMenuOpen(true)} 
+          />
         )}
 
         {/* More Menu Modal */}
@@ -106,6 +129,18 @@ export const LayoutV2: React.FC<LayoutV2Props> = ({
           className="sm:max-w-md"
         >
           <div className="space-y-2">
+            <button
+              onClick={() => {
+                setMoreMenuOpen(false);
+              }}
+              className="w-full flex items-center p-3 rounded-lg hover:bg-secondary-100 transition-colors"
+            >
+              <div className="h-10 w-10 rounded-full bg-primary-100 flex items-center justify-center mr-3">
+                <NotificationBell />
+              </div>
+              <span className="text-base font-medium">Notifications</span>
+            </button>
+
             <button
               onClick={() => {
                 onShowProfile();
