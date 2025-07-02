@@ -11,7 +11,7 @@ import {
 } from '@/lib/api/notifications';
 import type { Notification } from '@/lib/types/types';
 import { useAuth } from './AuthProvider';
-import { Button } from '@/components/ui/Button';
+import { Button } from '@/components/primitives/Button';
 import { subscriptionManager } from '@/lib/subscriptionManager';
 
 interface NotificationsPanelProps {

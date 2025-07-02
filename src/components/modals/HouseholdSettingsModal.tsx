@@ -13,8 +13,8 @@ import {
 import type { Household, HouseholdMember } from '../../lib/types/types';
 import { toast } from 'react-hot-toast';
 import { Loader2, Trash2, Shield, LogOut, AlertTriangle } from 'lucide-react';
-import { Button } from '../ui/Button';
-import { Input } from '../ui/Input';
+import { Button } from '@/components/primitives/Button';
+import { Input } from '@/components/primitives/Input';
 
 interface HouseholdSettingsModalProps {
     household: Household;
@@ -163,7 +163,7 @@ export const HouseholdSettingsModal: React.FC<HouseholdSettingsModalProps> = ({ 
                                                 <Shield className="h-4 w-4"/>
                                             </Button>
                                             )}
-                                            <Button onClick={() => handleRemoveMember(member)} variant="destructive" size="sm" title="Remove Member">
+                                            <Button onClick={() => handleRemoveMember(member)} variant="danger" size="sm" title="Remove Member">
                                                 <Trash2 className="h-4 w-4"/>
                                             </Button>
                                         </div>
@@ -178,7 +178,7 @@ export const HouseholdSettingsModal: React.FC<HouseholdSettingsModalProps> = ({ 
                             <div>
                                 <h4 className="font-medium text-foreground">Leave Household</h4>
                                 <p className="text-xs text-secondary-foreground opacity-70 mt-1">You will be removed from the household. This action cannot be undone.</p>
-                                <Button onClick={handleLeaveHousehold} variant="destructive" className="mt-2 w-full sm:w-auto">
+                                <Button onClick={handleLeaveHousehold} variant="danger" className="mt-2 w-full sm:w-auto">
                                     <LogOut className="h-4 w-4 mr-2" /> Leave Household
                                 </Button>
                             </div>
@@ -201,7 +201,7 @@ export const HouseholdSettingsModal: React.FC<HouseholdSettingsModalProps> = ({ 
                                     </div>
                                     <Button
                                         onClick={handleDeleteHousehold}
-                                        variant="destructive"
+                                        variant="danger"
                                         className="mt-2 w-full sm:w-auto"
                                         disabled={deleteConfirmName !== household.name}
                                     >

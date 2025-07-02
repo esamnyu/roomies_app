@@ -4,7 +4,7 @@
 
 import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { RefreshCw, Wifi, AlertTriangle } from 'lucide-react';
-import { Button } from './ui/Button';
+import { Button } from '@/components/primitives/Button';
 import { getErrorMessage, isOperationalError, NetworkError, AuthError } from '@/lib/errors';
 
 interface Props {
@@ -61,6 +61,10 @@ export class AsyncErrorBoundary extends Component<Props, State> {
   };
 
   private autoRetry = (delayMs = 2000) => {
+    // Clear any existing timeout before setting a new one
+    if (this.retryTimeoutId) {
+      clearTimeout(this.retryTimeoutId);
+    }
     this.retryTimeoutId = setTimeout(() => {
       this.retry();
     }, delayMs);

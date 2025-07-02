@@ -2,8 +2,8 @@
 "use client";
 import React, { useState, useEffect } from 'react';
 import { X, Calendar, Users, UserPlus, Loader2, Info } from 'lucide-react';
-import { Button } from '@/components/ui/Button';
-import { Input } from '@/components/ui/Input';
+import { Button } from '@/components/primitives/Button';
+import { Input } from '@/components/primitives/Input';
 import { 
   snoozeChore, 
   swapChores, 

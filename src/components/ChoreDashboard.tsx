@@ -15,8 +15,8 @@ import {
 import type { ChoreAssignment, Household, HouseholdMember, HouseholdChore, Profile } from '@/lib/types/types';
 import { useAuth } from './AuthProvider';
 import { toast } from 'react-hot-toast';
-import { Button } from '@/components/ui/Button';
-import { Input } from '@/components/ui/Input';
+import { Button } from '@/components/primitives/Button';
+import { Input } from '@/components/primitives/Input';
 import { supabase } from '@/lib/supabase';
 
 // Utility to get initials from a name

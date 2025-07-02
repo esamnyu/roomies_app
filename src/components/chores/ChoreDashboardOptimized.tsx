@@ -2,7 +2,7 @@
 "use client";
 import React from 'react';
 import { PlusCircle, RefreshCw, ClipboardList, Loader2 } from 'lucide-react';
-import { Button } from '@/components/ui/Button';
+import { Button } from '@/components/primitives/Button';
 import { useAuth } from '../AuthProvider';
 import { ChoreProvider, useChoreContext } from './ChoreProvider';
 import { ChoreHistory } from './ChoreHistory';

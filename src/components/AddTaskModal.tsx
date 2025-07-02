@@ -6,8 +6,8 @@ import { Loader2 } from 'lucide-react';
 import * as api from '@/lib/api';
 import { toast } from 'react-hot-toast';
 import type { HouseholdMember } from '@/lib/types/types';
-import { Button } from '@/components/ui/Button';
-import { Input } from '@/components/ui/Input';
+import { Button } from '@/components/primitives/Button';
+import { Input } from '@/components/primitives/Input';
 
 interface AddTaskModalProps {
   householdId: string;

@@ -3,8 +3,8 @@ import React from 'react';
 // Corrected the import path for HouseholdMember below
 import type { HouseholdMember } from '@/lib/types/types';
 import type { SplitType } from '@/hooks/useExpenseSplits';
-import { Button } from '@/components/ui/Button';
-import { Input } from '@/components/ui/Input';
+import { Button } from '@/components/primitives/Button';
+import { Input } from '@/components/primitives/Input';
 
 interface ExpenseSplitterProps {
     members: HouseholdMember[];
@@ -53,7 +53,7 @@ export const ExpenseSplitter: React.FC<ExpenseSplitterProps> = ({
                           key={type}
                           type="button"
                           onClick={() => setSplitType(type)}
-                          variant={splitType === type ? 'default' : 'outline'}
+                          variant={splitType === type ? 'primary' : 'outline'}
                           className="capitalize"
                         >
                             {type}

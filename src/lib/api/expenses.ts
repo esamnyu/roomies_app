@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { supabase } from '../supabase';
 import type { RecurringExpense, Expense } from '../types/types';
 import { getProfile } from './profile';
+import { requireExpenseAccess } from './auth/middleware';
 
 // --- VALIDATION SCHEMAS ---
 const ExpenseSplitSchema = z.object({
@@ -212,6 +213,12 @@ export const updateExpense = async (
 ): Promise<UpdateExpenseResponse> => {
   const validatedId = z.string().uuid().parse(expenseId);
   const validated = UpdateExpenseSchema.parse(payload);
+  
+  // Check authorization
+  const { canEdit } = await requireExpenseAccess(validatedId);
+  if (!canEdit) {
+    throw new ExpenseError('You do not have permission to edit this expense', 'AUTHORIZATION_ERROR');
+  }
   
   validateSplitTotal(validated.splits, validated.amount);
   

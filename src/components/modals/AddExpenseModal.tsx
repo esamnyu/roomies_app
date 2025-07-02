@@ -9,8 +9,8 @@ import type { HouseholdMember } from '@/lib/types/types';
 import { useExpenseSplits } from '@/hooks/useExpenseSplits';
 import { useAuth } from '../AuthProvider'; // NEW: Import useAuth
 import { ExpenseSplitterV2 } from '@/components/ExpenseSplitterV2';
-import { Button } from '@/components/ui/Button';
-import { Input } from '@/components/ui/Input';
+import { Button } from '@/components/primitives/Button';
+import { Input } from '@/components/primitives/Input';
 
 interface AddExpenseModalProps {
   householdId: string;

@@ -55,6 +55,7 @@ export interface Expense {
   date: string
   created_at: string
   updated_at: string
+  version?: number
   profiles?: Profile
   expense_splits?: ExpenseSplit[]
 }

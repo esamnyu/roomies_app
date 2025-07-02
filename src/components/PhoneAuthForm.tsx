@@ -2,9 +2,9 @@
 
 import { useState } from 'react';
 import { useAuth } from './AuthProvider';
-import { Button } from './ui/Button';
-import { Input } from './ui/Input';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/Card';
+import { Button } from '@/components/primitives/Button';
+import { Input } from '@/components/primitives/Input';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/surfaces/Card';
 
 export const PhoneAuthForm = () => {
   const [phone, setPhone] = useState('');

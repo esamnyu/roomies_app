@@ -2,8 +2,8 @@
 
 import React, { useState } from 'react';
 import { useAuth } from './AuthProvider';
-import { Button } from './ui/Button';
-import { Input } from './ui/Input';
+import { Button } from '@/components/primitives/Button';
+import { Input } from '@/components/primitives/Input';
 import { Loader2, User } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 

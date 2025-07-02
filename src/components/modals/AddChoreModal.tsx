@@ -3,8 +3,8 @@
 
 import React, { useState } from 'react';
 import { X, Loader2, Info, Check, Plus, Trash2 } from 'lucide-react';
-import { Button } from '@/components/ui/Button';
-import { Input } from '@/components/ui/Input';
+import { Button } from '@/components/primitives/Button';
+import { Input } from '@/components/primitives/Input';
 import { addCustomChoreToHousehold } from '@/lib/api/chores';
 import { toast } from 'react-hot-toast';
 

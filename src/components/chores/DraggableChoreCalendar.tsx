@@ -2,7 +2,7 @@
 "use client";
 import React, { useState, useMemo } from 'react';
 import { ChevronLeft, ChevronRight, UserPlus, X, Calendar, User, Clock, CheckCircle, AlertCircle, GripVertical } from 'lucide-react';
-import { Button } from '@/components/ui/Button';
+import { Button } from '@/components/primitives/Button';
 import type { ChoreAssignment } from '@/lib/types/types';
 import {
   DndContext,

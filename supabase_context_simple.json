@@ -1,0 +1,710 @@
+{
+  "tables": {
+    "households": {
+      "count": 29,
+      "sampleData": [
+        {
+          "id": "ca63a3f7-18cd-440e-be63-c2e1f54e432e",
+          "name": "Hello",
+          "created_by": "b5d636a8-2303-4679-a54d-54c505034506",
+          "created_at": "2025-05-30T18:58:13.614624+00:00",
+          "updated_at": "2025-05-30T18:58:13.614624+00:00",
+          "member_count": 2,
+          "core_chores": null,
+          "chore_frequency": null,
+          "chore_framework": null,
+          "join_code": null,
+          "last_chore_rotation_date": null,
+          "next_chore_rotation_date": null,
+          "chore_current_assignee_index": null,
+          "rules_document": null,
+          "rules_last_updated": null,
+          "rules": null
+        },
+        {
+          "id": "3eb0abff-d0e4-4e6b-bf05-a2d61ebdb9b0",
+          "name": "test",
+          "created_by": "c6dd6d1a-4d2f-4a95-b6b3-f38f13e87165",
+          "created_at": "2025-06-04T05:06:24.24582+00:00",
+          "updated_at": "2025-06-04T05:06:24.24582+00:00",
+          "member_count": 2,
+          "core_chores": [
+            "Kitchen cleaning",
+            "Taking out trash"
+          ],
+          "chore_frequency": "Weekly",
+          "chore_framework": "Split",
+          "join_code": null,
+          "last_chore_rotation_date": null,
+          "next_chore_rotation_date": null,
+          "chore_current_assignee_index": null,
+          "rules_document": null,
+          "rules_last_updated": null,
+          "rules": null
+        },
+        {
+          "id": "425bfcf4-c447-4dc9-a7e0-2f8d773892b4",
+          "name": "test",
+          "created_by": "c6dd6d1a-4d2f-4a95-b6b3-f38f13e87165",
+          "created_at": "2025-06-04T05:06:52.780611+00:00",
+          "updated_at": "2025-06-04T06:24:18.633112+00:00",
+          "member_count": 3,
+          "core_chores": null,
+          "chore_frequency": null,
+          "chore_framework": null,
+          "join_code": "UE7E",
+          "last_chore_rotation_date": null,
+          "next_chore_rotation_date": null,
+          "chore_current_assignee_index": null,
+          "rules_document": null,
+          "rules_last_updated": null,
+          "rules": null
+        },
+        {
+          "id": "b7710ed7-ec44-41ce-96b5-da9807d46fae",
+          "name": "Daytona Beach",
+          "created_by": "cc4f5b0d-beff-4727-918f-839f57faab10",
+          "created_at": "2025-05-31T01:30:04.658358+00:00",
+          "updated_at": "2025-06-09T13:53:34.773853+00:00",
+          "member_count": 3,
+          "core_chores": null,
+          "chore_frequency": "Bi-weekly",
+          "chore_framework": "Split",
+          "join_code": "ZIFK",
+          "last_chore_rotation_date": "2025-06-05",
+          "next_chore_rotation_date": "2025-06-19",
+          "chore_current_assignee_index": 1,
+          "rules_document": "Quiet Hours please!",
+          "rules_last_updated": "2025-06-09T04:03:58.641+00:00",
+          "rules": [
+            {
+              "id": "rule_1749440209875_0.2601797779532383",
+              "content": "Quiet Hours Start at 12am",
+              "category": "Noise"
+            },
+            {
+              "id": "rule_1749441838641_0.08120049331695356",
+              "content": "Please don't leave bottles and food scraps in the kitchen",
+              "category": "Cleanliness"
+            }
+          ]
+        },
+        {
+          "id": "918a2c4c-66b8-46b9-b9ad-25efb671a33c",
+          "name": "Dreamliner",
+          "created_by": "d8fb8db6-cf7b-4e85-b1c7-64d55a132b9d",
+          "created_at": "2025-06-13T03:18:36.716132+00:00",
+          "updated_at": "2025-06-13T04:31:30.610459+00:00",
+          "member_count": 2,
+          "core_chores": [
+            "Kitchen cleaning",
+            "Living room cleaning",
+            "Taking out trash",
+            "Bathroom cleaning"
+          ],
+          "chore_frequency": "Weekly",
+          "chore_framework": "Split",
+          "join_code": "IPNB",
+          "last_chore_rotation_date": "2025-06-12",
+          "next_chore_rotation_date": "2025-06-19",
+          "chore_current_assignee_index": 0,
+          "rules_document": null,
+          "rules_last_updated": null,
+          "rules": null
+        }
+      ],
+      "error": null
+    },
+    "household_members": {
+      "count": 43,
+      "sampleData": [
+        {
+          "id": "81dad400-ff4d-4ad1-bb0b-af85e109d7d7",
+          "household_id": "ca63a3f7-18cd-440e-be63-c2e1f54e432e",
+          "user_id": "b5d636a8-2303-4679-a54d-54c505034506",
+          "role": "admin",
+          "joined_at": "2025-05-30T18:58:13.79976+00:00"
+        },
+        {
+          "id": "0187291a-f113-46c7-9c69-30e3052f2c3c",
+          "household_id": "1336bbbd-0db5-40a5-946c-ccc4e63460ea",
+          "user_id": "cc4f5b0d-beff-4727-918f-839f57faab10",
+          "role": "admin",
+          "joined_at": "2025-05-31T01:20:22.151909+00:00"
+        },
+        {
+          "id": "71147bbd-f4a0-488e-843f-6415caad86e8",
+          "household_id": "3eb0abff-d0e4-4e6b-bf05-a2d61ebdb9b0",
+          "user_id": "c6dd6d1a-4d2f-4a95-b6b3-f38f13e87165",
+          "role": "admin",
+          "joined_at": "2025-06-04T05:06:24.326527+00:00"
+        },
+        {
+          "id": "8c4c1a36-550b-459b-abc1-28e2682ff978",
+          "household_id": "425bfcf4-c447-4dc9-a7e0-2f8d773892b4",
+          "user_id": "c6dd6d1a-4d2f-4a95-b6b3-f38f13e87165",
+          "role": "admin",
+          "joined_at": "2025-06-04T05:06:52.869497+00:00"
+        },
+        {
+          "id": "1f09c3b6-a297-4b27-8741-2b84a359296e",
+          "household_id": "425bfcf4-c447-4dc9-a7e0-2f8d773892b4",
+          "user_id": "8a8eb936-71a1-4ba7-b034-1bc8b9736e9a",
+          "role": "member",
+          "joined_at": "2025-06-04T06:21:12.841791+00:00"
+        }
+      ],
+      "error": null
+    },
+    "profiles": {
+      "count": 18,
+      "sampleData": [
+        {
+          "id": "b5d636a8-2303-4679-a54d-54c505034506",
+          "name": "John",
+          "avatar_url": null,
+          "created_at": "2025-05-30T18:58:03.394709+00:00",
+          "updated_at": "2025-06-03T03:11:45.815371+00:00",
+          "email": "ethansam.career@gmail.com",
+          "vacation_start_date": null,
+          "vacation_end_date": null
+        },
+        {
+          "id": "7bb0e99a-9580-492a-9964-ff56c186cc89",
+          "name": "Khal",
+          "avatar_url": null,
+          "created_at": "2025-06-04T03:40:52.357293+00:00",
+          "updated_at": "2025-06-04T03:40:52.357293+00:00",
+          "email": null,
+          "vacation_start_date": null,
+          "vacation_end_date": null
+        },
+        {
+          "id": "c6dd6d1a-4d2f-4a95-b6b3-f38f13e87165",
+          "name": "Khalid",
+          "avatar_url": null,
+          "created_at": "2025-06-04T04:51:21.451695+00:00",
+          "updated_at": "2025-06-04T04:51:21.451695+00:00",
+          "email": null,
+          "vacation_start_date": null,
+          "vacation_end_date": null
+        },
+        {
+          "id": "8a8eb936-71a1-4ba7-b034-1bc8b9736e9a",
+          "name": "khal",
+          "avatar_url": null,
+          "created_at": "2025-06-04T06:21:08.39944+00:00",
+          "updated_at": "2025-06-04T06:21:08.39944+00:00",
+          "email": null,
+          "vacation_start_date": null,
+          "vacation_end_date": null
+        },
+        {
+          "id": "9952fc13-7884-423c-a9ea-1cf260acaaa5",
+          "name": "kal",
+          "avatar_url": null,
+          "created_at": "2025-06-04T06:23:11.358839+00:00",
+          "updated_at": "2025-06-04T06:23:11.358839+00:00",
+          "email": null,
+          "vacation_start_date": null,
+          "vacation_end_date": null
+        }
+      ],
+      "error": null
+    },
+    "expenses": {
+      "count": 110,
+      "sampleData": [
+        {
+          "id": "9eddab22-f9e6-4475-8626-0a147099de01",
+          "household_id": "ca63a3f7-18cd-440e-be63-c2e1f54e432e",
+          "description": "Hello",
+          "amount": 500,
+          "paid_by": "b5d636a8-2303-4679-a54d-54c505034506",
+          "date": "2025-05-30",
+          "created_at": "2025-05-30T18:58:36.934884+00:00",
+          "updated_at": "2025-05-30T18:58:36.934884+00:00",
+          "recurring_expense_id": null,
+          "version": 1
+        },
+        {
+          "id": "956bcb5f-fde4-4af0-bf2c-3a67641f23ff",
+          "household_id": "1336bbbd-0db5-40a5-946c-ccc4e63460ea",
+          "description": "Hello",
+          "amount": 500,
+          "paid_by": "cc4f5b0d-beff-4727-918f-839f57faab10",
+          "date": "2025-05-31",
+          "created_at": "2025-05-31T01:27:36.406596+00:00",
+          "updated_at": "2025-05-31T01:27:36.406596+00:00",
+          "recurring_expense_id": null,
+          "version": 1
+        },
+        {
+          "id": "8f3b669a-ae78-43e0-9eb0-1f0df161c227",
+          "household_id": "1336bbbd-0db5-40a5-946c-ccc4e63460ea",
+          "description": "Goodbye",
+          "amount": 500,
+          "paid_by": "cc4f5b0d-beff-4727-918f-839f57faab10",
+          "date": "2025-05-31",
+          "created_at": "2025-05-31T01:28:37.846929+00:00",
+          "updated_at": "2025-05-31T01:28:37.846929+00:00",
+          "recurring_expense_id": null,
+          "version": 1
+        },
+        {
+          "id": "01b0b0bf-6671-4f1f-9f78-cafa7e0d0582",
+          "household_id": "b7710ed7-ec44-41ce-96b5-da9807d46fae",
+          "description": "Big money!",
+          "amount": 1000,
+          "paid_by": "cc4f5b0d-beff-4727-918f-839f57faab10",
+          "date": "2025-05-31",
+          "created_at": "2025-05-31T01:30:14.723345+00:00",
+          "updated_at": "2025-05-31T01:30:14.723345+00:00",
+          "recurring_expense_id": null,
+          "version": 1
+        },
+        {
+          "id": "1095ca93-d1b3-49a3-8c63-94b1d86b4371",
+          "household_id": "1336bbbd-0db5-40a5-946c-ccc4e63460ea",
+          "description": "yessir",
+          "amount": 1000,
+          "paid_by": "cc4f5b0d-beff-4727-918f-839f57faab10",
+          "date": "2025-05-31",
+          "created_at": "2025-05-31T06:09:33.765133+00:00",
+          "updated_at": "2025-05-31T06:09:33.765133+00:00",
+          "recurring_expense_id": null,
+          "version": 1
+        }
+      ],
+      "error": null
+    },
+    "expense_splits": {
+      "count": 173,
+      "sampleData": [
+        {
+          "id": "28f855d8-d5c9-4a5f-aa16-769a4a6687c3",
+          "expense_id": "9eddab22-f9e6-4475-8626-0a147099de01",
+          "user_id": "b5d636a8-2303-4679-a54d-54c505034506",
+          "amount": 500,
+          "settled": true,
+          "settled_at": null
+        },
+        {
+          "id": "784726c7-0630-44c2-a4c8-eb1aba2ef968",
+          "expense_id": "956bcb5f-fde4-4af0-bf2c-3a67641f23ff",
+          "user_id": "cc4f5b0d-beff-4727-918f-839f57faab10",
+          "amount": 500,
+          "settled": true,
+          "settled_at": null
+        },
+        {
+          "id": "4814f037-2af9-4999-b23d-f63c20ffdcb4",
+          "expense_id": "8f3b669a-ae78-43e0-9eb0-1f0df161c227",
+          "user_id": "cc4f5b0d-beff-4727-918f-839f57faab10",
+          "amount": 500,
+          "settled": true,
+          "settled_at": null
+        },
+        {
+          "id": "d028b648-fab8-4b65-926b-08e8e2cffa98",
+          "expense_id": "01b0b0bf-6671-4f1f-9f78-cafa7e0d0582",
+          "user_id": "cc4f5b0d-beff-4727-918f-839f57faab10",
+          "amount": 1000,
+          "settled": true,
+          "settled_at": null
+        },
+        {
+          "id": "031259b5-fa5f-4931-8413-84fa09d6b979",
+          "expense_id": "1095ca93-d1b3-49a3-8c63-94b1d86b4371",
+          "user_id": "cc4f5b0d-beff-4727-918f-839f57faab10",
+          "amount": 1000,
+          "settled": true,
+          "settled_at": null
+        }
+      ],
+      "error": null
+    },
+    "household_chores": {
+      "count": 95,
+      "sampleData": [
+        {
+          "id": "27e3f0cd-ff86-4d35-999f-1a53a3b63e6d",
+          "household_id": "4c58538e-b9e5-492c-9b24-1a6de2660322",
+          "name": "Kitchen cleaning",
+          "description": null,
+          "is_core_chore": true,
+          "default_order": 0,
+          "is_active": true,
+          "created_at": "2025-06-05T04:36:50.712393+00:00",
+          "updated_at": "2025-06-05T04:36:50.712393+00:00"
+        },
+        {
+          "id": "be7ec0b7-c51d-4ed3-80da-ce0657686eed",
+          "household_id": "4c58538e-b9e5-492c-9b24-1a6de2660322",
+          "name": "Living room cleaning",
+          "description": null,
+          "is_core_chore": true,
+          "default_order": 1,
+          "is_active": true,
+          "created_at": "2025-06-05T04:36:50.712393+00:00",
+          "updated_at": "2025-06-05T04:36:50.712393+00:00"
+        },
+        {
+          "id": "883d93f2-3f9f-495f-9e0e-c5522e0de028",
+          "household_id": "4c58538e-b9e5-492c-9b24-1a6de2660322",
+          "name": "Taking out trash",
+          "description": null,
+          "is_core_chore": true,
+          "default_order": 2,
+          "is_active": true,
+          "created_at": "2025-06-05T04:36:50.712393+00:00",
+          "updated_at": "2025-06-05T04:36:50.712393+00:00"
+        },
+        {
+          "id": "d3b34c9e-9b87-4289-87b3-f99b9ca49542",
+          "household_id": "4c58538e-b9e5-492c-9b24-1a6de2660322",
+          "name": "Bathroom cleaning",
+          "description": null,
+          "is_core_chore": true,
+          "default_order": 3,
+          "is_active": true,
+          "created_at": "2025-06-05T04:36:50.712393+00:00",
+          "updated_at": "2025-06-05T04:36:50.712393+00:00"
+        },
+        {
+          "id": "94793c32-615f-44c7-88bb-c13f8cf3d22d",
+          "household_id": "24ed0fa1-a556-46ef-99b8-516dc805d661",
+          "name": "Kitchen cleaning",
+          "description": null,
+          "is_core_chore": true,
+          "default_order": 0,
+          "is_active": true,
+          "created_at": "2025-06-05T04:42:14.243256+00:00",
+          "updated_at": "2025-06-05T04:42:14.243256+00:00"
+        }
+      ],
+      "error": null
+    },
+    "chore_assignments": {
+      "count": 779,
+      "sampleData": [
+        {
+          "id": "706bc87e-fb04-4c2f-a923-686562660e70",
+          "household_chore_id": "ba714aed-5f40-4c00-8371-775758c00327",
+          "household_id": "40ad7280-68e9-4b2e-b75f-9781b0ba0048",
+          "assigned_user_id": "cc4f5b0d-beff-4727-918f-839f57faab10",
+          "cycle_start_date": "2025-06-18",
+          "due_date": "2025-06-26",
+          "status": "pending",
+          "completed_at": null,
+          "completed_by_user_id": null,
+          "notes": null,
+          "created_at": "2025-06-19T04:45:50.719664+00:00",
+          "updated_at": "2025-06-19T04:45:50.719664+00:00"
+        },
+        {
+          "id": "20f47dc9-abe1-42bf-b212-f077b8f007ba",
+          "household_chore_id": "7ccf1c45-4a92-4e8e-8974-7bff7bc1fb18",
+          "household_id": "f8cdf45c-74ba-4c34-a29a-76058f1507cb",
+          "assigned_user_id": "fdeda303-f5d0-42e9-a964-d46eab06eda8",
+          "cycle_start_date": "2025-06-05",
+          "due_date": "2025-06-12",
+          "status": "completed",
+          "completed_at": "2025-06-15T23:21:42.553+00:00",
+          "completed_by_user_id": "fdeda303-f5d0-42e9-a964-d46eab06eda8",
+          "notes": null,
+          "created_at": "2025-06-05T05:08:33.620402+00:00",
+          "updated_at": "2025-06-05T05:08:33.620402+00:00"
+        },
+        {
+          "id": "4f6e6048-d2b5-4af8-89fb-379b6ebd5bf8",
+          "household_chore_id": "560eb6d6-742f-4282-93d8-27120fe59240",
+          "household_id": "1336bbbd-0db5-40a5-946c-ccc4e63460ea",
+          "assigned_user_id": "cc4f5b0d-beff-4727-918f-839f57faab10",
+          "cycle_start_date": "2025-06-12",
+          "due_date": "2025-06-26",
+          "status": "completed",
+          "completed_at": "2025-06-12T21:32:00.231+00:00",
+          "completed_by_user_id": "cc4f5b0d-beff-4727-918f-839f57faab10",
+          "notes": null,
+          "created_at": "2025-06-12T21:31:58.435968+00:00",
+          "updated_at": "2025-06-12T21:31:58.435968+00:00"
+        },
+        {
+          "id": "8933d6ec-1b3f-4253-a3e2-ec8c0f871b63",
+          "household_chore_id": "68df7805-1170-4cb7-b61d-f40a15a5d43e",
+          "household_id": "b7710ed7-ec44-41ce-96b5-da9807d46fae",
+          "assigned_user_id": "cc4f5b0d-beff-4727-918f-839f57faab10",
+          "cycle_start_date": "2025-06-05",
+          "due_date": "2025-06-12",
+          "status": "completed",
+          "completed_at": "2025-06-05T21:28:07.975+00:00",
+          "completed_by_user_id": "cc4f5b0d-beff-4727-918f-839f57faab10",
+          "notes": null,
+          "created_at": "2025-06-05T21:10:40.268226+00:00",
+          "updated_at": "2025-06-05T21:10:40.268226+00:00"
+        },
+        {
+          "id": "44e165d6-66af-43f3-a1a4-efd335372873",
+          "household_chore_id": "49a6b2ba-de2d-4cd7-ae56-ca872e034b68",
+          "household_id": "1336bbbd-0db5-40a5-946c-ccc4e63460ea",
+          "assigned_user_id": "cc4f5b0d-beff-4727-918f-839f57faab10",
+          "cycle_start_date": "2025-06-12",
+          "due_date": "2025-06-26",
+          "status": "completed",
+          "completed_at": "2025-06-12T21:32:00.924+00:00",
+          "completed_by_user_id": "cc4f5b0d-beff-4727-918f-839f57faab10",
+          "notes": null,
+          "created_at": "2025-06-12T21:31:58.435968+00:00",
+          "updated_at": "2025-06-12T21:31:58.435968+00:00"
+        }
+      ],
+      "error": null
+    },
+    "messages": {
+      "count": 116,
+      "sampleData": [
+        {
+          "id": "78cd8ce0-ecc8-4f2f-8c72-dabd7884518b",
+          "household_id": "b7710ed7-ec44-41ce-96b5-da9807d46fae",
+          "user_id": "cc4f5b0d-beff-4727-918f-839f57faab10",
+          "content": "yessir",
+          "edited": false,
+          "deleted": false,
+          "created_at": "2025-06-05T02:42:38.372581+00:00",
+          "updated_at": "2025-06-05T02:42:38.372581+00:00"
+        },
+        {
+          "id": "9ad21a13-e0b3-4f37-8fdf-fa5c1d13f372",
+          "household_id": "b7710ed7-ec44-41ce-96b5-da9807d46fae",
+          "user_id": "cc4f5b0d-beff-4727-918f-839f57faab10",
+          "content": "hi there",
+          "edited": false,
+          "deleted": false,
+          "created_at": "2025-06-05T02:42:46.629567+00:00",
+          "updated_at": "2025-06-05T02:42:46.629567+00:00"
+        },
+        {
+          "id": "949cea24-0f69-4c23-bac5-89a89e9735a9",
+          "household_id": "b7710ed7-ec44-41ce-96b5-da9807d46fae",
+          "user_id": "cc4f5b0d-beff-4727-918f-839f57faab10",
+          "content": "what the",
+          "edited": false,
+          "deleted": false,
+          "created_at": "2025-06-05T02:42:51.863925+00:00",
+          "updated_at": "2025-06-05T02:42:51.863925+00:00"
+        },
+        {
+          "id": "0f8410f4-ebde-4cc1-bc8d-431a87e5eea3",
+          "household_id": "b7710ed7-ec44-41ce-96b5-da9807d46fae",
+          "user_id": "cc4f5b0d-beff-4727-918f-839f57faab10",
+          "content": "wow",
+          "edited": false,
+          "deleted": false,
+          "created_at": "2025-06-05T02:44:06.268789+00:00",
+          "updated_at": "2025-06-05T02:44:06.268789+00:00"
+        },
+        {
+          "id": "6fe36771-3551-467c-b969-3be5230a26d9",
+          "household_id": "b7710ed7-ec44-41ce-96b5-da9807d46fae",
+          "user_id": "cc4f5b0d-beff-4727-918f-839f57faab10",
+          "content": "Geez Louis",
+          "edited": false,
+          "deleted": false,
+          "created_at": "2025-06-05T02:44:34.67173+00:00",
+          "updated_at": "2025-06-05T02:44:34.67173+00:00"
+        }
+      ],
+      "error": null
+    },
+    "notifications": {
+      "count": 466,
+      "sampleData": [
+        {
+          "id": "8093095c-1b20-44cf-9545-62af80ae655a",
+          "user_id": "8a8eb936-71a1-4ba7-b034-1bc8b9736e9a",
+          "household_id": "425bfcf4-c447-4dc9-a7e0-2f8d773892b4",
+          "type": "task_assigned",
+          "title": "New Task Assigned",
+          "message": "You have been assigned: testing",
+          "data": {
+            "title": "testing",
+            "task_id": "3e4bbc42-0452-406b-921c-8f1a8e14d08d",
+            "assigned_by": "9952fc13-7884-423c-a9ea-1cf260acaaa5"
+          },
+          "is_read": false,
+          "read_at": null,
+          "created_at": "2025-06-04T06:32:01.86206+00:00",
+          "updated_at": "2025-06-04T06:32:01.86206+00:00"
+        },
+        {
+          "id": "7ffffc6c-a876-447a-b39f-9da86e6e9a2c",
+          "user_id": "fb85a5b7-b823-494b-b2cc-5bdcae98aa1c",
+          "household_id": "bc484683-a42b-4921-ae43-dc4d1dc6913a",
+          "type": "settlement_recorded",
+          "title": "Payment Received",
+          "message": "Alex paid you $50.00",
+          "data": {
+            "amount": 50,
+            "payer_id": "cc4f5b0d-beff-4727-918f-839f57faab10",
+            "settlement_id": "bf0ea9eb-8e0e-4515-b8e8-c1d7fde4f885"
+          },
+          "is_read": false,
+          "read_at": null,
+          "created_at": "2025-06-22T20:24:50.218858+00:00",
+          "updated_at": "2025-06-22T20:24:50.218858+00:00"
+        },
+        {
+          "id": "fb8a3423-9fa0-4f1a-9d58-d90b26a55bcf",
+          "user_id": "cc4f5b0d-beff-4727-918f-839f57faab10",
+          "household_id": "b7710ed7-ec44-41ce-96b5-da9807d46fae",
+          "type": "expense_added",
+          "title": "New Expense Added",
+          "message": "Khalid An paid $200.00 for chicken. Your share: $100.00",
+          "data": {
+            "amount": 200,
+            "paid_by": "74cd5fe8-f47f-4c8b-882f-3234d633f4b6",
+            "expense_id": "70d5c4f3-5ea6-48b2-9464-6775b01c3edc",
+            "description": "chicken"
+          },
+          "is_read": true,
+          "read_at": "2025-06-05T03:24:01.83+00:00",
+          "created_at": "2025-06-05T03:06:37.911052+00:00",
+          "updated_at": "2025-06-05T03:24:01.83+00:00"
+        },
+        {
+          "id": "a41d7b02-7fd8-43c2-b0d6-338d9290f256",
+          "user_id": "cc4f5b0d-beff-4727-918f-839f57faab10",
+          "household_id": "b7710ed7-ec44-41ce-96b5-da9807d46fae",
+          "type": "expense_added",
+          "title": "New Expense Added",
+          "message": "Khalid An added \"chicken\" - You owe $100.00",
+          "data": {
+            "amount": 100,
+            "payer_id": "74cd5fe8-f47f-4c8b-882f-3234d633f4b6",
+            "expense_id": "70d5c4f3-5ea6-48b2-9464-6775b01c3edc"
+          },
+          "is_read": true,
+          "read_at": "2025-06-05T03:24:01.83+00:00",
+          "created_at": "2025-06-05T03:06:38.173513+00:00",
+          "updated_at": "2025-06-05T03:24:01.83+00:00"
+        },
+        {
+          "id": "ad3db8e4-3edc-4717-b4e2-860134538abc",
+          "user_id": "74cd5fe8-f47f-4c8b-882f-3234d633f4b6",
+          "household_id": "b7710ed7-ec44-41ce-96b5-da9807d46fae",
+          "type": "message_sent",
+          "title": "New Message",
+          "message": "Ethan sent a message in Daytona Beach",
+          "data": {
+            "preview": "wowza",
+            "sender_id": "cc4f5b0d-beff-4727-918f-839f57faab10",
+            "message_id": "d48184fd-9640-4608-8ccc-fad7294de3ac"
+          },
+          "is_read": false,
+          "read_at": null,
+          "created_at": "2025-06-05T03:29:16.577645+00:00",
+          "updated_at": "2025-06-05T03:29:16.577645+00:00"
+        }
+      ],
+      "error": null
+    },
+    "house_rules": {
+      "count": 0,
+      "sampleData": [],
+      "error": {
+        "code": "42P01",
+        "details": null,
+        "hint": null,
+        "message": "relation \"public.house_rules\" does not exist"
+      }
+    },
+    "recurring_expenses": {
+      "count": 23,
+      "sampleData": [
+        {
+          "id": "905da619-2dff-4691-be8b-b25999003cdd",
+          "household_id": "b7710ed7-ec44-41ce-96b5-da9807d46fae",
+          "description": "Rent ",
+          "amount": 2000,
+          "frequency": "monthly",
+          "day_of_month": 1,
+          "day_of_week": null,
+          "next_due_date": "2025-07-01",
+          "is_active": true,
+          "created_by": "cc4f5b0d-beff-4727-918f-839f57faab10",
+          "created_at": "2025-05-31T19:47:14.586139+00:00",
+          "updated_at": "2025-05-31T19:47:14.586139+00:00",
+          "splits": null,
+          "last_processed_at": null
+        },
+        {
+          "id": "bef79142-3516-496e-82dc-53d4289f60ea",
+          "household_id": "b7710ed7-ec44-41ce-96b5-da9807d46fae",
+          "description": "Internet",
+          "amount": 200,
+          "frequency": "monthly",
+          "day_of_month": 1,
+          "day_of_week": null,
+          "next_due_date": "2025-07-01",
+          "is_active": true,
+          "created_by": "cc4f5b0d-beff-4727-918f-839f57faab10",
+          "created_at": "2025-05-31T20:25:17.964757+00:00",
+          "updated_at": "2025-05-31T20:25:17.964757+00:00",
+          "splits": null,
+          "last_processed_at": null
+        },
+        {
+          "id": "88018843-1d6b-4a81-a9e3-5ca98261c778",
+          "household_id": "b7710ed7-ec44-41ce-96b5-da9807d46fae",
+          "description": "Utilities ",
+          "amount": 100,
+          "frequency": "monthly",
+          "day_of_month": 1,
+          "day_of_week": null,
+          "next_due_date": "2025-07-02",
+          "is_active": true,
+          "created_by": "cc4f5b0d-beff-4727-918f-839f57faab10",
+          "created_at": "2025-06-01T00:25:19.316187+00:00",
+          "updated_at": "2025-06-01T00:25:19.316187+00:00",
+          "splits": null,
+          "last_processed_at": null
+        },
+        {
+          "id": "3ae348bf-b4e3-41fe-83e9-a05e9ee7978b",
+          "household_id": "1336bbbd-0db5-40a5-946c-ccc4e63460ea",
+          "description": "Rent ",
+          "amount": 1300,
+          "frequency": "monthly",
+          "day_of_month": 1,
+          "day_of_week": null,
+          "next_due_date": "2025-07-02",
+          "is_active": true,
+          "created_by": "cc4f5b0d-beff-4727-918f-839f57faab10",
+          "created_at": "2025-06-01T00:31:47.440884+00:00",
+          "updated_at": "2025-06-01T00:31:47.440884+00:00",
+          "splits": null,
+          "last_processed_at": null
+        },
+        {
+          "id": "efdc8b3e-6780-4709-909c-12122a65ef95",
+          "household_id": "1336bbbd-0db5-40a5-946c-ccc4e63460ea",
+          "description": "Internet",
+          "amount": 145,
+          "frequency": "monthly",
+          "day_of_month": 1,
+          "day_of_week": null,
+          "next_due_date": "2025-07-02",
+          "is_active": true,
+          "created_by": "cc4f5b0d-beff-4727-918f-839f57faab10",
+          "created_at": "2025-06-01T00:54:47.171213+00:00",
+          "updated_at": "2025-06-01T00:54:47.171213+00:00",
+          "splits": null,
+          "last_processed_at": null
+        }
+      ],
+      "error": null
+    }
+  },
+  "timestamp": "2025-07-02T19:07:54.922Z"
+}

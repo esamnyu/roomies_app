@@ -3,8 +3,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { X, Loader2, Edit2, Trash2, ToggleLeft, ToggleRight, Save, AlertCircle } from 'lucide-react';
-import { Button } from '@/components/ui/Button';
-import { Input } from '@/components/ui/Input';
+import { Button } from '@/components/primitives/Button';
+import { Input } from '@/components/primitives/Input';
 import { 
     getHouseholdChores, 
     updateHouseholdChore, 

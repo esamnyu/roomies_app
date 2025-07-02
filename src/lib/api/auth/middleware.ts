@@ -86,12 +86,16 @@ export async function requireExpenseAccess(expenseId: string, userId?: string) {
       throw new AuthorizationError('Expense not found');
     }
     
-    // Check if user is a member of the household
-    await requireHouseholdMember(expense.household_id, user);
+    // Check if user is a member of the household and get their role
+    const memberInfo = await requireHouseholdMember(expense.household_id, user);
+    
+    // Allow edit if user is the payer OR if user is an admin
+    const canEdit = expense.paid_by === user || memberInfo.memberRole === 'admin';
     
     return { 
-      canEdit: expense.paid_by === user,
-      householdId: expense.household_id 
+      canEdit,
+      householdId: expense.household_id,
+      isAdmin: memberInfo.memberRole === 'admin'
     };
   }, 'requireExpenseAccess');
 }

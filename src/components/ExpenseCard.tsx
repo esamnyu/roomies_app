@@ -1,7 +1,7 @@
 // src/components/ExpenseCard.tsx
 import React from 'react';
-import { ChevronDown, ChevronUp, Pencil, Calendar, User } from 'lucide-react';
-import { Button } from '@/components/ui/Button';
+import { ChevronDown, ChevronUp, Pencil, Calendar, User, Lock, AlertTriangle } from 'lucide-react';
+import { Button } from '@/components/primitives/Button';
 import type { Expense } from '@/lib/types/types';
 
 interface ExpenseCardProps {
@@ -22,6 +22,10 @@ export const ExpenseCard: React.FC<ExpenseCardProps> = ({
     // Calculate what the current user owes or is owed for this expense
     const currentUserSplit = expense.expense_splits?.find(s => s.user_id === currentUserId);
     const paidByCurrentUser = expense.paid_by === currentUserId;
+    
+    // Check if any splits are settled
+    const hasSettledSplits = expense.expense_splits?.some(split => split.settled) || false;
+    const allSplitsSettled = expense.expense_splits?.every(split => split.settled) || false;
     
     // If current user paid, they're owed the sum of other people's splits
     // If they didn't pay, they owe their split amount
@@ -52,7 +56,19 @@ export const ExpenseCard: React.FC<ExpenseCardProps> = ({
                     <div className="flex-1">
                         <div className="flex items-start justify-between">
                             <div>
-                                <h4 className="font-semibold text-foreground text-base">{expense.description}</h4>
+                                <div className="flex items-center space-x-2">
+                                    <h4 className="font-semibold text-foreground text-base">{expense.description}</h4>
+                                    {hasSettledSplits && (
+                                        <div className="relative group">
+                                            <Lock className={`h-4 w-4 ${allSplitsSettled ? 'text-gray-500' : 'text-yellow-500'}`} />
+                                            <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 hidden group-hover:block">
+                                                <div className="bg-gray-800 text-white text-xs rounded py-1 px-2 whitespace-nowrap">
+                                                    {allSplitsSettled ? 'All splits settled' : 'Some splits settled'}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
                                 <div className="flex items-center space-x-3 mt-1 text-sm text-secondary-foreground">
                                     <div className="flex items-center">
                                         <User className="h-3 w-3 mr-1" />
@@ -78,16 +94,26 @@ export const ExpenseCard: React.FC<ExpenseCardProps> = ({
                                     )}
                                 </div>
                                 <div className="flex items-center space-x-1">
-                                    <Button 
-                                        variant="ghost" 
-                                        size="icon"
-                                        onClick={(e) => { 
-                                            e.stopPropagation(); 
-                                            onEdit(); 
-                                        }}
-                                    >
-                                        <Pencil className="h-4 w-4" />
-                                    </Button>
+                                    <div className="relative group">
+                                        <Button 
+                                            variant="ghost" 
+                                            size="icon"
+                                            className={hasSettledSplits ? 'text-yellow-600 hover:text-yellow-700' : ''}
+                                            onClick={(e) => { 
+                                                e.stopPropagation(); 
+                                                onEdit(); 
+                                            }}
+                                        >
+                                            <Pencil className="h-4 w-4" />
+                                        </Button>
+                                        {hasSettledSplits && (
+                                            <div className="absolute bottom-full right-0 mb-2 hidden group-hover:block">
+                                                <div className="bg-gray-800 text-white text-xs rounded py-1 px-2 whitespace-nowrap">
+                                                    Editing will create adjustments
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
                                     <Button
                                         variant="ghost"
                                         size="icon"
@@ -152,17 +178,40 @@ export const ExpenseCard: React.FC<ExpenseCardProps> = ({
                         
                         {/* Show adjustments if any */}
                         {expense.expense_splits?.some(s => s.expense_split_adjustments && s.expense_split_adjustments.length > 0) && (
-                            <div className="mt-3 pt-3 border-t border-border">
-                                <h6 className="text-xs font-semibold text-secondary-foreground mb-2">Adjustments</h6>
-                                {expense.expense_splits.map(split => 
-                                    split.expense_split_adjustments?.map(adj => (
-                                        <div key={adj.id} className="text-xs text-secondary-foreground italic ml-4">
-                                            {adj.adjustment_amount > 0 ? '+' : ''}${adj.adjustment_amount.toFixed(2)} 
-                                            for {split.profiles?.name} 
-                                            {adj.reason && ` - ${adj.reason}`}
-                                        </div>
-                                    ))
-                                )}
+                            <div className="mt-4 p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-md border border-yellow-200 dark:border-yellow-800">
+                                <div className="flex items-center space-x-2 mb-2">
+                                    <AlertTriangle className="h-4 w-4 text-yellow-600 dark:text-yellow-500" />
+                                    <h6 className="text-sm font-semibold text-yellow-800 dark:text-yellow-200">
+                                        Expense Modified After Settlement
+                                    </h6>
+                                </div>
+                                <p className="text-xs text-yellow-700 dark:text-yellow-300 mb-2">
+                                    This expense was edited after some splits were settled. The following adjustments were created:
+                                </p>
+                                <div className="space-y-1">
+                                    {expense.expense_splits.map(split => 
+                                        split.expense_split_adjustments?.map(adj => (
+                                            <div key={adj.id} className="flex items-center justify-between text-sm">
+                                                <div className="flex items-center space-x-2">
+                                                    <div className={`w-2 h-2 rounded-full ${
+                                                        adj.adjustment_amount > 0 ? 'bg-green-500' : 'bg-red-500'
+                                                    }`} />
+                                                    <span className="text-yellow-700 dark:text-yellow-300">
+                                                        {split.profiles?.name}
+                                                    </span>
+                                                </div>
+                                                <span className={`font-medium ${
+                                                    adj.adjustment_amount > 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
+                                                }`}>
+                                                    {adj.adjustment_amount > 0 ? '+' : ''}${adj.adjustment_amount.toFixed(2)}
+                                                </span>
+                                            </div>
+                                        ))
+                                    )}
+                                </div>
+                                <p className="text-xs text-yellow-600 dark:text-yellow-400 mt-2">
+                                    These adjustments have been applied to the balances.
+                                </p>
                             </div>
                         )}
                     </div>

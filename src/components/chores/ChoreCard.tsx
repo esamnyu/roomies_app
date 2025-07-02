@@ -2,7 +2,7 @@
 "use client";
 import React, { useMemo } from 'react';
 import { CheckCircle, Loader2 } from 'lucide-react';
-import { Button } from '@/components/ui/Button';
+import { Button } from '@/components/primitives/Button';
 import type { ChoreAssignment } from '@/lib/types/types';
 
 // Utility to get initials from a name

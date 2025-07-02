@@ -1,7 +1,7 @@
 // src/components/BalanceSummaryCard.tsx
 import React from 'react';
 import { ArrowRight, CheckCircle2 } from 'lucide-react';
-import { Button } from '@/components/ui/Button';
+import { Button } from '@/components/primitives/Button';
 import type { SettlementSuggestion, Profile } from '@/lib/types/types';
 
 interface Balance {

@@ -9,8 +9,8 @@ import { updateExpense } from '@/lib/api/expenses';
 import type { Expense, HouseholdMember, UpdateExpensePayload } from '@/lib/types/types';
 import { useExpenseSplits } from '@/hooks/useExpenseSplits';
 import { ExpenseSplitterV2 } from '@/components/ExpenseSplitterV2';
-import { Button } from '@/components/ui/Button';
-import { Input } from '@/components/ui/Input';
+import { Button } from '@/components/primitives/Button';
+import { Input } from '@/components/primitives/Input';
 
 const SettledExpenseWarningDialog = ({ onConfirm, onCancel }: { onConfirm: () => void; onCancel: () => void; }) => (
     <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-[60]">
@@ -27,7 +27,7 @@ const SettledExpenseWarningDialog = ({ onConfirm, onCancel }: { onConfirm: () =>
             </p>
             <div className="flex justify-end space-x-3">
                 <Button onClick={onCancel} variant="secondary">Cancel Edit</Button>
-                <Button onClick={onConfirm} variant="destructive">Proceed Anyway</Button>
+                <Button onClick={onConfirm} variant="danger">Proceed Anyway</Button>
             </div>
         </div>
     </div>
@@ -75,8 +75,19 @@ export const EditExpenseModal: React.FC<EditExpenseModalProps> = ({ expense, mem
             amount,
             splits: finalSplits,
             paid_by: paidBy,
-            date: date
+            date: date,
+            version: expense.version
         };
+        
+        // Check if any splits are settled
+        const hasSettledSplits = expense.expense_splits?.some(split => split.settled) || false;
+        
+        if (hasSettledSplits) {
+            // Show warning dialog and store the payload for later
+            setPendingUpdatePayload(payload);
+            setShowWarning(true);
+            return;
+        }
         
         setSubmitting(true);
         try {
@@ -88,7 +99,18 @@ export const EditExpenseModal: React.FC<EditExpenseModalProps> = ({ expense, mem
             onClose();
         } catch (error) {
             console.error('Error updating expense:', error);
-            toast.error((error as Error).message || 'Failed to update expense');
+            const errorMessage = (error as Error).message;
+            
+            if (errorMessage.includes('modified by another user') || errorMessage.includes('CONCURRENT_UPDATE')) {
+                toast.error(
+                    'This expense was modified by another user. Please close this dialog and try again.',
+                    { duration: 5000 }
+                );
+                // Refresh the expense data
+                onExpenseUpdated();
+            } else {
+                toast.error(errorMessage || 'Failed to update expense');
+            }
             setSubmitting(false);
         }
     };
@@ -96,20 +118,37 @@ export const EditExpenseModal: React.FC<EditExpenseModalProps> = ({ expense, mem
     const handleConfirmUpdate = async () => {
         if (!pendingUpdatePayload) return;
         setShowWarning(false);
-        setSubmitting(false);
-        toast.success('Expense updated with adjustments!');
-        onExpenseUpdated();
-        setPendingUpdatePayload(null);
-        // We close the modal here by calling onClose
-        onClose();
+        setSubmitting(true);
+        
+        try {
+            await updateExpense(expense.id, pendingUpdatePayload);
+            toast.success('Expense updated with adjustments!');
+            onExpenseUpdated();
+            onClose();
+        } catch (error) {
+            console.error('Error updating expense:', error);
+            const errorMessage = (error as Error).message;
+            
+            if (errorMessage.includes('modified by another user') || errorMessage.includes('CONCURRENT_UPDATE')) {
+                toast.error(
+                    'This expense was modified by another user. Please close this dialog and try again.',
+                    { duration: 5000 }
+                );
+                // Refresh the expense data
+                onExpenseUpdated();
+            } else {
+                toast.error(errorMessage || 'Failed to update expense');
+            }
+            setSubmitting(false);
+        } finally {
+            setPendingUpdatePayload(null);
+        }
     };
 
     const handleCancelUpdate = () => {
         setShowWarning(false);
         setSubmitting(false);
-        setPendingUpdatePayload(null); 
-        // We still refresh the data because the change was already committed to the DB
-        onExpenseUpdated(); 
+        setPendingUpdatePayload(null);
     };
     
     const selectStyles = "mt-1 flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50";

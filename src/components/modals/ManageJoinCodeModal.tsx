@@ -5,7 +5,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Loader2, KeyRound } from 'lucide-react';
 import * as api from '@/lib/api';
 import { toast } from 'react-hot-toast';
-import { Button } from '@/components/ui/Button';
+import { Button } from '@/components/primitives/Button';
 
 interface ManageJoinCodeModalProps {
   householdId: string;

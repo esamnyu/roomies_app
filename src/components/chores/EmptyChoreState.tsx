@@ -2,7 +2,7 @@
 "use client";
 import React from 'react';
 import { Sparkles, Plus, Settings, ArrowRight, CheckCircle } from 'lucide-react';
-import { Button } from '@/components/ui/Button';
+import { Button } from '@/components/primitives/Button';
 
 interface EmptyChoreStateProps {
     isAdmin: boolean;

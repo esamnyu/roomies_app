@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Button } from '@/components/ui/Button';
-import { Input } from '@/components/ui/Input';
+import { Button } from '@/components/primitives/Button';
+import { Input } from '@/components/primitives/Input';
 import { Bot, Send, X, AlertCircle, Info, Sparkles, MessageSquare, Zap } from 'lucide-react';
 import { useAuth } from '@/components/AuthProvider';
 import { supabase } from '@/lib/supabase';
@@ -71,7 +71,11 @@ export function AIMateChatRAG({ householdId }: AIMateChatRAGProps) {
         },
         body: JSON.stringify({
           message: input,
-          householdId
+          householdId,
+          conversationHistory: messages.slice(-6).map(m => ({
+            role: m.role,
+            content: m.content.substring(0, 200) // Limit length
+          }))
         }),
         signal: abortControllerRef.current.signal
       });
@@ -252,7 +256,7 @@ export function AIMateChatRAG({ householdId }: AIMateChatRAGProps) {
               disabled={!isLoading && !input.trim()}
               size="sm"
               className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full h-8 w-8 p-0"
-              variant={isLoading ? "secondary" : "default"}
+              variant={isLoading ? "secondary" : "primary"}
             >
               {isLoading ? (
                 <X className="h-4 w-4" />

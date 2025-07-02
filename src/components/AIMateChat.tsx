@@ -1,7 +1,7 @@
 // components/AIMateChat.tsx - Enhanced version
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Input } from './ui/Input';
-import { Button } from './ui/Button';
+import { Input } from '@/components/primitives/Input';
+import { Button } from '@/components/primitives/Button';
 import { Loader2, AlertCircle, RotateCcw, X } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { toast } from 'react-hot-toast';

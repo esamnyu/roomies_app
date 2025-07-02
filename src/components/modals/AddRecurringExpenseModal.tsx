@@ -5,8 +5,8 @@ import React, { useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import * as api from '@/lib/api';
 import { toast } from 'react-hot-toast';
-import { Button } from '@/components/ui/Button';
-import { Input } from '@/components/ui/Input';
+import { Button } from '@/components/primitives/Button';
+import { Input } from '@/components/primitives/Input';
 
 interface AddRecurringExpenseModalProps {
   householdId: string;

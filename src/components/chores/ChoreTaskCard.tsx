@@ -2,7 +2,7 @@
 "use client";
 import React, { useMemo, useState } from 'react';
 import { CheckCircle, Loader2, Clock, AlertCircle, User, UserPlus, Calendar, ChevronRight, MoreVertical, RefreshCw, Users, UserCheck } from 'lucide-react';
-import { Button } from '@/components/ui/Button';
+import { Button } from '@/components/primitives/Button';
 import { ChoreActionsModal } from '@/components/modals/ChoreActionsModal';
 import type { ChoreAssignment } from '@/lib/types/types';
 
@@ -222,7 +222,7 @@ export const ChoreTaskCard: React.FC<ChoreTaskCardProps> = ({
                         disabled={isLoadingCompletion || !isCompletable} 
                         size="sm" 
                         className="w-full mt-3" 
-                        variant={status === 'overdue' || status === 'due-today' ? 'default' : 'outline'}
+                        variant={status === 'overdue' || status === 'due-today' ? 'primary' : 'outline'}
                     >
                         {isLoadingCompletion ? (
                             <>

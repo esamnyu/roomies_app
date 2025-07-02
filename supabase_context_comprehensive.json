@@ -1,0 +1,882 @@
+{
+  "tables": {
+    "households": {
+      "exists": true,
+      "count": 29,
+      "structure": {
+        "id": "string",
+        "name": "string",
+        "created_by": "string",
+        "created_at": "string",
+        "updated_at": "string",
+        "member_count": "number",
+        "core_chores": "object",
+        "chore_frequency": "object",
+        "chore_framework": "object",
+        "join_code": "object",
+        "last_chore_rotation_date": "object",
+        "next_chore_rotation_date": "object",
+        "chore_current_assignee_index": "object",
+        "rules_document": "object",
+        "rules_last_updated": "object",
+        "rules": "object"
+      },
+      "sampleData": [
+        {
+          "id": "ca63a3f7-18cd-440e-be63-c2e1f54e432e",
+          "name": "Hello",
+          "created_by": "b5d636a8-2303-4679-a54d-54c505034506",
+          "created_at": "2025-05-30T18:58:13.614624+00:00",
+          "updated_at": "2025-05-30T18:58:13.614624+00:00",
+          "member_count": 2,
+          "core_chores": null,
+          "chore_frequency": null,
+          "chore_framework": null,
+          "join_code": null,
+          "last_chore_rotation_date": null,
+          "next_chore_rotation_date": null,
+          "chore_current_assignee_index": null,
+          "rules_document": null,
+          "rules_last_updated": null,
+          "rules": null
+        },
+        {
+          "id": "3eb0abff-d0e4-4e6b-bf05-a2d61ebdb9b0",
+          "name": "test",
+          "created_by": "c6dd6d1a-4d2f-4a95-b6b3-f38f13e87165",
+          "created_at": "2025-06-04T05:06:24.24582+00:00",
+          "updated_at": "2025-06-04T05:06:24.24582+00:00",
+          "member_count": 2,
+          "core_chores": [
+            "Kitchen cleaning",
+            "Taking out trash"
+          ],
+          "chore_frequency": "Weekly",
+          "chore_framework": "Split",
+          "join_code": null,
+          "last_chore_rotation_date": null,
+          "next_chore_rotation_date": null,
+          "chore_current_assignee_index": null,
+          "rules_document": null,
+          "rules_last_updated": null,
+          "rules": null
+        },
+        {
+          "id": "425bfcf4-c447-4dc9-a7e0-2f8d773892b4",
+          "name": "test",
+          "created_by": "c6dd6d1a-4d2f-4a95-b6b3-f38f13e87165",
+          "created_at": "2025-06-04T05:06:52.780611+00:00",
+          "updated_at": "2025-06-04T06:24:18.633112+00:00",
+          "member_count": 3,
+          "core_chores": null,
+          "chore_frequency": null,
+          "chore_framework": null,
+          "join_code": "UE7E",
+          "last_chore_rotation_date": null,
+          "next_chore_rotation_date": null,
+          "chore_current_assignee_index": null,
+          "rules_document": null,
+          "rules_last_updated": null,
+          "rules": null
+        }
+      ],
+      "error": null
+    },
+    "household_members": {
+      "exists": true,
+      "count": 43,
+      "structure": {
+        "id": "string",
+        "household_id": "string",
+        "user_id": "string",
+        "role": "string",
+        "joined_at": "string"
+      },
+      "sampleData": [
+        {
+          "id": "81dad400-ff4d-4ad1-bb0b-af85e109d7d7",
+          "household_id": "ca63a3f7-18cd-440e-be63-c2e1f54e432e",
+          "user_id": "b5d636a8-2303-4679-a54d-54c505034506",
+          "role": "admin",
+          "joined_at": "2025-05-30T18:58:13.79976+00:00"
+        },
+        {
+          "id": "0187291a-f113-46c7-9c69-30e3052f2c3c",
+          "household_id": "1336bbbd-0db5-40a5-946c-ccc4e63460ea",
+          "user_id": "cc4f5b0d-beff-4727-918f-839f57faab10",
+          "role": "admin",
+          "joined_at": "2025-05-31T01:20:22.151909+00:00"
+        },
+        {
+          "id": "71147bbd-f4a0-488e-843f-6415caad86e8",
+          "household_id": "3eb0abff-d0e4-4e6b-bf05-a2d61ebdb9b0",
+          "user_id": "c6dd6d1a-4d2f-4a95-b6b3-f38f13e87165",
+          "role": "admin",
+          "joined_at": "2025-06-04T05:06:24.326527+00:00"
+        }
+      ],
+      "error": null
+    },
+    "profiles": {
+      "exists": true,
+      "count": 18,
+      "structure": {
+        "id": "string",
+        "name": "string",
+        "avatar_url": "object",
+        "created_at": "string",
+        "updated_at": "string",
+        "email": "string",
+        "vacation_start_date": "object",
+        "vacation_end_date": "object"
+      },
+      "sampleData": [
+        {
+          "id": "b5d636a8-2303-4679-a54d-54c505034506",
+          "name": "John",
+          "avatar_url": null,
+          "created_at": "2025-05-30T18:58:03.394709+00:00",
+          "updated_at": "2025-06-03T03:11:45.815371+00:00",
+          "email": "ethansam.career@gmail.com",
+          "vacation_start_date": null,
+          "vacation_end_date": null
+        },
+        {
+          "id": "7bb0e99a-9580-492a-9964-ff56c186cc89",
+          "name": "Khal",
+          "avatar_url": null,
+          "created_at": "2025-06-04T03:40:52.357293+00:00",
+          "updated_at": "2025-06-04T03:40:52.357293+00:00",
+          "email": null,
+          "vacation_start_date": null,
+          "vacation_end_date": null
+        },
+        {
+          "id": "c6dd6d1a-4d2f-4a95-b6b3-f38f13e87165",
+          "name": "Khalid",
+          "avatar_url": null,
+          "created_at": "2025-06-04T04:51:21.451695+00:00",
+          "updated_at": "2025-06-04T04:51:21.451695+00:00",
+          "email": null,
+          "vacation_start_date": null,
+          "vacation_end_date": null
+        }
+      ],
+      "error": null
+    },
+    "expenses": {
+      "exists": true,
+      "count": 110,
+      "structure": {
+        "id": "string",
+        "household_id": "string",
+        "description": "string",
+        "amount": "number",
+        "paid_by": "string",
+        "date": "string",
+        "created_at": "string",
+        "updated_at": "string",
+        "recurring_expense_id": "object",
+        "version": "number"
+      },
+      "sampleData": [
+        {
+          "id": "9eddab22-f9e6-4475-8626-0a147099de01",
+          "household_id": "ca63a3f7-18cd-440e-be63-c2e1f54e432e",
+          "description": "Hello",
+          "amount": 500,
+          "paid_by": "b5d636a8-2303-4679-a54d-54c505034506",
+          "date": "2025-05-30",
+          "created_at": "2025-05-30T18:58:36.934884+00:00",
+          "updated_at": "2025-05-30T18:58:36.934884+00:00",
+          "recurring_expense_id": null,
+          "version": 1
+        },
+        {
+          "id": "956bcb5f-fde4-4af0-bf2c-3a67641f23ff",
+          "household_id": "1336bbbd-0db5-40a5-946c-ccc4e63460ea",
+          "description": "Hello",
+          "amount": 500,
+          "paid_by": "cc4f5b0d-beff-4727-918f-839f57faab10",
+          "date": "2025-05-31",
+          "created_at": "2025-05-31T01:27:36.406596+00:00",
+          "updated_at": "2025-05-31T01:27:36.406596+00:00",
+          "recurring_expense_id": null,
+          "version": 1
+        },
+        {
+          "id": "8f3b669a-ae78-43e0-9eb0-1f0df161c227",
+          "household_id": "1336bbbd-0db5-40a5-946c-ccc4e63460ea",
+          "description": "Goodbye",
+          "amount": 500,
+          "paid_by": "cc4f5b0d-beff-4727-918f-839f57faab10",
+          "date": "2025-05-31",
+          "created_at": "2025-05-31T01:28:37.846929+00:00",
+          "updated_at": "2025-05-31T01:28:37.846929+00:00",
+          "recurring_expense_id": null,
+          "version": 1
+        }
+      ],
+      "error": null
+    },
+    "expense_splits": {
+      "exists": true,
+      "count": 173,
+      "structure": {
+        "id": "string",
+        "expense_id": "string",
+        "user_id": "string",
+        "amount": "number",
+        "settled": "boolean",
+        "settled_at": "object"
+      },
+      "sampleData": [
+        {
+          "id": "28f855d8-d5c9-4a5f-aa16-769a4a6687c3",
+          "expense_id": "9eddab22-f9e6-4475-8626-0a147099de01",
+          "user_id": "b5d636a8-2303-4679-a54d-54c505034506",
+          "amount": 500,
+          "settled": true,
+          "settled_at": null
+        },
+        {
+          "id": "784726c7-0630-44c2-a4c8-eb1aba2ef968",
+          "expense_id": "956bcb5f-fde4-4af0-bf2c-3a67641f23ff",
+          "user_id": "cc4f5b0d-beff-4727-918f-839f57faab10",
+          "amount": 500,
+          "settled": true,
+          "settled_at": null
+        },
+        {
+          "id": "4814f037-2af9-4999-b23d-f63c20ffdcb4",
+          "expense_id": "8f3b669a-ae78-43e0-9eb0-1f0df161c227",
+          "user_id": "cc4f5b0d-beff-4727-918f-839f57faab10",
+          "amount": 500,
+          "settled": true,
+          "settled_at": null
+        }
+      ],
+      "error": null
+    },
+    "expense_split_adjustments": {
+      "exists": true,
+      "count": 12,
+      "structure": {
+        "id": "string",
+        "expense_split_id": "string",
+        "adjustment_amount": "number",
+        "reason": "string",
+        "created_at": "string",
+        "created_by": "string"
+      },
+      "sampleData": [
+        {
+          "id": "898370b4-1815-447a-8247-c49205a3a86f",
+          "expense_split_id": "d4f5f112-e6b8-4e7d-86d9-bad2c8755fd1",
+          "adjustment_amount": -500,
+          "reason": "User removed from expense: Expense modified on 2025-06-30",
+          "created_at": "2025-06-30T06:50:15.824914+00:00",
+          "created_by": "cc4f5b0d-beff-4727-918f-839f57faab10"
+        },
+        {
+          "id": "57db2e3e-dd68-479b-a3d8-b0c7ac3eca35",
+          "expense_split_id": "5f5d6c4d-1616-4171-b5d1-a700c395473d",
+          "adjustment_amount": 500,
+          "reason": "Expense modified on 2025-06-30",
+          "created_at": "2025-06-30T15:06:11.911815+00:00",
+          "created_by": "cc4f5b0d-beff-4727-918f-839f57faab10"
+        },
+        {
+          "id": "ff94bd53-3c8a-4b83-af8f-ac93bf224d90",
+          "expense_split_id": "a960bed5-3558-4590-9df2-18e390832aaf",
+          "adjustment_amount": 60,
+          "reason": "Expense modified on 2025-06-30",
+          "created_at": "2025-06-30T15:08:24.983518+00:00",
+          "created_by": "cc4f5b0d-beff-4727-918f-839f57faab10"
+        }
+      ],
+      "error": null
+    },
+    "expense_payments": {
+      "exists": true,
+      "count": 31,
+      "structure": {
+        "id": "string",
+        "expense_id": "string",
+        "payer_id": "string",
+        "amount": "number",
+        "created_at": "string"
+      },
+      "sampleData": [
+        {
+          "id": "a2b68f7c-31b3-43c4-8faf-1a1f51c5330f",
+          "expense_id": "ec9c0628-4781-4388-b051-6a00e1dcc1fb",
+          "payer_id": "cc4f5b0d-beff-4727-918f-839f57faab10",
+          "amount": 100,
+          "created_at": "2025-06-30T06:49:35.735792+00:00"
+        },
+        {
+          "id": "19cf7d2e-482d-4d03-a661-4c6f586397e4",
+          "expense_id": "1374ecc3-dcda-4226-9a0f-f6ff83cccb36",
+          "payer_id": "cc4f5b0d-beff-4727-918f-839f57faab10",
+          "amount": 600,
+          "created_at": "2025-06-30T06:49:54.513893+00:00"
+        },
+        {
+          "id": "fed57c1e-9dd7-4754-af3a-f55a2f35ebd2",
+          "expense_id": "7552067d-f4f3-4b93-b1f7-14ba5ac8e3fd",
+          "payer_id": "cc4f5b0d-beff-4727-918f-839f57faab10",
+          "amount": 1000,
+          "created_at": "2025-06-30T06:50:31.653302+00:00"
+        }
+      ],
+      "error": null
+    },
+    "recurring_expenses": {
+      "exists": true,
+      "count": 23,
+      "structure": {
+        "id": "string",
+        "household_id": "string",
+        "description": "string",
+        "amount": "number",
+        "frequency": "string",
+        "day_of_month": "number",
+        "day_of_week": "object",
+        "next_due_date": "string",
+        "is_active": "boolean",
+        "created_by": "string",
+        "created_at": "string",
+        "updated_at": "string",
+        "splits": "object",
+        "last_processed_at": "object"
+      },
+      "sampleData": [
+        {
+          "id": "905da619-2dff-4691-be8b-b25999003cdd",
+          "household_id": "b7710ed7-ec44-41ce-96b5-da9807d46fae",
+          "description": "Rent ",
+          "amount": 2000,
+          "frequency": "monthly",
+          "day_of_month": 1,
+          "day_of_week": null,
+          "next_due_date": "2025-07-01",
+          "is_active": true,
+          "created_by": "cc4f5b0d-beff-4727-918f-839f57faab10",
+          "created_at": "2025-05-31T19:47:14.586139+00:00",
+          "updated_at": "2025-05-31T19:47:14.586139+00:00",
+          "splits": null,
+          "last_processed_at": null
+        },
+        {
+          "id": "bef79142-3516-496e-82dc-53d4289f60ea",
+          "household_id": "b7710ed7-ec44-41ce-96b5-da9807d46fae",
+          "description": "Internet",
+          "amount": 200,
+          "frequency": "monthly",
+          "day_of_month": 1,
+          "day_of_week": null,
+          "next_due_date": "2025-07-01",
+          "is_active": true,
+          "created_by": "cc4f5b0d-beff-4727-918f-839f57faab10",
+          "created_at": "2025-05-31T20:25:17.964757+00:00",
+          "updated_at": "2025-05-31T20:25:17.964757+00:00",
+          "splits": null,
+          "last_processed_at": null
+        },
+        {
+          "id": "88018843-1d6b-4a81-a9e3-5ca98261c778",
+          "household_id": "b7710ed7-ec44-41ce-96b5-da9807d46fae",
+          "description": "Utilities ",
+          "amount": 100,
+          "frequency": "monthly",
+          "day_of_month": 1,
+          "day_of_week": null,
+          "next_due_date": "2025-07-02",
+          "is_active": true,
+          "created_by": "cc4f5b0d-beff-4727-918f-839f57faab10",
+          "created_at": "2025-06-01T00:25:19.316187+00:00",
+          "updated_at": "2025-06-01T00:25:19.316187+00:00",
+          "splits": null,
+          "last_processed_at": null
+        }
+      ],
+      "error": null
+    },
+    "settlements": {
+      "exists": true,
+      "count": 88,
+      "structure": {
+        "id": "string",
+        "household_id": "string",
+        "payer_id": "string",
+        "payee_id": "string",
+        "amount": "number",
+        "description": "string",
+        "created_at": "string"
+      },
+      "sampleData": [
+        {
+          "id": "6b438b72-adb7-4aad-b460-b91c4498b423",
+          "household_id": "b7710ed7-ec44-41ce-96b5-da9807d46fae",
+          "payer_id": "cc4f5b0d-beff-4727-918f-839f57faab10",
+          "payee_id": "74cd5fe8-f47f-4c8b-882f-3234d633f4b6",
+          "amount": 100,
+          "description": "Payment from cc4f5b0d-beff-4727-918f-839f57faab10 to 74cd5fe8-f47f-4c8b-882f-3234d633f4b6",
+          "created_at": "2025-06-05T04:06:14.061401+00:00"
+        },
+        {
+          "id": "4dec941e-4352-430e-99c5-0d59d51b728d",
+          "household_id": "b7710ed7-ec44-41ce-96b5-da9807d46fae",
+          "payer_id": "cc4f5b0d-beff-4727-918f-839f57faab10",
+          "payee_id": "74cd5fe8-f47f-4c8b-882f-3234d633f4b6",
+          "amount": 500000,
+          "description": "Payment from cc4f5b0d-beff-4727-918f-839f57faab10 to 74cd5fe8-f47f-4c8b-882f-3234d633f4b6",
+          "created_at": "2025-06-05T04:06:28.409812+00:00"
+        },
+        {
+          "id": "4836a76e-e55b-4f50-8fe2-f9d2692389e9",
+          "household_id": "b7710ed7-ec44-41ce-96b5-da9807d46fae",
+          "payer_id": "cc4f5b0d-beff-4727-918f-839f57faab10",
+          "payee_id": "74cd5fe8-f47f-4c8b-882f-3234d633f4b6",
+          "amount": 493950,
+          "description": "Payment to Khalid An",
+          "created_at": "2025-06-05T04:07:18.141097+00:00"
+        }
+      ],
+      "error": null
+    },
+    "ledger_balances": {
+      "exists": true,
+      "count": 42,
+      "structure": {
+        "id": "string",
+        "household_id": "string",
+        "user_id": "string",
+        "balance": "number",
+        "last_updated_at": "string",
+        "created_at": "string"
+      },
+      "sampleData": [
+        {
+          "id": "9eb35613-0242-45fc-82a0-264a2b6914a9",
+          "household_id": "34ebbddb-f9ef-4236-ab73-6efb251c962a",
+          "user_id": "cc4f5b0d-beff-4727-918f-839f57faab10",
+          "balance": -55,
+          "last_updated_at": "2025-07-01T17:21:05.815486+00:00",
+          "created_at": "2025-06-30T06:31:32.289624+00:00"
+        },
+        {
+          "id": "79a494e7-4a47-40c7-b255-bf5aa7d5d632",
+          "household_id": "34ebbddb-f9ef-4236-ab73-6efb251c962a",
+          "user_id": "fb85a5b7-b823-494b-b2cc-5bdcae98aa1c",
+          "balance": -195,
+          "last_updated_at": "2025-07-01T17:21:05.815486+00:00",
+          "created_at": "2025-06-30T06:31:32.289624+00:00"
+        },
+        {
+          "id": "1e8f57d7-4bf8-4c69-9a16-05568a119067",
+          "household_id": "0c9b1ba8-e864-4295-97d2-850fc40e571f",
+          "user_id": "cc4f5b0d-beff-4727-918f-839f57faab10",
+          "balance": 45,
+          "last_updated_at": "2025-07-01T19:17:10.747211+00:00",
+          "created_at": "2025-06-30T06:31:32.289624+00:00"
+        }
+      ],
+      "error": null
+    },
+    "household_chores": {
+      "exists": true,
+      "count": 95,
+      "structure": {
+        "id": "string",
+        "household_id": "string",
+        "name": "string",
+        "description": "object",
+        "is_core_chore": "boolean",
+        "default_order": "number",
+        "is_active": "boolean",
+        "created_at": "string",
+        "updated_at": "string"
+      },
+      "sampleData": [
+        {
+          "id": "27e3f0cd-ff86-4d35-999f-1a53a3b63e6d",
+          "household_id": "4c58538e-b9e5-492c-9b24-1a6de2660322",
+          "name": "Kitchen cleaning",
+          "description": null,
+          "is_core_chore": true,
+          "default_order": 0,
+          "is_active": true,
+          "created_at": "2025-06-05T04:36:50.712393+00:00",
+          "updated_at": "2025-06-05T04:36:50.712393+00:00"
+        },
+        {
+          "id": "be7ec0b7-c51d-4ed3-80da-ce0657686eed",
+          "household_id": "4c58538e-b9e5-492c-9b24-1a6de2660322",
+          "name": "Living room cleaning",
+          "description": null,
+          "is_core_chore": true,
+          "default_order": 1,
+          "is_active": true,
+          "created_at": "2025-06-05T04:36:50.712393+00:00",
+          "updated_at": "2025-06-05T04:36:50.712393+00:00"
+        },
+        {
+          "id": "883d93f2-3f9f-495f-9e0e-c5522e0de028",
+          "household_id": "4c58538e-b9e5-492c-9b24-1a6de2660322",
+          "name": "Taking out trash",
+          "description": null,
+          "is_core_chore": true,
+          "default_order": 2,
+          "is_active": true,
+          "created_at": "2025-06-05T04:36:50.712393+00:00",
+          "updated_at": "2025-06-05T04:36:50.712393+00:00"
+        }
+      ],
+      "error": null
+    },
+    "chore_assignments": {
+      "exists": true,
+      "count": 779,
+      "structure": {
+        "id": "string",
+        "household_chore_id": "string",
+        "household_id": "string",
+        "assigned_user_id": "string",
+        "cycle_start_date": "string",
+        "due_date": "string",
+        "status": "string",
+        "completed_at": "object",
+        "completed_by_user_id": "object",
+        "notes": "object",
+        "created_at": "string",
+        "updated_at": "string"
+      },
+      "sampleData": [
+        {
+          "id": "706bc87e-fb04-4c2f-a923-686562660e70",
+          "household_chore_id": "ba714aed-5f40-4c00-8371-775758c00327",
+          "household_id": "40ad7280-68e9-4b2e-b75f-9781b0ba0048",
+          "assigned_user_id": "cc4f5b0d-beff-4727-918f-839f57faab10",
+          "cycle_start_date": "2025-06-18",
+          "due_date": "2025-06-26",
+          "status": "pending",
+          "completed_at": null,
+          "completed_by_user_id": null,
+          "notes": null,
+          "created_at": "2025-06-19T04:45:50.719664+00:00",
+          "updated_at": "2025-06-19T04:45:50.719664+00:00"
+        },
+        {
+          "id": "20f47dc9-abe1-42bf-b212-f077b8f007ba",
+          "household_chore_id": "7ccf1c45-4a92-4e8e-8974-7bff7bc1fb18",
+          "household_id": "f8cdf45c-74ba-4c34-a29a-76058f1507cb",
+          "assigned_user_id": "fdeda303-f5d0-42e9-a964-d46eab06eda8",
+          "cycle_start_date": "2025-06-05",
+          "due_date": "2025-06-12",
+          "status": "completed",
+          "completed_at": "2025-06-15T23:21:42.553+00:00",
+          "completed_by_user_id": "fdeda303-f5d0-42e9-a964-d46eab06eda8",
+          "notes": null,
+          "created_at": "2025-06-05T05:08:33.620402+00:00",
+          "updated_at": "2025-06-05T05:08:33.620402+00:00"
+        },
+        {
+          "id": "4f6e6048-d2b5-4af8-89fb-379b6ebd5bf8",
+          "household_chore_id": "560eb6d6-742f-4282-93d8-27120fe59240",
+          "household_id": "1336bbbd-0db5-40a5-946c-ccc4e63460ea",
+          "assigned_user_id": "cc4f5b0d-beff-4727-918f-839f57faab10",
+          "cycle_start_date": "2025-06-12",
+          "due_date": "2025-06-26",
+          "status": "completed",
+          "completed_at": "2025-06-12T21:32:00.231+00:00",
+          "completed_by_user_id": "cc4f5b0d-beff-4727-918f-839f57faab10",
+          "notes": null,
+          "created_at": "2025-06-12T21:31:58.435968+00:00",
+          "updated_at": "2025-06-12T21:31:58.435968+00:00"
+        }
+      ],
+      "error": null
+    },
+    "chore_swaps": {
+      "exists": true,
+      "count": 0,
+      "structure": {},
+      "sampleData": [],
+      "error": {
+        "code": "42P01",
+        "details": null,
+        "hint": null,
+        "message": "relation \"public.chore_swaps\" does not exist"
+      }
+    },
+    "messages": {
+      "exists": true,
+      "count": 116,
+      "structure": {
+        "id": "string",
+        "household_id": "string",
+        "user_id": "string",
+        "content": "string",
+        "edited": "boolean",
+        "deleted": "boolean",
+        "created_at": "string",
+        "updated_at": "string"
+      },
+      "sampleData": [
+        {
+          "id": "78cd8ce0-ecc8-4f2f-8c72-dabd7884518b",
+          "household_id": "b7710ed7-ec44-41ce-96b5-da9807d46fae",
+          "user_id": "cc4f5b0d-beff-4727-918f-839f57faab10",
+          "content": "yessir",
+          "edited": false,
+          "deleted": false,
+          "created_at": "2025-06-05T02:42:38.372581+00:00",
+          "updated_at": "2025-06-05T02:42:38.372581+00:00"
+        },
+        {
+          "id": "9ad21a13-e0b3-4f37-8fdf-fa5c1d13f372",
+          "household_id": "b7710ed7-ec44-41ce-96b5-da9807d46fae",
+          "user_id": "cc4f5b0d-beff-4727-918f-839f57faab10",
+          "content": "hi there",
+          "edited": false,
+          "deleted": false,
+          "created_at": "2025-06-05T02:42:46.629567+00:00",
+          "updated_at": "2025-06-05T02:42:46.629567+00:00"
+        },
+        {
+          "id": "949cea24-0f69-4c23-bac5-89a89e9735a9",
+          "household_id": "b7710ed7-ec44-41ce-96b5-da9807d46fae",
+          "user_id": "cc4f5b0d-beff-4727-918f-839f57faab10",
+          "content": "what the",
+          "edited": false,
+          "deleted": false,
+          "created_at": "2025-06-05T02:42:51.863925+00:00",
+          "updated_at": "2025-06-05T02:42:51.863925+00:00"
+        }
+      ],
+      "error": null
+    },
+    "notifications": {
+      "exists": true,
+      "count": 466,
+      "structure": {
+        "id": "string",
+        "user_id": "string",
+        "household_id": "string",
+        "type": "string",
+        "title": "string",
+        "message": "string",
+        "data": "object",
+        "is_read": "boolean",
+        "read_at": "object",
+        "created_at": "string",
+        "updated_at": "string"
+      },
+      "sampleData": [
+        {
+          "id": "8093095c-1b20-44cf-9545-62af80ae655a",
+          "user_id": "8a8eb936-71a1-4ba7-b034-1bc8b9736e9a",
+          "household_id": "425bfcf4-c447-4dc9-a7e0-2f8d773892b4",
+          "type": "task_assigned",
+          "title": "New Task Assigned",
+          "message": "You have been assigned: testing",
+          "data": {
+            "title": "testing",
+            "task_id": "3e4bbc42-0452-406b-921c-8f1a8e14d08d",
+            "assigned_by": "9952fc13-7884-423c-a9ea-1cf260acaaa5"
+          },
+          "is_read": false,
+          "read_at": null,
+          "created_at": "2025-06-04T06:32:01.86206+00:00",
+          "updated_at": "2025-06-04T06:32:01.86206+00:00"
+        },
+        {
+          "id": "7ffffc6c-a876-447a-b39f-9da86e6e9a2c",
+          "user_id": "fb85a5b7-b823-494b-b2cc-5bdcae98aa1c",
+          "household_id": "bc484683-a42b-4921-ae43-dc4d1dc6913a",
+          "type": "settlement_recorded",
+          "title": "Payment Received",
+          "message": "Alex paid you $50.00",
+          "data": {
+            "amount": 50,
+            "payer_id": "cc4f5b0d-beff-4727-918f-839f57faab10",
+            "settlement_id": "bf0ea9eb-8e0e-4515-b8e8-c1d7fde4f885"
+          },
+          "is_read": false,
+          "read_at": null,
+          "created_at": "2025-06-22T20:24:50.218858+00:00",
+          "updated_at": "2025-06-22T20:24:50.218858+00:00"
+        },
+        {
+          "id": "fb8a3423-9fa0-4f1a-9d58-d90b26a55bcf",
+          "user_id": "cc4f5b0d-beff-4727-918f-839f57faab10",
+          "household_id": "b7710ed7-ec44-41ce-96b5-da9807d46fae",
+          "type": "expense_added",
+          "title": "New Expense Added",
+          "message": "Khalid An paid $200.00 for chicken. Your share: $100.00",
+          "data": {
+            "amount": 200,
+            "paid_by": "74cd5fe8-f47f-4c8b-882f-3234d633f4b6",
+            "expense_id": "70d5c4f3-5ea6-48b2-9464-6775b01c3edc",
+            "description": "chicken"
+          },
+          "is_read": true,
+          "read_at": "2025-06-05T03:24:01.83+00:00",
+          "created_at": "2025-06-05T03:06:37.911052+00:00",
+          "updated_at": "2025-06-05T03:24:01.83+00:00"
+        }
+      ],
+      "error": null
+    },
+    "house_rules": {
+      "exists": true,
+      "count": 0,
+      "structure": {},
+      "sampleData": [],
+      "error": {
+        "code": "42P01",
+        "details": null,
+        "hint": null,
+        "message": "relation \"public.house_rules\" does not exist"
+      }
+    },
+    "conversation_embeddings": {
+      "exists": true,
+      "count": 0,
+      "structure": {},
+      "sampleData": [],
+      "error": null
+    },
+    "expense_embeddings": {
+      "exists": true,
+      "count": 0,
+      "structure": {},
+      "sampleData": [],
+      "error": null
+    },
+    "tasks": {
+      "exists": true,
+      "count": 23,
+      "structure": {
+        "id": "string",
+        "household_id": "string",
+        "title": "string",
+        "assigned_to": "object",
+        "completed": "boolean",
+        "completed_at": "string",
+        "created_at": "string",
+        "updated_at": "string"
+      },
+      "sampleData": [
+        {
+          "id": "4a47d2d8-a1a9-44fd-a01c-ede4f1270da0",
+          "household_id": "b7710ed7-ec44-41ce-96b5-da9807d46fae",
+          "title": "Wow",
+          "assigned_to": null,
+          "completed": true,
+          "completed_at": "2025-05-31T06:27:17.271+00:00",
+          "created_at": "2025-05-31T06:27:15.127404+00:00",
+          "updated_at": "2025-05-31T06:27:17.340887+00:00"
+        },
+        {
+          "id": "b96df8e1-7f3b-4a15-8dc6-ae022546020f",
+          "household_id": "b7710ed7-ec44-41ce-96b5-da9807d46fae",
+          "title": "Hello",
+          "assigned_to": "cc4f5b0d-beff-4727-918f-839f57faab10",
+          "completed": true,
+          "completed_at": "2025-05-31T06:27:28.081+00:00",
+          "created_at": "2025-05-31T06:27:26.478153+00:00",
+          "updated_at": "2025-05-31T06:27:28.146964+00:00"
+        },
+        {
+          "id": "63e8b6d3-a129-41da-8d90-6c825cb69b91",
+          "household_id": "b7710ed7-ec44-41ce-96b5-da9807d46fae",
+          "title": "Wow",
+          "assigned_to": null,
+          "completed": true,
+          "completed_at": "2025-05-31T19:36:50.868+00:00",
+          "created_at": "2025-05-31T06:29:58.876828+00:00",
+          "updated_at": "2025-05-31T19:36:50.93831+00:00"
+        }
+      ],
+      "error": null
+    },
+    "task_assignments": {
+      "exists": true,
+      "count": 0,
+      "structure": {},
+      "sampleData": [],
+      "error": {
+        "code": "42P01",
+        "details": null,
+        "hint": null,
+        "message": "relation \"public.task_assignments\" does not exist"
+      }
+    }
+  },
+  "relationships": [
+    {
+      "from": "household_members",
+      "to": "households",
+      "via": "household_id"
+    },
+    {
+      "from": "household_members",
+      "to": "profiles",
+      "via": "user_id"
+    },
+    {
+      "from": "expenses",
+      "to": "households",
+      "via": "household_id"
+    },
+    {
+      "from": "expenses",
+      "to": "profiles",
+      "via": "paid_by"
+    },
+    {
+      "from": "expense_splits",
+      "to": "expenses",
+      "via": "expense_id"
+    },
+    {
+      "from": "expense_splits",
+      "to": "profiles",
+      "via": "user_id"
+    },
+    {
+      "from": "household_chores",
+      "to": "households",
+      "via": "household_id"
+    },
+    {
+      "from": "chore_assignments",
+      "to": "household_chores",
+      "via": "chore_id"
+    },
+    {
+      "from": "chore_assignments",
+      "to": "profiles",
+      "via": "assigned_to"
+    },
+    {
+      "from": "messages",
+      "to": "households",
+      "via": "household_id"
+    },
+    {
+      "from": "messages",
+      "to": "profiles",
+      "via": "user_id"
+    },
+    {
+      "from": "notifications",
+      "to": "profiles",
+      "via": "user_id"
+    }
+  ],
+  "timestamp": "2025-07-02T19:13:22.607Z"
+}

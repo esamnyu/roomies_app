@@ -7,8 +7,8 @@ import { createSettlement } from '@/lib/api/settlements';
 import { toast } from 'react-hot-toast';
 import type { HouseholdMember, Profile, SettlementSuggestion } from '@/lib/types/types';
 import { useAuth } from '../AuthProvider';
-import { Button } from '@/components/ui/Button';
-import { Input } from '@/components/ui/Input';
+import { Button } from '@/components/primitives/Button';
+import { Input } from '@/components/primitives/Input';
 
 interface SettleUpModalProps {
   householdId: string;

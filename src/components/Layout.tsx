@@ -5,7 +5,7 @@ import { ArrowLeft, Menu, X } from 'lucide-react';
 import { useAuth } from './AuthProvider';
 import { NotificationBell } from './NotificationsPanel';
 import { UserMenu } from './UserMenu';
-import { Button } from './ui/Button';
+import { Button } from '@/components/primitives/Button';
 import { Toaster } from 'react-hot-toast';
 
 interface LayoutProps {

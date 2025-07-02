@@ -3,7 +3,7 @@
 "use client"; 
 import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { AlertCircle, RefreshCw, Home, Bug } from 'lucide-react';
-import { Button } from '@/components/ui/Button';
+import { Button } from '@/components/primitives/Button';
 import { getErrorMessage, isOperationalError, logError } from '@/lib/errors';
 
 interface Props {

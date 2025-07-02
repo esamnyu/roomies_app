@@ -42,13 +42,13 @@ import { createExpenseWithCustomSplits } from '@/lib/api/expenses';
 import { AddRecurringExpenseModal } from './modals/AddRecurringExpenseModal';
 import { SettleUpModalV2 } from './modals/SettleUpModalV2';
 import { ManageJoinCodeModal } from './modals/ManageJoinCodeModal';
-import { Button } from './ui/Button';
-import { Input } from './ui/Input';
+import { Button } from '@/components/primitives/Button';
+import { Input } from '@/components/primitives/Input';
 import { ProfileModal } from './modals/ProfileModal';
 import { HouseholdSettingsModal } from './modals/HouseholdSettingsModal';
 import { EditExpenseModal } from './modals/EditExpenseModal';
 import { AuthForm } from './AuthForm';
-import { Layout } from './Layout';
+import { LayoutV2 } from './LayoutV2';
 import { BalanceSummaryCard } from './BalanceSummaryCard';
 import { ExpenseCard } from './ExpenseCard';
 import { AsyncErrorBoundary } from './AsyncErrorBoundary';
@@ -187,7 +187,7 @@ const Dashboard: React.FC<{ setAppState: (state: AppState) => void }> = ({ setAp
     }
 
     return (
-        <Layout title={"My Households"} isHouseholdView={false} onShowProfile={()=>setIsProfileModalOpen(true)}>
+        <LayoutV2 title={"My Households"} isHouseholdView={false} onShowProfile={()=>setIsProfileModalOpen(true)}>
             <div className="space-y-6">
                 <div className="flex justify-between items-center">
                     <h2 className="text-2xl font-bold text-foreground">Your Households</h2>
@@ -232,7 +232,7 @@ const Dashboard: React.FC<{ setAppState: (state: AppState) => void }> = ({ setAp
                 )}
             </div>
             {user && isProfileModalOpen && <ProfileModal user={user} onClose={()=>setIsProfileModalOpen(false)} onUpdate={()=>{}} />}
-        </Layout>
+        </LayoutV2>
     );
 };
 
@@ -465,9 +465,9 @@ const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = (
 
     if (loadingData && !household) {
             return (
-                <Layout title="Loading Household..." showBack onBack={onBack} isHouseholdView={false}>
+                <LayoutV2 title="Loading Household..." showBack onBack={onBack} isHouseholdView={false}>
                     <LoadingSpinner />
-                </Layout>
+                </LayoutV2>
             );
     }
 
@@ -475,7 +475,7 @@ const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = (
     const memberProfiles = members.map(m => m.profiles).filter((p): p is Profile => !!p);
 
     return (
-        <Layout
+        <LayoutV2
             title={household?.name || 'Household Details'}
             showBack
             onBack={onBack}
@@ -512,7 +512,7 @@ const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = (
                                 <Button onClick={() => setShowSettleUp(true)} size="sm" disabled={currentUserBalance >= 0}>
                                     <CreditCard className="h-4 w-4 mr-1" />Settle Up
                                 </Button>
-                                <Button onClick={() => setShowAddExpense(true)} size="sm" variant="default">
+                                <Button onClick={() => setShowAddExpense(true)} size="sm" variant="primary">
                                     <Plus className="h-4 w-4 mr-1" />Add Expense
                                 </Button>
                             </div>
@@ -732,7 +732,7 @@ const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = (
                     }}
                 />
             )}
-        </Layout>
+        </LayoutV2>
         );
         };
 
@@ -812,7 +812,7 @@ const App: React.FC = () => {
         case 'onboardingChoice': return <OnboardingChoice onCreateHousehold={() => setAppState('householdSetup')} onJoinHousehold={() => setAppState('joinWithCode')} />;
         case 'householdSetup':
             return (
-                <Layout title="Create Household" showBack onBack={handleCancelSetupOrJoin}>
+                <LayoutV2 title="Create Household" showBack onBack={handleCancelSetupOrJoin}>
                     <div className="flex justify-center">
                             <HouseholdSetupForm
                                 onHouseholdCreated={(hid) => {
@@ -824,11 +824,11 @@ const App: React.FC = () => {
                                 onCancel={handleCancelSetupOrJoin}
                             />
                     </div>
-                </Layout>
+                </LayoutV2>
             );
         case 'joinWithCode': 
             return (
-                <Layout title="Join Household" showBack onBack={handleCancelSetupOrJoin}>
+                <LayoutV2 title="Join Household" showBack onBack={handleCancelSetupOrJoin}>
                     <JoinHouseholdWithCode
                         onJoined={(household) => {
                             setUserHasHouseholds(true);
@@ -836,7 +836,7 @@ const App: React.FC = () => {
                         }}
                         onCancel={handleCancelSetupOrJoin}
                     />
-                </Layout>
+                </LayoutV2>
             );
         case 'householdWelcome':
             if (welcomeHouseholdId) {

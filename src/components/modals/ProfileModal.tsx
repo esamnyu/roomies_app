@@ -5,8 +5,8 @@ import React, { useState, useEffect } from 'react';
 import { getProfile, updateUserProfile } from '../../lib/api/profile';
 import { toast } from 'react-hot-toast';
 import { Loader2 } from 'lucide-react';
-import { Button } from '../ui/Button';
-import { Input } from '../ui/Input';
+import { Button } from '@/components/primitives/Button';
+import { Input } from '@/components/primitives/Input';
 import type { User as SupabaseUser } from '@supabase/supabase-js';
 import type { Profile } from '../../lib/types/types';
 

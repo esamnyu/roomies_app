@@ -7,8 +7,8 @@ import { createSettlement } from '@/lib/api/settlements';
 import { toast } from 'react-hot-toast';
 import type { HouseholdMember, SettlementSuggestion } from '@/lib/types/types';
 import { useAuth } from '../AuthProvider';
-import { Button } from '@/components/ui/Button';
-import { Input } from '@/components/ui/Input';
+import { Button } from '@/components/primitives/Button';
+import { Input } from '@/components/primitives/Input';
 
 interface SettleUpModalV2Props {
   householdId: string;
@@ -189,7 +189,7 @@ export const SettleUpModalV2: React.FC<SettleUpModalV2Props> = ({
                                 <div className="grid grid-cols-2 gap-2 mb-3">
                                     <Button
                                         type="button"
-                                        variant={!showCustom ? "default" : "outline"}
+                                        variant={!showCustom ? "primary" : "outline"}
                                         onClick={() => {
                                             setShowCustom(false);
                                             setCustomAmount(selectedDebt.amount.toString());
@@ -199,7 +199,7 @@ export const SettleUpModalV2: React.FC<SettleUpModalV2Props> = ({
                                     </Button>
                                     <Button
                                         type="button"
-                                        variant={showCustom ? "default" : "outline"}
+                                        variant={showCustom ? "primary" : "outline"}
                                         onClick={() => setShowCustom(true)}
                                     >
                                         Custom Amount

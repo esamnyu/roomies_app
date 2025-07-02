@@ -11,6 +11,33 @@ const supabase = createClient(
 
 const intentClassifier = new IntentClassifier();
 
+async function storeConversation(
+  householdId: string,
+  userId: string,
+  userMessage: string,
+  assistantResponse: string
+) {
+  try {
+    // Store conversations for similarity search (no embeddings needed)
+    await supabase.rpc('store_conversation', {
+      p_household_id: householdId,
+      p_user_id: userId,
+      p_message_role: 'user',
+      p_message_content: userMessage
+    });
+
+    await supabase.rpc('store_conversation', {
+      p_household_id: householdId,
+      p_user_id: userId,
+      p_message_role: 'assistant',
+      p_message_content: assistantResponse
+    });
+  } catch (error) {
+    console.error('Error storing conversation:', error);
+    // Don't fail the request if storage fails
+  }
+}
+
 function formatContextForPrompt(context: any): string {
   let formattedContext = "=== HOUSEHOLD CONTEXT ===\n\n";
   
@@ -106,6 +133,24 @@ Time: ${context.system.time}\n\n`;
     formattedContext += "\n";
   }
   
+  // Vector search results - Similar conversations
+  if (context.similar_conversations?.length > 0) {
+    formattedContext += "SIMILAR PAST CONVERSATIONS:\n";
+    context.similar_conversations.forEach((conv: any) => {
+      formattedContext += `- ${conv.message_role}: "${conv.message_content}" (${Math.round(conv.similarity * 100)}% similar)\n`;
+    });
+    formattedContext += "\n";
+  }
+  
+  // Vector search results - Similar expenses
+  if (context.similar_expenses?.length > 0) {
+    formattedContext += "SIMILAR EXPENSES:\n";
+    context.similar_expenses.forEach((exp: any) => {
+      formattedContext += `- ${exp.description}: $${exp.amount} (${Math.round(exp.similarity * 100)}% similar)\n`;
+    });
+    formattedContext += "\n";
+  }
+  
   formattedContext += "=== END CONTEXT ===\n";
   return formattedContext;
 }
@@ -127,7 +172,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(401).json({ error: 'Invalid token' });
     }
 
-    const { message, householdId } = req.body;
+    const { message, householdId, conversationHistory = [] } = req.body;
     if (!message || !householdId) {
       return res.status(400).json({ error: 'Message and householdId are required' });
     }
@@ -138,16 +183,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
                       intent.primary_intent === 'chore_query' ? 'chore' :
                       intent.primary_intent === 'household_info' ? 'info' : 'all';
 
-    // Get context from Supabase RPC function
+    // Get context with text similarity search (no embeddings needed!)
     const { data: context, error: contextError } = await supabase
-      .rpc('get_rag_context', {
+      .rpc('get_rag_context_with_similarity', {
         p_household_id: householdId,
         p_user_id: user.id,
         p_intent: intentType,
         p_options: {
           expense_limit: 10,
           days_ahead: 7
-        }
+        },
+        p_query: message  // Just pass the text query
       });
 
     if (contextError) {
@@ -170,7 +216,10 @@ Be specific with names, amounts, and dates when available.
 
 User question: ${message}
 
-Provide a helpful, accurate response based on the household context provided.`;
+${conversationHistory.length > 0 ? `Previous conversation:
+${conversationHistory.slice(-4).map((m: any) => `${m.role}: ${m.content}`).join('\n')}
+
+` : ''}Provide a helpful, accurate response based on the household context provided.`;
 
     // Generate response with Gemini
     const model = genAI.getGenerativeModel({ 
@@ -181,8 +230,25 @@ Provide a helpful, accurate response based on the household context provided.`;
       }
     });
 
-    const result = await model.generateContent(enhancedPrompt);
-    const response = result.response.text();
+    // Add timeout for Gemini API call
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+    
+    let response: string;
+    try {
+      const result = await model.generateContent(enhancedPrompt);
+      clearTimeout(timeoutId);
+      response = result.response.text();
+
+      // Store conversation asynchronously (don't wait for completion)
+      storeConversation(householdId, user.id, message, response);
+    } catch (error) {
+      clearTimeout(timeoutId);
+      if (error.name === 'AbortError') {
+        throw new Error('Request timeout - Gemini API took too long to respond');
+      }
+      throw error;
+    }
 
     res.status(200).json({ 
       response,

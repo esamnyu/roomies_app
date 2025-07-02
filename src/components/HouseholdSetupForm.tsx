@@ -6,9 +6,9 @@ import Select, { MultiValue } from 'react-select';
 import { useAuth } from './AuthProvider';
 import { createHousehold } from '@/lib/api/households';
 import type { CreateHouseholdParams } from '@/lib/types/types';
-import { Button } from '@/components/ui/Button';
+import { Button } from '@/components/primitives/Button';
 import { Loader2 } from 'lucide-react';
-import { Input } from '@/components/ui/Input';
+import { Input } from '@/components/primitives/Input';
 
 interface HouseholdSetupFormProps {
   onHouseholdCreated: (householdId: string) => void;
