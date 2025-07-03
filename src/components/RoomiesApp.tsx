@@ -54,7 +54,7 @@ import { AuthForm } from './AuthForm';
 import { LayoutV2, NavItemId } from './LayoutV2';
 import { BalanceSummaryCard } from './BalanceSummaryCard';
 import { ExpenseCard } from './ExpenseCard';
-import { AsyncErrorBoundary } from './AsyncErrorBoundary';
+import { UnifiedErrorBoundary } from './ErrorBoundary/UnifiedErrorBoundary';
 
 
 
@@ -476,7 +476,7 @@ const RuleCard: React.FC<{
 /**
  * Main household detail view with tabs for money, chores, communication, and rules
  * Handles complex state management for household data and modal interactions
- * Wrapped with AsyncErrorBoundary for better error handling of API failures
+ * Wrapped with UnifiedErrorBoundary for better error handling of API failures
  */
 const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = ({ householdId, onBack }) => {
     const { user } = useAuth();
@@ -622,9 +622,9 @@ const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = (
                 </div>
 
                 {activeTab === 'structuredChores' && householdId && (
-                    <AsyncErrorBoundary isolate={true}>
+                    <UnifiedErrorBoundary isolate={true}>
                         <ChoreHub householdId={householdId} />
-                    </AsyncErrorBoundary>
+                    </UnifiedErrorBoundary>
                 )}
 
                 {activeTab === 'money' && (
@@ -769,9 +769,9 @@ const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = (
                                     <p className="text-sm text-muted-foreground mt-0.5">Chat with your household or AI assistant</p>
                                 </div>
                                 <div className="flex-1 min-h-0">
-                                    <AsyncErrorBoundary isolate={true}>
+                                    <UnifiedErrorBoundary isolate={true}>
                                         <HouseholdChat householdId={householdId} members={memberProfiles} />
-                                    </AsyncErrorBoundary>
+                                    </UnifiedErrorBoundary>
                                 </div>
                             </div>
                         </div>
