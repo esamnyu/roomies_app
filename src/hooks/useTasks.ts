@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { getHouseholdTasks, createTask, updateTask, deleteTask } from '@/lib/api/tasks';
 import type { Task } from '@/lib/types/types';
 import { toast } from 'react-hot-toast';
@@ -7,8 +7,8 @@ export const useTasks = (householdId: string) => {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Fetch tasks
-  const fetchTasks = async () => {
+  // Fetch tasks - memoized to prevent recreation on every render
+  const fetchTasks = useCallback(async () => {
     try {
       const fetchedTasks = await getHouseholdTasks(householdId);
       // Check if fetchedTasks is an array before filtering
@@ -36,7 +36,7 @@ export const useTasks = (householdId: string) => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [householdId]);
 
   // Create a new task
   const addTask = async (title: string, assignedTo?: string) => {
@@ -94,18 +94,18 @@ export const useTasks = (householdId: string) => {
     if (householdId) {
       fetchTasks();
     }
-  }, [householdId]);
+  }, [householdId, fetchTasks]);
 
   // Refresh completed tasks periodically to handle auto-cleanup
   useEffect(() => {
+    if (!householdId) return;
+    
     const interval = setInterval(() => {
-      if (householdId && tasks.some(t => t.completed)) {
-        fetchTasks();
-      }
+      fetchTasks();
     }, 60000); // Check every minute
 
     return () => clearInterval(interval);
-  }, [householdId, tasks]);
+  }, [householdId, fetchTasks]);
 
   return {
     tasks,
