@@ -2,7 +2,15 @@
   "permissions": {
     "allow": [
       "Bash(grep:*)",
-      "Bash(rg:*)"
+      "Bash(rg:*)",
+      "Bash(find:*)",
+      "Bash(npm install:*)",
+      "Bash(jq:*)",
+      "Bash(python3:*)",
+      "Bash(ls:*)",
+      "Bash(npm test:*)",
+      "Bash(timeout 30 npm run test:money:*)",
+      "Bash(node:*)"
     ],
     "deny": []
   }

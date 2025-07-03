@@ -59,8 +59,7 @@ export const getHouseholdExpenses = async (householdId: string): Promise<Expense
       *, 
       profiles:paid_by (id, name, avatar_url), 
       expense_splits (*, 
-        profiles:user_id (id, name, avatar_url),
-        expense_split_adjustments (*, profiles:created_by(id, name, avatar_url))
+        profiles:user_id (id, name, avatar_url)
       ),
       expense_payments (*, profiles:payer_id(id, name, avatar_url))
     `)
@@ -234,9 +233,27 @@ export const updateExpense = async (
   });
 
   if (error) {
+    // Handle specific database errors
     if (error.message.includes('modified by another user')) {
       throw new ExpenseError('Expense was modified by another user. Please refresh and try again.', 'CONCURRENT_UPDATE');
     }
+    
+    // Handle settled expense errors from database
+    if (error.message.toLowerCase().includes('cannot') && error.message.toLowerCase().includes('edit') && error.message.toLowerCase().includes('settled')) {
+      throw new ExpenseError(
+        'This expense has settled splits. Editing will create adjustments to track the changes. Please confirm in the UI to proceed.',
+        'SETTLED_EXPENSE_REQUIRES_CONFIRMATION'
+      );
+    }
+    
+    // Handle generic settled expense message
+    if (error.message.toLowerCase().includes('settled')) {
+      throw new ExpenseError(
+        'This expense has settled splits. The system will create adjustments to track any changes.',
+        'SETTLED_EXPENSE_WARNING'
+      );
+    }
+    
     throw new ExpenseError(`Failed to update expense: ${error.message}`, 'UPDATE_ERROR');
   }
 

@@ -108,6 +108,12 @@ export const EditExpenseModal: React.FC<EditExpenseModalProps> = ({ expense, mem
                 );
                 // Refresh the expense data
                 onExpenseUpdated();
+            } else if (errorMessage.includes('SETTLED_EXPENSE_REQUIRES_CONFIRMATION') || errorMessage.includes('SETTLED_EXPENSE_WARNING')) {
+                // Show warning dialog for settled expenses
+                setPendingUpdatePayload(payload);
+                setShowWarning(true);
+                setSubmitting(false);
+                return; // Don't set submitting to false again below
             } else {
                 toast.error(errorMessage || 'Failed to update expense');
             }
