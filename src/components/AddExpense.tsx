@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { ExpenseSplitterV3Compact } from './ExpenseSplitterV3Compact';
 import { ExpenseSplitterSingleScreen } from './ExpenseSplitterSingleScreen';
 import { Modal } from './surfaces/Modal';
 import { Maximize2 } from 'lucide-react';
@@ -118,6 +117,7 @@ export const AddExpense: React.FC<AddExpenseProps> = ({
 
 // Wrapper component for different trigger contexts
 interface AddExpenseButtonProps {
+  householdId: string;
   householdMembers: Array<{ id: string; name: string; avatar?: string }>;
   currentUserId: string;
   onAddExpense: (expense: any) => Promise<void>;
@@ -127,6 +127,7 @@ interface AddExpenseButtonProps {
 }
 
 export const AddExpenseButton: React.FC<AddExpenseButtonProps> = ({
+  householdId,
   householdMembers,
   currentUserId,
   onAddExpense,
@@ -153,6 +154,7 @@ export const AddExpenseButton: React.FC<AddExpenseButtonProps> = ({
       <AddExpense
         isOpen={isOpen}
         onCancel={() => setIsOpen(false)}
+        householdId={householdId}
         householdMembers={householdMembers}
         currentUserId={currentUserId}
         onAddExpense={handleAddExpense}

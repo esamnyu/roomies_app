@@ -1,6 +1,6 @@
 // src/lib/api/notifications.ts
 import { supabase } from '../supabase';
-import { subscriptionManager } from '../subscriptionManager';
+import { enhancedSubscriptionManager as subscriptionManager } from '../enhancedSubscriptionManager';
 import type { Notification } from '../types/types';
 import { getProfile } from './profile';
 

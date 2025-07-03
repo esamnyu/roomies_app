@@ -2,9 +2,10 @@
 "use client";
 
 import React, { useState } from 'react';
-import { X, Loader2, Info, Check, Plus, Trash2 } from 'lucide-react';
+import { Loader2, Info, Check, Plus, Trash2 } from 'lucide-react';
 import { Button } from '@/components/primitives/Button';
 import { Input } from '@/components/primitives/Input';
+import { ModalWrapper } from '@/components/primitives/ModalWrapper';
 import { addCustomChoreToHousehold } from '@/lib/api/chores';
 import { toast } from 'react-hot-toast';
 
@@ -122,26 +123,24 @@ export const AddChoreModal: React.FC<AddChoreModalProps> = ({
     };
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-            <div className="bg-background rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-hidden">
-                {/* Header */}
-                <div className="flex items-center justify-between p-6 border-b border-border">
-                    <div>
-                        <h2 className="text-xl font-semibold text-foreground">Add New Chores</h2>
-                        <p className="text-sm text-secondary-foreground mt-1">
-                            Select from suggestions or add custom chores
-                        </p>
-                    </div>
-                    <button
-                        onClick={onClose}
-                        className="text-secondary-foreground hover:text-foreground transition-colors"
-                    >
-                        <X className="h-5 w-5" />
-                    </button>
+        <ModalWrapper
+            isOpen={true}
+            onClose={onClose}
+            size="lg"
+            className="max-h-[90vh] overflow-hidden"
+        >
+            {/* Header */}
+            <div className="-m-6 mb-0 p-6 border-b border-border">
+                <div>
+                    <h2 className="text-xl font-semibold text-foreground">Add New Chores</h2>
+                    <p className="text-sm text-secondary-foreground mt-1">
+                        Select from suggestions or add custom chores
+                    </p>
                 </div>
+            </div>
 
-                {/* Content */}
-                <div className="p-6 overflow-y-auto max-h-[calc(90vh-180px)]">
+            {/* Content */}
+            <div className="mt-6 overflow-y-auto max-h-[calc(90vh-240px)]">
                     <div className="space-y-6">
                         {/* Selected Chores List */}
                         {selectedChores.length > 0 && (
@@ -307,8 +306,7 @@ export const AddChoreModal: React.FC<AddChoreModalProps> = ({
                             )}
                         </Button>
                     </div>
-                </div>
             </div>
-        </div>
+        </ModalWrapper>
     );
 };

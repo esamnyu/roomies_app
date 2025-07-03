@@ -15,6 +15,7 @@ export interface HouseRule {
   id: string;
   category: string;
   content: string;
+  templateId?: string;
 }
 
 export interface Household {

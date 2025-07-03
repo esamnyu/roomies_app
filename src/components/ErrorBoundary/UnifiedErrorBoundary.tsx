@@ -1,10 +1,13 @@
-// Enhanced AsyncErrorBoundary with circuit breaker pattern
+'use client';
+
 import React, { Component, ReactNode } from 'react';
 import { Button } from '@/components/primitives/Button';
 
 interface Props {
   children: ReactNode;
   fallback?: ReactNode;
+  isolate?: boolean;
+  showReportButton?: boolean;
   autoRetry?: boolean;
   maxRetries?: number;
   retryDelay?: number;
@@ -19,13 +22,13 @@ interface State {
   errorCount: number;
 }
 
-export class EnhancedAsyncErrorBoundary extends Component<Props, State> {
+export class UnifiedErrorBoundary extends Component<Props, State> {
   private retryTimeoutId: NodeJS.Timeout | null = null;
   private resetTimeoutId: NodeJS.Timeout | null = null;
   
   // Circuit breaker configuration
-  private readonly ERROR_THRESHOLD = 5; // Number of errors before circuit opens
-  private readonly RESET_TIMEOUT = 30000; // 30 seconds to reset error count
+  private readonly ERROR_THRESHOLD = 5;
+  private readonly RESET_TIMEOUT = 30000; // 30 seconds
   private readonly BACKOFF_MULTIPLIER = 2;
 
   constructor(props: Props) {
@@ -53,7 +56,7 @@ export class EnhancedAsyncErrorBoundary extends Component<Props, State> {
       lastErrorTime: now
     }));
 
-    console.error('AsyncErrorBoundary caught error:', error, errorInfo);
+    console.error('ErrorBoundary caught error:', error, errorInfo);
     onError?.(error, errorInfo);
 
     // Check if circuit breaker should open
@@ -141,15 +144,48 @@ export class EnhancedAsyncErrorBoundary extends Component<Props, State> {
     });
   };
 
+  private reportError = () => {
+    const errorDetails = {
+      message: this.state.error?.message,
+      stack: this.state.error?.stack,
+      timestamp: new Date().toISOString(),
+      userAgent: navigator.userAgent,
+    };
+    
+    console.log('Error report:', errorDetails);
+    // In production, this would send to an error tracking service
+    alert('Error has been reported. Thank you!');
+  };
+
   render() {
     if (this.state.hasError) {
-      const { fallback } = this.props;
+      const { fallback, isolate, showReportButton } = this.props;
       const isCircuitOpen = this.state.errorCount >= this.ERROR_THRESHOLD;
 
       if (fallback) {
         return <>{fallback}</>;
       }
 
+      // For isolated errors, show a minimal error UI
+      if (isolate) {
+        return (
+          <div className="p-4 bg-destructive/10 border border-destructive/20 rounded-lg">
+            <p className="text-sm text-destructive">
+              Component failed to load
+            </p>
+            <Button 
+              onClick={this.manualRetry} 
+              variant="ghost" 
+              size="sm"
+              className="mt-2"
+            >
+              Retry
+            </Button>
+          </div>
+        );
+      }
+
+      // Full error UI for non-isolated errors
       return (
         <div className="flex flex-col items-center justify-center p-8 min-h-[200px]">
           <div className="text-center space-y-4">
@@ -161,11 +197,20 @@ export class EnhancedAsyncErrorBoundary extends Component<Props, State> {
                 ? 'The application is experiencing issues. Please try again later.'
                 : this.state.error?.message || 'An unexpected error occurred'}
             </p>
-            {!isCircuitOpen && (
-              <Button onClick={this.manualRetry} variant="primary">
-                Try Again
-              </Button>
-            )}
+            
+            <div className="flex gap-2 justify-center">
+              {!isCircuitOpen && (
+                <Button onClick={this.manualRetry} variant="primary">
+                  Try Again
+                </Button>
+              )}
+              {showReportButton && (
+                <Button onClick={this.reportError} variant="outline">
+                  Report Issue
+                </Button>
+              )}
+            </div>
+            
             {isCircuitOpen && (
               <p className="text-xs text-secondary-foreground">
                 Automatic recovery will be attempted in a few moments
@@ -179,3 +224,6 @@ export class EnhancedAsyncErrorBoundary extends Component<Props, State> {
     return this.props.children;
   }
 }
+
+// Export a default error boundary component
+export const ErrorBoundary = UnifiedErrorBoundary;

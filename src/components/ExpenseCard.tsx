@@ -2,6 +2,7 @@
 import React from 'react';
 import { ChevronDown, ChevronUp, Pencil, Calendar, User, Lock, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/primitives/Button';
+import { formatCurrency, formatDate } from '@/lib/utils/formatting';
 import type { Expense } from '@/lib/types/types';
 
 interface ExpenseCardProps {
@@ -76,20 +77,20 @@ export const ExpenseCard: React.FC<ExpenseCardProps> = ({
                                     </div>
                                     <div className="flex items-center">
                                         <Calendar className="h-3 w-3 mr-1" />
-                                        {new Date(expense.date + (expense.date.includes('T') ? '' : 'T00:00:00')).toLocaleDateString()}
+                                        {formatDate(expense.date)}
                                     </div>
                                 </div>
                             </div>
                             <div className="flex items-center space-x-3 ml-4">
                                 <div className="text-right">
                                     <p className="text-lg font-bold text-foreground">
-                                        ${expense.amount.toFixed(2)}
+                                        {formatCurrency(expense.amount)}
                                     </p>
                                     {userBalance > 0 && (
                                         <p className={`text-xs font-medium ${
                                             userStatus === 'owed' ? 'text-emerald-600' : 'text-orange-600'
                                         }`}>
-                                            {userStatus === 'owed' ? 'you get back' : 'you owe'} ${userBalance.toFixed(2)}
+                                            {userStatus === 'owed' ? 'you get back' : 'you owe'} {formatCurrency(userBalance)}
                                         </p>
                                     )}
                                 </div>
@@ -167,7 +168,7 @@ export const ExpenseCard: React.FC<ExpenseCardProps> = ({
                                         <span className={`text-sm font-medium ${
                                             split.settled ? 'text-secondary-foreground' : 'text-foreground'
                                         }`}>
-                                            ${split.amount.toFixed(2)}
+                                            {formatCurrency(split.amount)}
                                         </span>
                                     </div>
                                 );
@@ -203,7 +204,7 @@ export const ExpenseCard: React.FC<ExpenseCardProps> = ({
                                                 <span className={`font-medium ${
                                                     adj.adjustment_amount > 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
                                                 }`}>
-                                                    {adj.adjustment_amount > 0 ? '+' : ''}${adj.adjustment_amount.toFixed(2)}
+                                                    {adj.adjustment_amount > 0 ? '+' : ''}{formatCurrency(adj.adjustment_amount)}
                                                 </span>
                                             </div>
                                         ))

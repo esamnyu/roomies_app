@@ -251,7 +251,7 @@ export const deleteHousehold = async (householdId: string) => {
 
 // --- HOUSE RULES FUNCTIONS ---
 
-export const addHouseRule = async (householdId: string, category: string, content: string): Promise<Household> => {
+export const addHouseRule = async (householdId: string, category: string, content: string, templateId?: string): Promise<Household> => {
     if (!householdId || !category || !content) {
         throw new Error("Household ID, category, and content are required.");
     }
@@ -266,10 +266,11 @@ export const addHouseRule = async (householdId: string, category: string, conten
         throw new Error("Could not retrieve household to add rule.");
     }
 
-    const newRule = {
+    const newRule: HouseRule = {
         id: `rule_${Date.now()}_${Math.random()}`,
         category,
         content,
+        ...(templateId && { templateId })
     };
 
     const existingRules = household.rules || [];

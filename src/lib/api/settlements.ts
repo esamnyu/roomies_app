@@ -1,6 +1,6 @@
 // src/lib/api/settlements.ts
 import { supabase } from '../supabase';
-import { subscriptionManager } from '../subscriptionManager';
+import { enhancedSubscriptionManager as subscriptionManager } from '../enhancedSubscriptionManager';
 import type { Settlement, Profile } from '../types/types';
 
 // This function is updated to accept a single object.
