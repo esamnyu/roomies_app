@@ -3,11 +3,12 @@
 import React, { useState } from 'react';
 import { ArrowLeft } from 'lucide-react';
 import { useAuth } from './AuthProvider';
-import { NotificationBell } from './NotificationsPanel';
+import { NotificationBell, NotificationsPanel } from './NotificationsPanel';
 import { UserMenu } from './UserMenu';
 import { Button } from './primitives/Button';
-import { BottomNav, BottomNavSpacer } from './navigation/BottomNav';
+import { BottomNav, BottomNavSpacer, NavItemId } from './navigation/BottomNav';
 import { Modal } from './surfaces/Modal';
+import { cn } from '@/lib/utils';
 import { SkipToContent } from './accessibility';
 import { Toaster } from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -20,6 +21,9 @@ interface LayoutV2Props {
   isHouseholdView?: boolean;
   onShowProfile?: () => void;
   onShowSettings?: () => void;
+  activeNavItem?: NavItemId;
+  onNavigate?: (item: NavItemId) => void;
+  showBottomNav?: boolean;
 }
 
 export const LayoutV2: React.FC<LayoutV2Props> = ({
@@ -29,17 +33,21 @@ export const LayoutV2: React.FC<LayoutV2Props> = ({
   onBack,
   isHouseholdView = false,
   onShowProfile = () => {},
-  onShowSettings = () => {}
+  onShowSettings = () => {},
+  activeNavItem = 'home',
+  onNavigate = () => {},
+  showBottomNav = true
 }) => {
   const { user, signOut } = useAuth();
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
   
   return (
     <>
       <SkipToContent />
       <div className="min-h-screen bg-secondary-50">
-        {/* Mobile Header */}
-        <header className="sticky top-0 z-sticky bg-white shadow-sm border-b border-secondary-200 md:relative">
+        {/* Desktop Header - Only show on md and above */}
+        <header className="hidden md:block relative bg-white shadow-sm border-b border-secondary-200">
           <div className="px-4 md:px-6 lg:px-8">
             <div className="flex justify-between items-center h-14 md:h-16">
               <div className="flex items-center">
@@ -58,7 +66,7 @@ export const LayoutV2: React.FC<LayoutV2Props> = ({
               {user && (
                 <div className="flex items-center space-x-1">
                   <NotificationBell />
-                  <div className="hidden md:flex">
+                  <div className="flex">
                     <UserMenu
                       onProfileClick={onShowProfile}
                       onSettingsClick={onShowSettings}
@@ -75,9 +83,27 @@ export const LayoutV2: React.FC<LayoutV2Props> = ({
         {/* Main Content */}
         <main 
           id="main-content"
-          className="pb-14 md:pb-0"
+          className={cn(
+            "md:pb-0",
+            showBottomNav ? "pb-14" : "pb-4"
+          )}
         >
-          <div className="px-4 py-4 md:px-6 md:py-6 lg:px-8 lg:py-8 max-w-7xl mx-auto">
+          <div className="px-4 pt-6 pb-4 md:px-6 md:py-6 lg:px-8 lg:py-8 max-w-7xl mx-auto">
+            {/* Mobile Title and Back Button */}
+            <div className="md:hidden mb-4">
+              <div className="flex items-center">
+                {showBack && (
+                  <button 
+                    onClick={onBack} 
+                    className="mr-3 p-2 -ml-2 rounded-lg hover:bg-secondary-100 active:scale-95"
+                    aria-label="Go back"
+                  >
+                    <ArrowLeft className="h-5 w-5" />
+                  </button>
+                )}
+                <h1 className="text-xl font-semibold text-secondary-900">{title}</h1>
+              </div>
+            </div>
             <AnimatePresence mode="wait">
               <motion.div
                 key={title}
@@ -93,8 +119,12 @@ export const LayoutV2: React.FC<LayoutV2Props> = ({
         </main>
 
         {/* Mobile Bottom Navigation */}
-        {user && (
-          <BottomNav onMenuClick={() => setMoreMenuOpen(true)} />
+        {user && showBottomNav && (
+          <BottomNav 
+            activeItem={activeNavItem}
+            onNavigate={onNavigate}
+            onMenuClick={() => setMoreMenuOpen(true)} 
+          />
         )}
 
         {/* More Menu Modal */}
@@ -106,6 +136,21 @@ export const LayoutV2: React.FC<LayoutV2Props> = ({
           className="sm:max-w-md"
         >
           <div className="space-y-2">
+            <button
+              onClick={() => {
+                setMoreMenuOpen(false);
+                setShowNotifications(true);
+              }}
+              className="w-full flex items-center p-3 rounded-lg hover:bg-secondary-100 transition-colors"
+            >
+              <div className="h-10 w-10 rounded-full bg-primary-100 flex items-center justify-center mr-3">
+                <svg className="h-5 w-5 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                </svg>
+              </div>
+              <span className="text-base font-medium">Notifications</span>
+            </button>
+
             <button
               onClick={() => {
                 onShowProfile();
@@ -157,6 +202,13 @@ export const LayoutV2: React.FC<LayoutV2Props> = ({
             </button>
           </div>
         </Modal>
+        
+        {/* Notifications Panel - Separate from More Menu */}
+        <NotificationsPanel
+          isOpen={showNotifications}
+          onClose={() => setShowNotifications(false)}
+          onNotificationCountChange={() => {}}
+        />
       </div>
       <Toaster 
         position="top-center"

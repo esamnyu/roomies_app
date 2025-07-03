@@ -6,13 +6,13 @@ import {
   getNotifications, 
   getUnreadNotificationCount, 
   markAllNotificationsRead, 
-  markNotificationsRead, 
-  subscribeToNotifications 
+  markNotificationsRead
 } from '@/lib/api/notifications';
 import type { Notification } from '@/lib/types/types';
 import { useAuth } from './AuthProvider';
 import { Button } from '@/components/primitives/Button';
-import { subscriptionManager } from '@/lib/subscriptionManager';
+import { useThrottledSubscription } from '@/hooks/useThrottledSubscription';
+import { supabase } from '@/lib/supabase';
 
 interface NotificationsPanelProps {
   isOpen: boolean;
@@ -209,23 +209,25 @@ export const NotificationBell: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
 
-  const handleNewNotification = useCallback((notification: Notification) => {
-    setUnreadCount(prev => prev + 1);
-    
-    if ('Notification' in window && Notification.permission === 'granted') {
-      new Notification(notification.title, {
-        body: notification.message,
-        icon: '/icon.png'
-      });
+  const handleNewNotification = useCallback((payload: any) => {
+    if (payload.eventType === 'INSERT' && payload.new) {
+      const notification = payload.new as Notification;
+      setUnreadCount(prev => prev + 1);
+      
+      if ('Notification' in window && Notification.permission === 'granted') {
+        new Notification(notification.title, {
+          body: notification.message,
+          icon: '/icon.png'
+        });
+      }
     }
   }, []);
 
+  // Load initial count
   useEffect(() => {
     if (!user?.id) return;
 
     let mounted = true;
-
-    // Load initial count
     getUnreadNotificationCount()
       .then(count => {
         if (mounted) {
@@ -233,20 +235,36 @@ export const NotificationBell: React.FC = () => {
         }
       })
       .catch(console.error);
-    
-    // Subscribe to new notifications
-    subscribeToNotifications(user.id, (notification) => {
-      if (mounted) {
-        handleNewNotification(notification);
-      }
-    });
 
     return () => {
       mounted = false;
-      const subscriptionKey = `notifications:${user.id}`;
-      subscriptionManager.unsubscribe(subscriptionKey);
     };
-  }, [user?.id, handleNewNotification]);
+  }, [user?.id]);
+
+  // Use throttled subscription for real-time updates
+  useThrottledSubscription(
+    `notifications:${user?.id}`,
+    () => user?.id ? supabase
+      .channel(`notifications:${user.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'notifications',
+          filter: `user_id=eq.${user.id}`
+        },
+        () => {} // Callback handled by handleNewNotification
+      ) : null,
+    handleNewNotification,
+    [user?.id],
+    {
+      throttleMs: 500,
+      dedupWindow: 1000,
+      maxRetries: 3,
+      enabled: !!user?.id
+    }
+  );
 
   return (
     <>

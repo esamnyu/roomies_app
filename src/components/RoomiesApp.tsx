@@ -48,7 +48,7 @@ import { ProfileModal } from './modals/ProfileModal';
 import { HouseholdSettingsModal } from './modals/HouseholdSettingsModal';
 import { EditExpenseModal } from './modals/EditExpenseModal';
 import { AuthForm } from './AuthForm';
-import { LayoutV2 } from './LayoutV2';
+import { LayoutV2, NavItemId } from './LayoutV2';
 import { BalanceSummaryCard } from './BalanceSummaryCard';
 import { ExpenseCard } from './ExpenseCard';
 import { AsyncErrorBoundary } from './AsyncErrorBoundary';
@@ -187,7 +187,11 @@ const Dashboard: React.FC<{ setAppState: (state: AppState) => void }> = ({ setAp
     }
 
     return (
-        <LayoutV2 title={"My Households"} isHouseholdView={false} onShowProfile={()=>setIsProfileModalOpen(true)}>
+        <LayoutV2 
+            title={"My Households"} 
+            isHouseholdView={false} 
+            onShowProfile={()=>setIsProfileModalOpen(true)}
+            showBottomNav={false}>
             <div className="space-y-6">
                 <div className="flex justify-between items-center">
                     <h2 className="text-2xl font-bold text-foreground">Your Households</h2>
@@ -465,7 +469,12 @@ const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = (
 
     if (loadingData && !household) {
             return (
-                <LayoutV2 title="Loading Household..." showBack onBack={onBack} isHouseholdView={false}>
+                <LayoutV2 
+                    title="Loading Household..." 
+                    showBack 
+                    onBack={onBack} 
+                    isHouseholdView={false}
+                    showBottomNav={false}>
                     <LoadingSpinner />
                 </LayoutV2>
             );
@@ -474,6 +483,34 @@ const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = (
     // Extract profile data from household members for chat functionality
     const memberProfiles = members.map(m => m.profiles).filter((p): p is Profile => !!p);
 
+    // Map active tab to bottom nav item
+    const getActiveNavItem = (): NavItemId => {
+        switch (activeTab) {
+            case 'money': return 'expenses';
+            case 'structuredChores': return 'chores';
+            case 'communication': return 'chat';
+            default: return 'home';
+        }
+    };
+
+    // Handle bottom nav navigation
+    const handleNavigation = (item: NavItemId) => {
+        switch (item) {
+            case 'home':
+                setActiveTab('rules'); // or whatever should be the home tab
+                break;
+            case 'expenses':
+                setActiveTab('money');
+                break;
+            case 'chores':
+                setActiveTab('structuredChores');
+                break;
+            case 'chat':
+                setActiveTab('communication');
+                break;
+        }
+    };
+
     return (
         <LayoutV2
             title={household?.name || 'Household Details'}
@@ -481,7 +518,9 @@ const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = (
             onBack={onBack}
             isHouseholdView={true}
             onShowProfile={() => setIsProfileModalOpen(true)}
-            onShowSettings={() => setIsHouseholdSettingsModalOpen(true)}>
+            onShowSettings={() => setIsHouseholdSettingsModalOpen(true)}
+            activeNavItem={getActiveNavItem()}
+            onNavigate={handleNavigation}>
             <div className="space-y-6">
                 <div className="border-b border-border">
                     <nav className="-mb-px flex space-x-4 sm:space-x-8 overflow-x-auto">
@@ -812,7 +851,11 @@ const App: React.FC = () => {
         case 'onboardingChoice': return <OnboardingChoice onCreateHousehold={() => setAppState('householdSetup')} onJoinHousehold={() => setAppState('joinWithCode')} />;
         case 'householdSetup':
             return (
-                <LayoutV2 title="Create Household" showBack onBack={handleCancelSetupOrJoin}>
+                <LayoutV2 
+                    title="Create Household" 
+                    showBack 
+                    onBack={handleCancelSetupOrJoin}
+                    showBottomNav={false}>
                     <div className="flex justify-center">
                             <HouseholdSetupForm
                                 onHouseholdCreated={(hid) => {
@@ -828,7 +871,11 @@ const App: React.FC = () => {
             );
         case 'joinWithCode': 
             return (
-                <LayoutV2 title="Join Household" showBack onBack={handleCancelSetupOrJoin}>
+                <LayoutV2 
+                    title="Join Household" 
+                    showBack 
+                    onBack={handleCancelSetupOrJoin}
+                    showBottomNav={false}>
                     <JoinHouseholdWithCode
                         onJoined={(household) => {
                             setUserHasHouseholds(true);
