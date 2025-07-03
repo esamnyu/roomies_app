@@ -27,6 +27,9 @@ import {
 import { getHouseholdRecurringExpenses } from '../lib/api/expenses';
 import { getHouseholdBalances, getSettlementSuggestions } from '../lib/api/settlements';
 import { Household, HouseholdMember, Expense, RecurringExpense, HouseRule, Profile } from '../lib/types/types';
+import Select from 'react-select';
+import { ruleCategories, getTemplatesByCategory, getPopularTemplates, RuleTemplate, ruleTemplates } from '../lib/data/ruleTemplates';
+import { getSuggestedRules } from '../lib/utils/ruleSuggestions';
 
 import { AuthProvider, useAuth } from './AuthProvider';
 import { toast } from 'react-hot-toast';
@@ -253,18 +256,31 @@ const AddRuleModal: React.FC<{
     onClose: () => void;
     onRuleAdded: () => void;
 }> = ({ householdId, onClose, onRuleAdded }) => {
-    const [category, setCategory] = useState('');
+    const [selectedCategory, setSelectedCategory] = useState<{ value: string; label: string } | null>(null);
     const [content, setContent] = useState('');
     const [isSaving, setIsSaving] = useState(false);
+    const [showSuggestions, setShowSuggestions] = useState(true);
+    const [selectedTemplateId, setSelectedTemplateId] = useState<string | undefined>(undefined);
+    
+    // Get category options for react-select
+    const categoryOptions = ruleCategories.map(cat => ({
+        value: cat.id,
+        label: cat.name
+    }));
+    
+    // Get relevant rule templates based on selected category
+    const suggestedRules = selectedCategory 
+        ? getTemplatesByCategory(selectedCategory.value)
+        : getPopularTemplates(6);
 
     const handleSubmit = async () => {
-        if (!category.trim() || !content.trim()) {
+        if (!selectedCategory || !content.trim()) {
             toast.error("Both category and content are required.");
             return;
         }
         setIsSaving(true);
         try {
-            await addHouseRule(householdId, category.trim(), content.trim());
+            await addHouseRule(householdId, selectedCategory.label, content.trim(), selectedTemplateId);
             toast.success("New rule added!");
             onRuleAdded();
         } catch (error) {
@@ -273,26 +289,95 @@ const AddRuleModal: React.FC<{
             setIsSaving(false);
         }
     };
+    
+    const handleSelectTemplate = (template: RuleTemplate) => {
+        const category = ruleCategories.find(cat => cat.id === template.category);
+        if (category) {
+            setSelectedCategory({ value: category.id, label: category.name });
+        }
+        setContent(template.content);
+        setSelectedTemplateId(template.id);
+        setShowSuggestions(false);
+    };
 
     const textareaStyles = "mt-1 flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50";
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-            <div className="bg-background rounded-lg p-6 max-w-md w-full">
+            <div className="bg-background rounded-lg p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
                 <h3 className="text-lg font-medium text-foreground mb-4">Add a New House Rule</h3>
+                
+                {/* Suggestions Section */}
+                {showSuggestions && suggestedRules.length > 0 && (
+                    <div className="mb-6">
+                        <h4 className="text-sm font-medium text-foreground mb-3">
+                            {selectedCategory ? `Popular ${selectedCategory.label} Rules` : 'Popular House Rules'}
+                        </h4>
+                        <div className="grid grid-cols-1 gap-2 max-h-48 overflow-y-auto">
+                            {suggestedRules.map((template) => {
+                                const category = ruleCategories.find(cat => cat.id === template.category);
+                                return (
+                                    <button
+                                        key={template.id}
+                                        onClick={() => handleSelectTemplate(template)}
+                                        className="text-left p-3 border border-border rounded-md hover:bg-muted/50 transition-colors"
+                                    >
+                                        <div className="text-xs text-muted-foreground mb-1">{category?.name}</div>
+                                        <div className="text-sm text-foreground">{template.content}</div>
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    </div>
+                )}
+                
                 <div className="space-y-4">
                     <div>
-                        <label htmlFor="category" className="block text-sm font-medium text-foreground">Category</label>
-                        <Input type="text" id="category" value={category} onChange={e => setCategory(e.target.value)} className="mt-1" placeholder="e.g., Cleanliness, Guests" />
+                        <label htmlFor="category" className="block text-sm font-medium text-foreground mb-1">Category</label>
+                        <Select
+                            id="category"
+                            value={selectedCategory}
+                            onChange={(newValue) => {
+                                setSelectedCategory(newValue);
+                                setShowSuggestions(true);
+                                setSelectedTemplateId(undefined);
+                            }}
+                            options={categoryOptions}
+                            placeholder="Select a category..."
+                            className="react-select-container"
+                            classNamePrefix="react-select"
+                            theme={(theme) => ({
+                                ...theme,
+                                colors: {
+                                    ...theme.colors,
+                                    primary: 'hsl(var(--primary))',
+                                    primary25: 'hsl(var(--muted))',
+                                    neutral0: 'hsl(var(--background))',
+                                    neutral80: 'hsl(var(--foreground))',
+                                    neutral20: 'hsl(var(--border))'
+                                }
+                            })}
+                        />
                     </div>
                     <div>
-                        <label htmlFor="content" className="block text-sm font-medium text-foreground">Rule Content</label>
-                        <textarea id="content" value={content} onChange={e => setContent(e.target.value)} className={textareaStyles} rows={3} placeholder="Describe the rule..."></textarea>
+                        <label htmlFor="content" className="block text-sm font-medium text-foreground mb-1">Rule Content</label>
+                        <textarea 
+                            id="content" 
+                            value={content} 
+                            onChange={e => {
+                                setContent(e.target.value);
+                                setShowSuggestions(false);
+                                setSelectedTemplateId(undefined);
+                            }} 
+                            className={textareaStyles} 
+                            rows={3} 
+                            placeholder="Describe the rule..."
+                        ></textarea>
                     </div>
                 </div>
                 <div className="mt-6 flex justify-end space-x-3">
                     <Button onClick={onClose} disabled={isSaving} variant="secondary">Cancel</Button>
-                    <Button onClick={handleSubmit} disabled={isSaving || !category || !content}>
+                    <Button onClick={handleSubmit} disabled={isSaving || !selectedCategory || !content}>
                         {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Add Rule'}
                     </Button>
                 </div>
@@ -706,14 +791,94 @@ const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = (
                                 </div>
                                 <div className="space-y-4">
                                     {household.rules && household.rules.length > 0 ? (
-                                    household.rules.map((rule) => (
-                                        <RuleCard key={rule.id} rule={rule} isAdmin={isAdmin} onEdit={rule => { setRuleToEdit(rule); setShowEditRuleModal(true); }} onDelete={async (id) => { if(window.confirm('Are you sure?')) { await deleteHouseRule(householdId, id); refreshData(true) }}} />
-                                    ))
+                                    <>
+                                        {household.rules.map((rule) => (
+                                            <RuleCard key={rule.id} rule={rule} isAdmin={isAdmin} onEdit={rule => { setRuleToEdit(rule); setShowEditRuleModal(true); }} onDelete={async (id) => { if(window.confirm('Are you sure?')) { await deleteHouseRule(householdId, id); refreshData(true) }}} />
+                                        ))}
+                                        
+                                        {/* Rule Suggestions */}
+                                        {isAdmin && (() => {
+                                            const suggestedRules = getSuggestedRules(household.rules, ruleTemplates, undefined, 3);
+                                            return suggestedRules.length > 0 && (
+                                                <div className="mt-6">
+                                                    <h4 className="text-sm font-medium text-foreground mb-3 opacity-70">Suggested Rules</h4>
+                                                    <div className="space-y-2">
+                                                        {suggestedRules.map((template) => {
+                                                            const category = ruleCategories.find(cat => cat.id === template.category);
+                                                            return (
+                                                                <button
+                                                                    key={template.id}
+                                                                    onClick={async () => {
+                                                                        try {
+                                                                            await addHouseRule(householdId, category?.name || template.category, template.content, template.id);
+                                                                            toast.success("Rule added!");
+                                                                            refreshData(true);
+                                                                        } catch (error) {
+                                                                            toast.error("Failed to add rule");
+                                                                        }
+                                                                    }}
+                                                                    className="w-full text-left p-4 border border-border rounded-lg hover:bg-muted/30 transition-all opacity-60 hover:opacity-100 group"
+                                                                >
+                                                                    <div className="flex justify-between items-start">
+                                                                        <div className="flex-1">
+                                                                            <div className="text-xs text-muted-foreground mb-1">{category?.name}</div>
+                                                                            <div className="text-sm text-foreground">{template.content}</div>
+                                                                        </div>
+                                                                        <Plus className="h-4 w-4 text-muted-foreground group-hover:text-primary ml-2 mt-1" />
+                                                                    </div>
+                                                                </button>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                </div>
+                                            );
+                                        })()}
+                                    </>
                                     ) : (
-                                    <div className="text-center py-8">
-                                        <p className="text-sm text-secondary-foreground">No house rules have been added yet.</p>
-                                        {isAdmin && <p className="text-xs text-secondary-foreground opacity-70 mt-1">Click &quot;Add New Rule&quot; to get started.</p>}
-                                    </div>
+                                    <>
+                                        <div className="text-center py-8">
+                                            <p className="text-sm text-secondary-foreground">No house rules have been added yet.</p>
+                                            {isAdmin && <p className="text-xs text-secondary-foreground opacity-70 mt-1">Click &quot;Add New Rule&quot; to get started.</p>}
+                                        </div>
+                                        
+                                        {/* Rule Suggestions for empty state */}
+                                        {isAdmin && (() => {
+                                            const suggestedRules = getPopularTemplates(5);
+                                            return (
+                                                <div>
+                                                    <h4 className="text-sm font-medium text-foreground mb-3 opacity-70">Popular Rules to Get Started</h4>
+                                                    <div className="space-y-2">
+                                                        {suggestedRules.map((template) => {
+                                                            const category = ruleCategories.find(cat => cat.id === template.category);
+                                                            return (
+                                                                <button
+                                                                    key={template.id}
+                                                                    onClick={async () => {
+                                                                        try {
+                                                                            await addHouseRule(householdId, category?.name || template.category, template.content, template.id);
+                                                                            toast.success("Rule added!");
+                                                                            refreshData(true);
+                                                                        } catch (error) {
+                                                                            toast.error("Failed to add rule");
+                                                                        }
+                                                                    }}
+                                                                    className="w-full text-left p-4 border border-border rounded-lg hover:bg-muted/30 transition-all opacity-60 hover:opacity-100 group"
+                                                                >
+                                                                    <div className="flex justify-between items-start">
+                                                                        <div className="flex-1">
+                                                                            <div className="text-xs text-muted-foreground mb-1">{category?.name}</div>
+                                                                            <div className="text-sm text-foreground">{template.content}</div>
+                                                                        </div>
+                                                                        <Plus className="h-4 w-4 text-muted-foreground group-hover:text-primary ml-2 mt-1" />
+                                                                    </div>
+                                                                </button>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                </div>
+                                            );
+                                        })()}
+                                    </>
                                     )}
                                 </div>
                             </div>
