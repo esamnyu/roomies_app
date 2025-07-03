@@ -77,10 +77,11 @@ export class AsyncErrorBoundary extends Component<Props, State> {
     if (error instanceof AuthError || error.name === 'AuthError') {
       return 'auth';
     }
-    if (error.message.includes('fetch') || error.message.includes('Failed to fetch')) {
+    const errorMessage = error?.message || '';
+    if (errorMessage.includes('fetch') || errorMessage.includes('Failed to fetch')) {
       return 'network';
     }
-    if (error.message.includes('Unauthorized') || error.message.includes('401')) {
+    if (errorMessage.includes('Unauthorized') || errorMessage.includes('401')) {
       return 'auth';
     }
     return 'generic';

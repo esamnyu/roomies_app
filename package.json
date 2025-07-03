@@ -15,11 +15,8 @@
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
     "@google/generative-ai": "^0.11.5",
-    "@radix-ui/react-collapsible": "^1.1.11",
     "@radix-ui/react-slot": "^1.2.3",
-    "@supabase/auth-helpers-nextjs": "^0.10.0",
     "@supabase/supabase-js": "^2.43.4",
-    "@types/uuid": "^10.0.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "framer-motion": "^12.22.0",
@@ -37,7 +34,6 @@
     "zod": "^3.25.67"
   },
   "devDependencies": {
-    "@tailwindcss/container-queries": "^0.1.1",
     "@tailwindcss/typography": "^0.5.16",
     "@testing-library/jest-dom": "^6.4.5",
     "@testing-library/react": "^14.3.1",
@@ -46,15 +42,14 @@
     "@types/node": "^20",
     "@types/react": "^18.3.3",
     "@types/react-dom": "^18.3.0",
+    "@types/uuid": "^10.0.0",
     "autoprefixer": "^10.4.21",
-    "dotenv": "^17.0.1",
     "eslint": "^8.57.0",
     "eslint-config-next": "^14.2.30",
     "jest": "^29.7.0",
     "jest-environment-jsdom": "^29.7.0",
     "postcss": "^8.4.38",
     "tailwindcss": "^3.4.3",
-    "tsx": "^4.20.3",
     "typescript": "^5"
   }
 }

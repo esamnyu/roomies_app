@@ -112,7 +112,7 @@ export function isOperationalError(error: Error): boolean {
   ];
   
   return operationalPatterns.some(pattern => 
-    pattern.test(error.message) || pattern.test(error.name)
+    (error.message && pattern.test(error.message)) || (error.name && pattern.test(error.name))
   );
 }
 
@@ -137,7 +137,7 @@ export function getErrorMessage(error: Error): string {
   };
   
   // Check for exact matches first
-  if (errorMessageMap[error.message]) {
+  if (error.message && errorMessageMap[error.message]) {
     return errorMessageMap[error.message];
   }
   
@@ -148,7 +148,7 @@ export function getErrorMessage(error: Error): string {
   
   // Check for partial matches in message
   for (const [key, message] of Object.entries(errorMessageMap)) {
-    if (error.message.includes(key)) {
+    if (error.message && error.message.includes(key)) {
       return message;
     }
   }

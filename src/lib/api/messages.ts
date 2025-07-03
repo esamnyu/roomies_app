@@ -1,6 +1,6 @@
 // src/lib/api/messages.ts
 import { supabase } from '../supabase';
-import { subscriptionManager } from '../subscriptionManager';
+import { enhancedSubscriptionManager as subscriptionManager } from '../enhancedSubscriptionManager';
 import type { Message, MessageWithProfileRPC } from '../types/types';
 import { validateInput, sendMessageSchema } from './validation/schemas';
 import { requireHouseholdMember } from './auth/middleware';
@@ -97,8 +97,13 @@ export const subscribeToMessages = (householdId: string, onMessage: (message: Me
           onMessage(newMessage);
         }
       }
-    })
-    .subscribe((status, err) => {
+    });
+
+  // Subscribe through the subscription manager which handles the actual subscription
+  const managedChannel = subscriptionManager.subscribe(key, channel);
+  
+  if (managedChannel) {
+    managedChannel.subscribe((status, err) => {
       if (err) {
         console.error(`Subscription error for ${key}:`, err);
         // Clean up failed subscription
@@ -107,9 +112,7 @@ export const subscribeToMessages = (householdId: string, onMessage: (message: Me
         console.log(`Subscription status for ${key}:`, status);
       }
     });
-
-  // Store and return the subscription
-  subscriptionManager.subscribe(key, channel);
+  }
   
   // Return an object with unsubscribe method for proper cleanup
   return {
