@@ -13,6 +13,7 @@ import { ChoreTaskCard } from './ChoreTaskCard';
 import { EmptyChoreState } from './EmptyChoreState';
 import { AddChoreModal } from '@/components/modals/AddChoreModal';
 import { ManageChoresModal } from '@/components/modals/ManageChoresModal';
+import { QuickTasksWidget } from '@/components/tasks/QuickTasksWidget';
 
 // Separate component for the dashboard content to use context
 interface ChoreHubContentProps {
@@ -27,6 +28,7 @@ const ChoreHubContent: React.FC<ChoreHubContentProps> = ({ householdId }) => {
         isGenerating,
         isLoadingCompletion,
         isAdmin,
+        members,
         handleMarkComplete,
         handleGenerateSchedule,
         refreshData,
@@ -63,6 +65,15 @@ const ChoreHubContent: React.FC<ChoreHubContentProps> = ({ householdId }) => {
 
     return (
         <div className="space-y-6">
+            {/* Quick Tasks Widget */}
+            {user && (
+                <QuickTasksWidget
+                    householdId={householdId}
+                    currentUserId={user.id}
+                    members={members}
+                />
+            )}
+
             {/* Header */}
             <div className="bg-gradient-to-r from-primary/10 to-primary/5 p-6 rounded-xl shadow-sm border border-primary/20">
                 <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">

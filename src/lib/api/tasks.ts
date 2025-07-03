@@ -16,80 +16,81 @@ import type { Task } from '../types/types';
  * @param assignedTo - (Optional) The user ID of the person the task is assigned to.
  * @returns The newly created task, with the assignee's profile if applicable.
  */
-export const createTask = async (
+export const createTask = withErrorHandling(async (
   householdId: string, 
   title: string, 
   assignedTo?: string
 ) => {
-  return withErrorHandling(async () => {
-    // Validate input
-    const validatedData = validateInput(createTaskSchema, {
-      householdId,
-      title,
-      assignedTo
-    });
+  // Validate input
+  console.log('Raw input to createTask:', { householdId, title, assignedTo });
+  const validatedData = validateInput(createTaskSchema, {
+    householdId,
+    title,
+    assignedTo
+  });
+  console.log('Validated data:', validatedData);
 
-    // Ensure the user is authenticated and a member of the household
-    await requireHouseholdMember(validatedData.householdId);
+  // Ensure the user is authenticated and a member of the household
+  await requireHouseholdMember(validatedData.householdId);
 
-    // If a user is assigned, verify they are also a member of the household
-    if (validatedData.assignedTo) {
-      await requireHouseholdMember(validatedData.householdId, validatedData.assignedTo);
-    }
+  // If a user is assigned, verify they are also a member of the household
+  if (validatedData.assignedTo) {
+    await requireHouseholdMember(validatedData.householdId, validatedData.assignedTo);
+  }
 
-    const taskData: Partial<Task> = {
-      household_id: validatedData.householdId,
-      title: validatedData.title,
-      completed: false,
-      assigned_to: validatedData.assignedTo || undefined,
-    };
-    
-    // Insert the new task and immediately select it with the profile information
-    const { data: insertedTask, error } = await supabase
-      .from('tasks')
-      .insert(taskData)
-      .select('*, profiles:assigned_to (id, name, avatar_url)')
-      .single();
+  const taskData: Partial<Task> = {
+    household_id: validatedData.householdId,
+    title: validatedData.title,
+    completed: false,
+    assigned_to: validatedData.assignedTo || undefined,
+  };
+  
+  console.log('Creating task with data:', taskData);
+  
+  // Insert the new task and immediately select it with the profile information
+  const { data: insertedTask, error } = await supabase
+    .from('tasks')
+    .insert(taskData)
+    .select('*, profiles:assigned_to (id, name, avatar_url)')
+    .single();
 
-    if (error) {
-      handleSupabaseError(error);
-    }
+  if (error) {
+    handleSupabaseError(error);
+  }
 
-    if (!insertedTask) {
-      throw new Error('Failed to create task');
-    }
+  if (!insertedTask) {
+    throw new Error('Failed to create task');
+  }
 
-    return insertedTask;
-  }, 'createTask');
-};
+  console.log('Task created successfully:', insertedTask);
+  return insertedTask;
+}, 'createTask');
 
 /**
  * Fetches all tasks for a given household, ordered by completion status and creation date.
  * @param householdId - The ID of the household.
  * @returns An array of tasks with associated profiles.
  */
-export const getHouseholdTasks = async (householdId: string) => {
-  return withErrorHandling(async () => {
-    // Validate household ID
-    const validatedId = validateInput(uuidSchema, householdId);
+export const getHouseholdTasks = withErrorHandling(async (householdId: string) => {
+  // Validate household ID
+  const validatedId = validateInput(uuidSchema, householdId);
 
-    // Ensure the user is a member of the household
-    await requireHouseholdMember(validatedId);
+  // Ensure the user is a member of the household
+  await requireHouseholdMember(validatedId);
 
-    const { data, error } = await supabase
-      .from('tasks')
-      .select('*, profiles:assigned_to (id, name, avatar_url)')
-      .eq('household_id', validatedId)
-      .order('completed', { ascending: true })
-      .order('created_at', { ascending: false });
+  const { data, error } = await supabase
+    .from('tasks')
+    .select('*, profiles:assigned_to (id, name, avatar_url)')
+    .eq('household_id', validatedId)
+    .order('completed', { ascending: true })
+    .order('created_at', { ascending: false });
 
-    if (error) {
-      handleSupabaseError(error);
-    }
-    
-    return data || [];
-  }, 'getHouseholdTasks');
-};
+  if (error) {
+    handleSupabaseError(error);
+  }
+  
+  return data || [];
+}, 'getHouseholdTasks');
 
 /**
  * Updates an existing task with new data.
@@ -97,11 +98,10 @@ export const getHouseholdTasks = async (householdId: string) => {
  * @param updates - An object containing the fields to update.
  * @returns The updated task object with profile information.
  */
-export const updateTask = async (
+export const updateTask = withErrorHandling(async (
   taskId: string, 
   updates: Partial<Task>
 ) => {
-  return withErrorHandling(async () => {
     // Validate task ID
     const validatedTaskId = validateInput(uuidSchema, taskId);
 
@@ -159,30 +159,26 @@ export const updateTask = async (
     }
 
     return updatedTask;
-  }, 'updateTask');
-};
+}, 'updateTask');
 
 /**
  * Marks a specific task as complete.
  * @param taskId - The ID of the task to complete.
  * @returns The completed task object.
  */
-export const completeTask = async (taskId: string) => {
-  return withErrorHandling(async () => {
-    return updateTask(taskId, { 
-      completed: true, 
-      completed_at: new Date().toISOString() 
-    });
-  }, 'completeTask');
-};
+export const completeTask = withErrorHandling(async (taskId: string) => {
+  return updateTask(taskId, { 
+    completed: true, 
+    completed_at: new Date().toISOString() 
+  });
+}, 'completeTask');
 
 /**
  * Deletes a task from the household.
  * @param taskId - The ID of the task to delete.
  * @returns void
  */
-export const deleteTask = async (taskId: string) => {
-  return withErrorHandling(async () => {
+export const deleteTask = withErrorHandling(async (taskId: string) => {
     // Validate task ID
     const validatedTaskId = validateInput(uuidSchema, taskId);
 
@@ -213,8 +209,7 @@ export const deleteTask = async (taskId: string) => {
     if (deleteError) {
       handleSupabaseError(deleteError);
     }
-  }, 'deleteTask');
-};
+}, 'deleteTask');
 
 /**
  * Bulk update multiple tasks at once (e.g., mark all as complete).
@@ -222,11 +217,10 @@ export const deleteTask = async (taskId: string) => {
  * @param updates - The updates to apply to all tasks.
  * @returns Array of updated tasks.
  */
-export const bulkUpdateTasks = async (
+export const bulkUpdateTasks = withErrorHandling(async (
   taskIds: string[], 
   updates: Partial<Task>
 ) => {
-  return withErrorHandling(async () => {
     // Validate all task IDs
     const validatedTaskIds = taskIds.map(id => validateInput(uuidSchema, id));
 
@@ -265,5 +259,4 @@ export const bulkUpdateTasks = async (
     }
 
     return updatedTasks || [];
-  }, 'bulkUpdateTasks');
-};
+}, 'bulkUpdateTasks');
