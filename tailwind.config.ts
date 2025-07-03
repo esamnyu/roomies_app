@@ -3,12 +3,15 @@ import { tokens } from "./src/lib/design-tokens"
 
 const config = {
   darkMode: ["class"],
-  content: [
-    './pages/**/*.{ts,tsx}',
-    './components/**/*.{ts,tsx}',
-    './app/**/*.{ts,tsx}',
-    './src/**/*.{ts,tsx}',
-	],
+  content: {
+    files: ['./src/**/*.{ts,tsx}'],
+    transform: {
+      tsx: (content: string) => {
+        // Remove comments from content to reduce parsing overhead
+        return content.replace(/\/\*[\s\S]*?\*\/|\/\/.*/g, '');
+      },
+    },
+  },
   prefix: "",
   theme: {
     container: {
@@ -53,17 +56,12 @@ const config = {
       fontSize: tokens.typography.fontSize,
       fontWeight: tokens.typography.fontWeight,
       spacing: tokens.spacing,
-      borderRadius: {
-        ...tokens.layout.radius,
-        lg: `0.5rem`,
-        md: `calc(0.5rem - 2px)`,
-        sm: `calc(0.5rem - 4px)`,
-      },
+      borderRadius: tokens.layout.radius,
       maxWidth: tokens.layout.maxWidth,
       boxShadow: tokens.shadows,
       transitionDuration: tokens.animation.duration,
       transitionTimingFunction: tokens.animation.easing,
-      zIndex: tokens.zIndex,
+      zIndex: tokens.zIndex as any,
       screens: tokens.breakpoints,
       keyframes: {
         "accordion-down": {
@@ -84,11 +82,16 @@ const config = {
         "accordion-up": "accordion-up 0.2s ease-out",
         shimmer: 'shimmer 2s ease-in-out infinite',
       },
+      willChange: {
+        transform: 'transform',
+        opacity: 'opacity',
+        contents: 'contents',
+        auto: 'auto',
+      },
     },
   },
   plugins: [
     require("tailwindcss-animate"),
-    require("@tailwindcss/typography"),
   ],
 } satisfies Config
 

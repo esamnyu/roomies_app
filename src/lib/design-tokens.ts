@@ -1,40 +1,22 @@
 export const tokens = {
   colors: {
     primary: {
-      50: 'hsl(158, 79%, 97%)',
       100: 'hsl(158, 79%, 94%)',
-      200: 'hsl(158, 79%, 88%)',
-      300: 'hsl(158, 79%, 77%)',
-      400: 'hsl(158, 79%, 58%)',
       500: 'hsl(158, 79%, 45%)',
       600: 'hsl(158, 79%, 35%)',
       700: 'hsl(158, 79%, 28%)',
-      800: 'hsl(158, 79%, 23%)',
-      900: 'hsl(158, 79%, 20%)',
     },
     secondary: {
-      50: 'hsl(210, 40%, 98%)',
       100: 'hsl(210, 40%, 96%)',
-      200: 'hsl(210, 40%, 92%)',
-      300: 'hsl(210, 40%, 84%)',
-      400: 'hsl(210, 40%, 68%)',
       500: 'hsl(210, 40%, 50%)',
       600: 'hsl(210, 40%, 40%)',
       700: 'hsl(210, 40%, 32%)',
-      800: 'hsl(210, 40%, 26%)',
-      900: 'hsl(210, 40%, 20%)',
     },
     accent: {
-      50: 'hsl(16, 100%, 97%)',
       100: 'hsl(16, 100%, 94%)',
-      200: 'hsl(16, 100%, 87%)',
-      300: 'hsl(16, 100%, 77%)',
-      400: 'hsl(16, 100%, 65%)',
       500: 'hsl(16, 100%, 55%)',
       600: 'hsl(16, 100%, 47%)',
       700: 'hsl(16, 100%, 40%)',
-      800: 'hsl(16, 100%, 33%)',
-      900: 'hsl(16, 100%, 28%)',
     },
     success: {
       light: 'hsl(142, 71%, 45%)',
@@ -56,6 +38,12 @@ export const tokens = {
       DEFAULT: 'hsl(201, 96%, 32%)',
       dark: 'hsl(201, 96%, 25%)',
     },
+    gradient: {
+      teal: {
+        start: '#1ee0c0',
+        end: '#0fa89d',
+      },
+    },
   },
   
   typography: {
@@ -64,14 +52,12 @@ export const tokens = {
       mono: ['JetBrains Mono', 'monospace'],
     },
     fontSize: {
-      xs: ['0.75rem', { lineHeight: '1rem' }],
-      sm: ['0.875rem', { lineHeight: '1.25rem' }],
-      base: ['1rem', { lineHeight: '1.5rem' }],
-      lg: ['1.125rem', { lineHeight: '1.75rem' }],
-      xl: ['1.25rem', { lineHeight: '1.75rem' }],
-      '2xl': ['1.5rem', { lineHeight: '2rem' }],
-      '3xl': ['1.875rem', { lineHeight: '2.25rem' }],
-      '4xl': ['2.25rem', { lineHeight: '2.5rem' }],
+      xs: ['0.75rem', { lineHeight: '1rem' }] as [string, { lineHeight: string }],
+      sm: ['0.875rem', { lineHeight: '1.25rem' }] as [string, { lineHeight: string }],
+      base: ['1rem', { lineHeight: '1.5rem' }] as [string, { lineHeight: string }],
+      lg: ['1.125rem', { lineHeight: '1.75rem' }] as [string, { lineHeight: string }],
+      xl: ['1.25rem', { lineHeight: '1.75rem' }] as [string, { lineHeight: string }],
+      '2xl': ['1.5rem', { lineHeight: '2rem' }] as [string, { lineHeight: string }],
     },
     fontWeight: {
       normal: '400',
@@ -87,13 +73,8 @@ export const tokens = {
     2: '0.5rem',
     3: '0.75rem',
     4: '1rem',
-    5: '1.25rem',
     6: '1.5rem',
     8: '2rem',
-    10: '2.5rem',
-    12: '3rem',
-    16: '4rem',
-    20: '5rem',
   },
   
   breakpoints: {
@@ -160,17 +141,17 @@ export const tokens = {
   },
   
   zIndex: {
-    base: '0',
-    dropdown: '10',
-    sticky: '20',
-    fixed: '30',
-    modalBackdrop: '40',
-    modal: '50',
-    popover: '60',
-    tooltip: '70',
-    notification: '80',
-    spinner: '90',
-  },
+    base: 0,
+    dropdown: 10,
+    sticky: 20,
+    fixed: 30,
+    modalBackdrop: 40,
+    modal: 50,
+    popover: 60,
+    tooltip: 70,
+    notification: 80,
+    spinner: 90,
+  } as Record<string, number>,
 };
 
 export type DesignTokens = typeof tokens;

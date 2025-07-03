@@ -123,57 +123,10 @@ export const getHouseholdBalances = async (householdId: string) => {
 // --- SETTLEMENT SUGGESTION HELPER ---
 export type SettlementSuggestion = { from: string; to: string; amount: number; fromProfile: Profile; toProfile: Profile };
 
+// Import the new optimal settlement algorithm
+import { getOptimalSettlementSuggestions } from './optimal-settlements';
+
+// Delegate to the new optimal algorithm which handles 2-20 users efficiently
 export const getSettlementSuggestions = (balances: Awaited<ReturnType<typeof getHouseholdBalances>>): SettlementSuggestion[] => {
-  const suggestions: SettlementSuggestion[] = [];
-  
-  interface BalanceWithProfile {
-    userId: string;
-    balance: number;
-    profile: Profile;
-  }
-
-  const debtors: BalanceWithProfile[] = (balances as BalanceWithProfile[])
-    .filter((b: BalanceWithProfile) => b.balance < -0.01)
-    .sort((a: BalanceWithProfile, b: BalanceWithProfile) => a.balance - b.balance)
-    .map(b => ({ ...b, balance: b.balance })); // Shallow clone for modification
-    
-  const creditors = balances
-    .filter(b => b.balance > 0.01)
-    .sort((a: { balance: number; }, b: { balance: number; }) => b.balance - a.balance)
-    .map(b => ({ ...b, balance: b.balance })); // Shallow clone for modification
-
-  while (debtors.length > 0 && creditors.length > 0) {
-    const debtor = debtors[0];
-    const creditor = creditors[0];
-
-    if (!debtor.profile || !creditor.profile) {
-      console.warn('Skipping settlement suggestion due to missing profile information.');
-      if (!debtor.profile) debtors.shift();
-      if (!creditor.profile) creditors.shift();
-      continue;
-    }
-
-    const debtAmount = Math.abs(debtor.balance);
-    const creditAmount = creditor.balance;
-    const settlementAmount = Math.min(debtAmount, creditAmount);
-
-    suggestions.push({
-      from: debtor.userId,
-      to: creditor.userId,
-      amount: Math.round(settlementAmount * 100) / 100,
-      fromProfile: debtor.profile,
-      toProfile: creditor.profile
-    });
-
-    debtor.balance += settlementAmount;
-    creditor.balance -= settlementAmount;
-
-    if (Math.abs(debtor.balance) < 0.01) {
-      debtors.shift();
-    }
-    if (creditor.balance < 0.01) {
-      creditors.shift();
-    }
-  }
-  return suggestions;
+  return getOptimalSettlementSuggestions(balances);
 };
