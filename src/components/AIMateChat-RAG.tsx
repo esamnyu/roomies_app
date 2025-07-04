@@ -204,7 +204,7 @@ export function AIMateChatRAG({ householdId }: AIMateChatRAGProps) {
                         <div className="mt-1 px-1 text-xs text-muted-foreground">
                           <span className="opacity-60">
                             {message.debug.context_tokens} tokens • 
-                            Intent: {message.debug.intent} ({(message.debug.confidence * 100).toFixed(0)}%)
+                            Types: {message.debug.context_types.join(', ')}
                           </span>
                         </div>
                       )}

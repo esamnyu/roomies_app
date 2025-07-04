@@ -1,6 +1,5 @@
 // src/lib/api/messages.ts
 import { supabase } from '../supabase';
-import { enhancedSubscriptionManager as subscriptionManager } from '../enhancedSubscriptionManager';
 import type { Message, MessageWithProfileRPC } from '../types/types';
 import { validateInput, sendMessageSchema } from './validation/schemas';
 import { requireHouseholdMember } from './auth/middleware';
@@ -66,21 +65,14 @@ export const getHouseholdMessages = async (householdId: string, limit = 50, befo
 };
 
 export const subscribeToMessages = (householdId: string, onMessage: (message: Message) => void) => {
-  const key = `messages:${householdId}`;
-  
-  // Always clean up existing subscription and create a new one
-  // This ensures we have fresh subscriptions and proper cleanup
-  subscriptionManager.unsubscribe(key);
-  
   const channel = supabase
-    .channel(key)
+    .channel(`messages:${householdId}`)
     .on('postgres_changes', {
       event: 'INSERT',
       schema: 'public',
       table: 'messages',
       filter: `household_id=eq.${householdId}`
     }, async (payload) => {
-      console.log(`New message received for ${key}:`, payload);
       if (payload.new) {
         const newMessage = payload.new as Message;
         try {
@@ -97,25 +89,11 @@ export const subscribeToMessages = (householdId: string, onMessage: (message: Me
           onMessage(newMessage);
         }
       }
-    });
-
-  // Subscribe through the subscription manager which handles the actual subscription
-  const managedChannel = subscriptionManager.subscribe(key, channel);
-  
-  if (managedChannel) {
-    managedChannel.subscribe((status, err) => {
-      if (err) {
-        console.error(`Subscription error for ${key}:`, err);
-        // Clean up failed subscription
-        subscriptionManager.unsubscribe(key);
-      } else {
-        console.log(`Subscription status for ${key}:`, status);
-      }
-    });
-  }
+    })
+    .subscribe();
   
   // Return an object with unsubscribe method for proper cleanup
   return {
-    unsubscribe: () => subscriptionManager.unsubscribe(key)
+    unsubscribe: () => channel.unsubscribe()
   };
 };

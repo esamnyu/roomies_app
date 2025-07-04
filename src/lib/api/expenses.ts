@@ -215,22 +215,24 @@ export const updateExpense = async (
   const validated = UpdateExpenseSchema.parse(payload);
   
   // Check authorization
-  const { canEdit } = await requireExpenseAccess(validatedId);
-  if (!canEdit) {
+  const accessInfo = await requireExpenseAccess(validatedId);
+  console.log('Access info:', accessInfo);
+  
+  if (!accessInfo.canEdit) {
     throw new ExpenseError('You do not have permission to edit this expense', 'AUTHORIZATION_ERROR');
   }
   
   validateSplitTotal(validated.splits, validated.amount);
   
-  // Use the NEW update RPC with adjustments
+  // Use the update RPC with adjustments (using the p_paid_by version)
   const { data, error } = await supabase.rpc('update_expense_with_adjustments', {
     p_expense_id: validatedId,
     p_description: validated.description,
     p_amount: validated.amount,
-    p_payments: [{ payer_id: validated.paid_by, amount: validated.amount }],
-    p_splits: validated.splits,
+    p_paid_by: validated.paid_by,
     p_date: validated.date,
-    p_expected_version: validated.version || null
+    p_splits: validated.splits,
+    p_version: validated.version || null
   });
 
   if (error) {

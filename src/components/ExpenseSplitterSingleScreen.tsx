@@ -131,7 +131,7 @@ export const ExpenseSplitterSingleScreen: React.FC<ExpenseSplitterSingleScreenPr
       // Create splits array in API format
       const splits = selectedMembers.map(userId => ({
         user_id: userId,
-        amount: calculatedSplits[userId] || expenseAmount / selectedMembers.length
+        amount: splitType === 'custom' ? (customSplits[userId] || 0) : expenseAmount / selectedMembers.length
       }));
       
       // Create expense object
@@ -323,7 +323,8 @@ export const ExpenseSplitterSingleScreen: React.FC<ExpenseSplitterSingleScreenPr
             <div className="space-y-2">
               {householdMembers.map((member) => {
                 const isSelected = selectedMembers.includes(member.id);
-                const splitAmount = calculatedSplits[member.id] || 0;
+                const splitAmount = splitType === 'custom' ? (customSplits[member.id] || 0) : 
+                  (isSelected ? parseFloat(amount || '0') / selectedMembers.length : 0);
                 
                 return (
                   <div

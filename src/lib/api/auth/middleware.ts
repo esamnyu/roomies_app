@@ -35,7 +35,7 @@ export async function requireHouseholdMember(householdId: string, userId?: strin
     }
     
     return { userId: user, memberRole: data.role, memberId: data.id };
-  }, 'requireHouseholdMember');
+  }, 'requireHouseholdMember')();
 }
 
 export async function requireHouseholdAdmin(householdId: string) {
@@ -66,7 +66,7 @@ export async function requireHouseholdAdmin(householdId: string) {
 
 // Check if user can modify an expense
 export async function requireExpenseAccess(expenseId: string, userId?: string) {
-  return withErrorHandling(async () => {
+  const handler = withErrorHandling(async (expenseId: string, userId?: string) => {
     let user = userId;
     if (!user) {
       const { data: { user: authUser }, error } = await supabase.auth.getUser();
@@ -87,15 +87,22 @@ export async function requireExpenseAccess(expenseId: string, userId?: string) {
     }
     
     // Check if user is a member of the household and get their role
-    const memberInfo = await requireHouseholdMember(expense.household_id, user);
-    
-    // Allow edit if user is the payer OR if user is an admin
-    const canEdit = expense.paid_by === user || memberInfo.memberRole === 'admin';
-    
-    return { 
-      canEdit,
-      householdId: expense.household_id,
-      isAdmin: memberInfo.memberRole === 'admin'
-    };
+    try {
+      const memberInfo = await requireHouseholdMember(expense.household_id, user);
+      
+      // Allow edit if user is a member of the household
+      // All household members should be able to edit expenses for transparency and collaboration
+      const canEdit = true;
+      
+      return { 
+        canEdit,
+        householdId: expense.household_id,
+        isAdmin: memberInfo.memberRole === 'admin'
+      };
+    } catch (error) {
+      throw error;
+    }
   }, 'requireExpenseAccess');
+  
+  return handler(expenseId, userId);
 }

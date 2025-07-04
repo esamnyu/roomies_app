@@ -527,6 +527,7 @@ const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = (
             setExpenses(data.recent_expenses || []);
             setRecurringExpenses(recurringData);
             setBalances(balanceData);
+            console.log('Fetched balances:', balanceData);
 
             if (showToast) toast.success("Data refreshed!");
         } catch (error) {
@@ -646,6 +647,7 @@ const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = (
                         <BalanceSummaryCard 
                             balances={balances}
                             currentUserId={user?.id || ''}
+                            householdId={householdId}
                             settlementSuggestions={settlementSuggestions}
                             onSettleUp={(suggestion) => {
                                 setShowSettleUp(true);

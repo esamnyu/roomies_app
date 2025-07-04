@@ -6,7 +6,7 @@ import { Loader2 } from 'lucide-react';
 import { createExpenseWithCustomSplits } from '@/lib/api/expenses';
 import { toast } from 'react-hot-toast';
 import type { HouseholdMember } from '@/lib/types/types';
-import { useExpenseSplits } from '@/hooks/useExpenseSplits';
+import { useSimpleExpenseSplits } from '@/hooks/useSimpleExpenseSplits';
 import { useAuth } from '../AuthProvider'; // NEW: Import useAuth
 import { ExpenseSplitterV2 } from '@/components/ExpenseSplitterV2';
 import { Button } from '@/components/primitives/Button';
@@ -37,16 +37,26 @@ export const AddExpenseModal: React.FC<AddExpenseModalProps> = ({ householdId, m
   const {
     amount,
     setAmount,
-    splitType,
-    setSplitType,
-    finalSplits,
-    isValid,
-    ...splitterProps
-  } = useExpenseSplits(members);
+    splitMode,
+    setSplitMode,
+    selectedParticipants,
+    toggleParticipant,
+    customAmounts,
+    setCustomAmount,
+    percentages,
+    setPercentage,
+    splits: finalSplits,
+    validation,
+    totalSplitAmount,
+    totalPercentage
+  } = useSimpleExpenseSplits(members);
 
   const handleSubmit = async () => {
-    if (!description || !isValid || !householdId || !paidBy) { // MODIFIED: Check for paidBy
+    if (!description || !validation.isValid || !householdId || !paidBy) {
         if (!paidBy) toast.error("Please select who paid.");
+        if (!validation.isValid && validation.errors.length > 0) {
+            toast.error(validation.errors[0]);
+        }
         return;
     };
     
@@ -125,17 +135,32 @@ export const AddExpenseModal: React.FC<AddExpenseModalProps> = ({ householdId, m
           <ExpenseSplitterV2
             members={members}
             amount={amount}
-            splitType={splitType}
-            setSplitType={setSplitType}
+            splitMode={splitMode}
+            setSplitMode={setSplitMode}
+            includedMembers={selectedParticipants}
+            toggleMemberInclusion={toggleParticipant}
+            customSplits={customAmounts}
+            setCustomSplits={(splits) => {
+              Object.entries(splits).forEach(([userId, amount]) => {
+                setCustomAmount(userId, amount);
+              });
+            }}
+            percentageSplits={percentages}
+            setPercentageSplits={(splits) => {
+              Object.entries(splits).forEach(([userId, percentage]) => {
+                setPercentage(userId, percentage);
+              });
+            }}
             finalSplits={finalSplits}
-            isValid={isValid}
-            {...splitterProps}
+            isValid={validation.isValid}
+            totalSplitValue={totalSplitAmount}
+            totalPercentageValue={totalPercentage}
           />
 
         </div>
         <div className="mt-6 flex justify-end space-x-3">
           <Button onClick={onClose} variant="secondary" disabled={submitting}>Cancel</Button>
-          <Button onClick={handleSubmit} disabled={submitting || !description || !amount || !isValid}>
+          <Button onClick={handleSubmit} disabled={submitting || !description || !amount || !validation.isValid}>
             {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Add Expense'}
           </Button>
         </div>

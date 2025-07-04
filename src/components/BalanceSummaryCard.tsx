@@ -2,6 +2,8 @@
 import React from 'react';
 import { ArrowRight, CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/primitives/Button';
+import { SimpleTransactionHistory } from './SimpleTransactionHistory';
+import { LedgerTransactionHistory } from './LedgerTransactionHistory';
 import type { SettlementSuggestion, Profile } from '@/lib/types/types';
 
 interface Balance {
@@ -13,6 +15,7 @@ interface Balance {
 interface BalanceSummaryCardProps {
     balances: Balance[];
     currentUserId: string;
+    householdId: string;
     settlementSuggestions: SettlementSuggestion[];
     onSettleUp: (suggestion: SettlementSuggestion) => void;
 }
@@ -20,10 +23,12 @@ interface BalanceSummaryCardProps {
 export const BalanceSummaryCard: React.FC<BalanceSummaryCardProps> = ({
     balances,
     currentUserId,
+    householdId,
     settlementSuggestions,
     onSettleUp
 }) => {
     const currentUserBalance = balances.find(b => b.userId === currentUserId)?.balance || 0;
+    const currentUserProfile = balances.find(b => b.userId === currentUserId)?.profile;
     const isSettled = Math.abs(currentUserBalance) < 0.01;
     
     // Get who owes the current user and who the current user owes
@@ -55,6 +60,19 @@ export const BalanceSummaryCard: React.FC<BalanceSummaryCardProps> = ({
                             <p className="text-sm text-secondary-foreground mt-1">
                                 {currentUserBalance > 0 ? 'You are owed' : 'You owe'}
                             </p>
+                            <div className="mt-2 flex gap-2">
+                                <SimpleTransactionHistory
+                                    householdId={householdId}
+                                    userId={currentUserId}
+                                    userName="You"
+                                />
+                                <LedgerTransactionHistory
+                                    householdId={householdId}
+                                    userId={currentUserId}
+                                    userName="You"
+                                    currentBalance={currentUserBalance}
+                                />
+                            </div>
                         </div>
                     )}
                 </div>

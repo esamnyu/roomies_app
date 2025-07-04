@@ -13,6 +13,8 @@ import { SkipToContent } from './accessibility';
 import { Toaster } from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
 
+export type { NavItemId } from './navigation/BottomNav';
+
 interface LayoutV2Props {
   children: React.ReactNode;
   title?: string;
