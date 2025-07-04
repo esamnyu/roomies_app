@@ -38,9 +38,6 @@ export const QuickTasksWidget: React.FC<QuickTasksWidgetProps> = ({
   const pendingTasks = tasks.filter(t => !t.completed);
   const completedTasks = tasks.filter(t => t.completed);
   const displayTasks = isExpanded ? tasks : tasks.slice(0, 3);
-  
-  console.log('Tasks in widget:', tasks);
-  console.log('Display tasks:', displayTasks);
 
   const memberProfiles = members.map(m => ({
     id: m.user_id,

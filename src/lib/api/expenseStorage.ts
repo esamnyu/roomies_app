@@ -40,7 +40,6 @@ export async function indexExistingExpenses(householdId: string) {
       }));
 
       await supabase.from('expense_embeddings').insert(records);
-      console.log(`Indexed ${records.length} expenses for search`);
     }
   } catch (error) {
     console.error('Error indexing expenses:', error);

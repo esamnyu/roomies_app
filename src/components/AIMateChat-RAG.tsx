@@ -248,7 +248,7 @@ export function AIMateChatRAG({ householdId }: AIMateChatRAGProps) {
               onChange={(e) => setInput(e.target.value)}
               onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
               placeholder="Ask about expenses, chores, or household info..."
-              className="pr-12 py-5 rounded-full border-border/50 bg-background/80 backdrop-blur-sm focus:bg-background transition-colors"
+              className="pr-12 py-6 rounded-full border-border/50 bg-background/80 backdrop-blur-sm focus:bg-background transition-colors"
               disabled={isLoading}
             />
             <Button 

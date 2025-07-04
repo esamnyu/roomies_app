@@ -42,7 +42,6 @@ export const useTasks = (householdId: string) => {
   const addTask = async (title: string, assignedTo?: string) => {
     try {
       const newTask = await createTask(householdId, title, assignedTo);
-      console.log('New task created:', newTask);
       setTasks((prev) => [newTask, ...prev]);
       toast.success('Task added');
       return newTask;

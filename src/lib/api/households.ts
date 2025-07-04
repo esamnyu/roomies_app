@@ -448,11 +448,9 @@ export const handleNewMemberJoined = async (
     const { assignPlaceholderChoresToMember } = await import('./choreManagement');
     
     // Assign any placeholder chores to the new member
-    const result = await assignPlaceholderChoresToMember(householdId, userId);
+    await assignPlaceholderChoresToMember(householdId, userId);
     
-    if (result.assignmentsUpdated > 0) {
-      console.log(`Assigned ${result.assignmentsUpdated} chores to new member`);
-    }
+    // Silent operation - chore assignment happens in background
   } catch (error) {
     console.error('Error assigning chores to new member:', error);
     // Don't throw - this is a non-critical operation

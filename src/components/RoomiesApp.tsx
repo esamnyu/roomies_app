@@ -527,7 +527,6 @@ const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = (
             setExpenses(data.recent_expenses || []);
             setRecurringExpenses(recurringData);
             setBalances(balanceData);
-            console.log('Fetched balances:', balanceData);
 
             // Only show toast for explicit user actions, not automatic refreshes
             // if (showToast) toast.success("Data refreshed!");

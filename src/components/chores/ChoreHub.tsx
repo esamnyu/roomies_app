@@ -39,14 +39,6 @@ const ChoreHubContent: React.FC<ChoreHubContentProps> = ({ householdId }) => {
     const [showAddChoreModal, setShowAddChoreModal] = useState(false);
     const [showManageChoresModal, setShowManageChoresModal] = useState(false);
     const [useDraggableCalendar, setUseDraggableCalendar] = useState(true);
-    
-    // Debug logging
-    console.log('ChoreHub Debug:', {
-        user: user?.id,
-        isAdmin,
-        hasChores: assignments.length > 0,
-        assignmentsCount: assignments.length
-    });
 
     if (isLoading) {
         return (

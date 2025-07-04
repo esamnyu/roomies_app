@@ -17,14 +17,10 @@ export const TaskItem: React.FC<TaskItemProps> = ({
   onDelete,
   members 
 }) => {
-  console.log('TaskItem rendering with task:', task);
   const assignedMember = members?.find(m => m.id === task.assigned_to);
   
   return (
     <div 
-      onClick={(e) => {
-        console.log('Parent div clicked', e.target);
-      }}
       className={`flex items-center gap-3 py-2 px-3 rounded-lg transition-all ${
         task.completed 
           ? 'bg-secondary/20 opacity-60' 
@@ -32,7 +28,6 @@ export const TaskItem: React.FC<TaskItemProps> = ({
       }`}>
       <button
         onClick={() => {
-          console.log('Toggle clicked for task:', task);
           onToggle(task.id);
         }}
         className={`flex-shrink-0 w-5 h-5 rounded border-2 transition-all flex items-center justify-center ${

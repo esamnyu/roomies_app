@@ -216,7 +216,6 @@ export const updateExpense = async (
   
   // Check authorization
   const accessInfo = await requireExpenseAccess(validatedId);
-  console.log('Access info:', accessInfo);
   
   if (!accessInfo.canEdit) {
     throw new ExpenseError('You do not have permission to edit this expense', 'AUTHORIZATION_ERROR');

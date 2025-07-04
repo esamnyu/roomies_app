@@ -28,15 +28,12 @@ const HouseholdChat: React.FC<HouseholdChatProps> = ({ householdId, members }) =
   };
 
   const handleNewMessage = useCallback((incomingMessage: Message) => {
-    console.log('New message received:', incomingMessage);
     setMessages(prev => {
       const exists = prev.some(m => m.id === incomingMessage.id);
       if (exists) {
-        console.log('Message already exists, skipping:', incomingMessage.id);
         return prev;
       }
       const updated = [...prev, incomingMessage];
-      console.log('Messages updated, total count:', updated.length);
       return updated.slice(-100);
     });
     setTimeout(scrollToBottom, 100);
@@ -79,7 +76,6 @@ const HouseholdChat: React.FC<HouseholdChatProps> = ({ householdId, members }) =
       return () => {
         mounted = false;
         if (subscription && subscription.unsubscribe) {
-          console.log('Unsubscribing from messages for household:', householdId);
           subscription.unsubscribe();
         } else {
           console.warn('No subscription to unsubscribe from');
