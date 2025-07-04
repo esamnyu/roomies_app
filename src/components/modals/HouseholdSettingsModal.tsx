@@ -37,8 +37,8 @@ export const HouseholdSettingsModal: React.FC<HouseholdSettingsModalProps> = ({ 
     const { user, signOut } = useAuth();
     const [name, setName] = useState(household.name);
     const [memberCount, setMemberCount] = useState(household.member_count || 1);
-    const [choreFramework, setChoreFramework] = useState(household.chore_framework || 'Split');
-    const [choreFrequency, setChoreFrequency] = useState(household.chore_frequency || 'Weekly');
+    const [choreFramework, setChoreFramework] = useState<'Split' | 'One person army'>(household.chore_framework || 'Split');
+    const [choreFrequency, setChoreFrequency] = useState<'Daily' | 'Weekly' | 'Bi-weekly' | 'Monthly'>(household.chore_frequency || 'Weekly');
     const [deleteConfirmName, setDeleteConfirmName] = useState('');
     const [isSaving, setIsSaving] = useState(false);
 
@@ -132,14 +132,14 @@ export const HouseholdSettingsModal: React.FC<HouseholdSettingsModalProps> = ({ 
                     <SettingsCard title="Chore Configuration">
                          <div>
                             <label htmlFor="h-framework" className="text-sm font-medium">Framework</label>
-                            <select id="h-framework" className={selectStyles} value={choreFramework} onChange={e => setChoreFramework(e.target.value as any)} disabled={!isAdmin}>
+                            <select id="h-framework" className={selectStyles} value={choreFramework} onChange={e => setChoreFramework(e.target.value as 'Split' | 'One person army')} disabled={!isAdmin}>
                                 <option value="Split">Split</option>
                                 <option value="One person army">One Person Army</option>
                             </select>
                         </div>
                         <div>
                             <label htmlFor="h-frequency" className="text-sm font-medium">Frequency</label>
-                            <select id="h-frequency" className={selectStyles} value={choreFrequency} onChange={e => setChoreFrequency(e.target.value as any)} disabled={!isAdmin}>
+                            <select id="h-frequency" className={selectStyles} value={choreFrequency} onChange={e => setChoreFrequency(e.target.value as 'Daily' | 'Weekly' | 'Bi-weekly' | 'Monthly')} disabled={!isAdmin}>
                                 <option value="Daily">Daily</option>
                                 <option value="Weekly">Weekly</option>
                                 <option value="Bi-weekly">Bi-weekly</option>

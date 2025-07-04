@@ -1,22 +1,7 @@
 import { supabase } from '../supabase';
+import type { LedgerEntry, BalanceWithHistory } from '@/types';
 
-export interface LedgerEntry {
-  entry_id: string;
-  user_id: string;
-  amount: number;
-  entry_type: 'debit' | 'credit';
-  transaction_type: 'expense' | 'settlement' | 'reversal';
-  description: string;
-  created_at: string;
-  reference_id: string;
-  reference_table: 'expenses' | 'settlements';
-  metadata: Record<string, any>;
-}
-
-export interface BalanceWithHistory {
-  currentBalance: number;
-  entries: LedgerEntry[];
-}
+export type { LedgerEntry, BalanceWithHistory };
 
 /**
  * Get ledger history showing all transactions

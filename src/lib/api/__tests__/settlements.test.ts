@@ -147,7 +147,7 @@ describe('Settlements API', () => {
         // Mock the chained calls for this specific RPC
         const single = jest.fn().mockResolvedValue({ data: mockRpcResponse, error: null });
         const select = jest.fn().mockReturnValue({ single });
-        supabaseMock.rpc.mockReturnValue({ select } as any);
+        supabaseMock.rpc.mockReturnValue({ select });
 
         await createSettlement(settlementToCreate);
 

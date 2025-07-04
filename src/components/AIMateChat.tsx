@@ -6,12 +6,10 @@ import { Loader2, AlertCircle, RotateCcw, X } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { toast } from 'react-hot-toast';
 import { supabase } from '@/lib/supabase';
+import { ChatMessage } from '@/types';
 
-interface Message {
-  id: string;
+interface Message extends Omit<ChatMessage, 'role'> {
   role: 'user' | 'model' | 'error';
-  content: string;
-  timestamp: Date;
 }
 
 const AIMateChat: React.FC = () => {
@@ -23,7 +21,7 @@ const AIMateChat: React.FC = () => {
   }]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [chatHistory, setChatHistory] = useState<any[]>([]);
+  const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
