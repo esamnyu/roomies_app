@@ -529,7 +529,8 @@ const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = (
             setBalances(balanceData);
             console.log('Fetched balances:', balanceData);
 
-            if (showToast) toast.success("Data refreshed!");
+            // Only show toast for explicit user actions, not automatic refreshes
+            // if (showToast) toast.success("Data refreshed!");
         } catch (error) {
             console.error('Error loading household data:', error);
             if (isMountedRef.current) toast.error('Failed to load household data.');

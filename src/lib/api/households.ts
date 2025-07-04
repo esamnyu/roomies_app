@@ -144,7 +144,7 @@ export const getHouseholdMembers = async (householdId: string): Promise<Househol
     .from('household_members')
     .select(`
       *,
-      profiles (*)
+      profiles!fk_members_user (*)
     `)
     .eq('household_id', householdId)
     .order('joined_at', { ascending: true });
