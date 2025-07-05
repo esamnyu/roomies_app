@@ -61,13 +61,13 @@ export const QuickTasksWidget: React.FC<QuickTasksWidgetProps> = ({
   }
 
   return (
-    <div className="bg-background rounded-lg border border-border p-4 mb-6">
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-2">
-          <CheckSquare className="h-5 w-5 text-primary" />
-          <h3 className="font-semibold">{isMobile ? "Today's Tasks" : "Quick Actions"}</h3>
+    <div className="bg-background rounded-lg border border-border p-3">
+      <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center gap-1.5">
+          <CheckSquare className="h-4 w-4 text-primary" />
+          <h3 className="font-medium text-sm">{isMobile ? "Today's Tasks" : "Quick Tasks"}</h3>
           {pendingTasks.length > 0 && (
-            <span className="text-xs bg-primary/10 text-primary px-2 py-1 rounded-full">
+            <span className="text-xs bg-primary/10 text-primary px-1.5 py-0.5 rounded-full">
               {pendingTasks.length}
             </span>
           )}
@@ -87,32 +87,32 @@ export const QuickTasksWidget: React.FC<QuickTasksWidgetProps> = ({
         )}
       </div>
 
-      <form onSubmit={handleAddTask} className="mb-3">
-        <div className="flex gap-2">
+      <form onSubmit={handleAddTask} className="mb-2">
+        <div className="flex gap-1.5">
           <input
             type="text"
             value={newTaskTitle}
             onChange={(e) => setNewTaskTitle(e.target.value)}
-            placeholder={isMobile ? "Add a task..." : "Add a quick task..."}
+            placeholder="Add task..."
             disabled={isAdding}
-            className={`flex-1 px-3 py-2 text-sm bg-secondary/10 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent placeholder:text-secondary-foreground/60 ${isMobile ? 'min-h-[44px]' : ''}`}
+            className={`flex-1 px-2 py-1.5 text-sm bg-secondary/10 border border-border rounded-md focus:outline-none focus:ring-1 focus:ring-primary focus:border-transparent placeholder:text-secondary-foreground/60 ${isMobile ? 'min-h-[44px]' : ''}`}
           />
           <button
             type="submit"
             disabled={!newTaskTitle.trim() || isAdding}
-            className="px-3 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="px-2 py-1.5 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
-            <Plus className="h-4 w-4" />
+            <Plus className="h-3.5 w-3.5" />
           </button>
         </div>
       </form>
 
       {tasks.length === 0 ? (
-        <p className="text-sm text-secondary-foreground text-center py-4">
-          No tasks yet. Add one above!
+        <p className="text-xs text-secondary-foreground text-center py-3">
+          No tasks yet
         </p>
       ) : (
-        <div className="space-y-1 group">
+        <div className="space-y-0.5 group">
           {displayTasks.map(task => (
             isTouch ? (
               <SwipeableTaskItem
@@ -144,17 +144,10 @@ export const QuickTasksWidget: React.FC<QuickTasksWidgetProps> = ({
         </div>
       )}
 
-      {completedTasks.length > 0 && isExpanded && (
-        <div className="mt-3">
-          <p className="text-xs text-secondary-foreground text-center">
-            Completed tasks auto-remove after 7 days
-          </p>
-          {isTouch && (
-            <p className="text-xs text-secondary-foreground text-center mt-1">
-              Swipe right to complete • Swipe left to delete
-            </p>
-          )}
-        </div>
+      {completedTasks.length > 0 && isExpanded && isTouch && (
+        <p className="text-xs text-secondary-foreground text-center mt-2">
+          Swipe to manage tasks
+        </p>
       )}
     </div>
   );

@@ -194,7 +194,6 @@ export interface HouseholdChore {
   allocation_mode?: 'household_default' | 'split' | 'single_owner' | 'weighted' | 'sequential' | 'volunteer';
   single_owner_id?: string | null;
   min_participants?: number;
-  participants?: ChoreParticipant[];
 }
 
 export interface ChoreAssignment {
@@ -232,16 +231,6 @@ export interface CreateHouseholdParams {
   core_chores?: string[];
   chore_frequency?: string;
   chore_framework?: string;
-}
-
-export interface ChoreParticipant {
-  id: string;
-  household_chore_id: string;
-  user_id: string;
-  opted_in: boolean;
-  created_at: string;
-  updated_at: string;
-  profile?: Profile;
 }
 
 export interface ChoreAssignmentIdempotency {

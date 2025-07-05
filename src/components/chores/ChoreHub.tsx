@@ -1,7 +1,7 @@
 // src/components/chores/ChoreHub.tsx
 "use client";
-import React, { useState } from 'react';
-import { PlusCircle, RefreshCw, Settings, Loader2, Sparkles, Calendar, History, Users, X } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { PlusCircle, RefreshCw, Settings, Loader2, Calendar, History, Users, X, MoreVertical, ListChecks } from 'lucide-react';
 import { Button } from '@/components/primitives/Button';
 import { useAuth } from '../AuthProvider';
 import { useIsMobile } from '@/hooks/useMediaQuery';
@@ -15,7 +15,13 @@ import { EmptyChoreState } from './EmptyChoreState';
 import { AddChoreModal } from '@/components/modals/AddChoreModal';
 import { ManageChoresModal } from '@/components/modals/ManageChoresModal';
 import { QuickTasksWidget } from '@/components/tasks/QuickTasksWidget';
-import { ChoreParticipationMatrix } from './ChoreParticipationMatrix';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { ResizableChoreLayout } from './ResizableChoreLayout';
 
 // Separate component for the dashboard content to use context
 interface ChoreHubContentProps {
@@ -40,9 +46,28 @@ const ChoreHubContent: React.FC<ChoreHubContentProps> = ({ householdId }) => {
     const { user } = useAuth();
     const [showAddChoreModal, setShowAddChoreModal] = useState(false);
     const [showManageChoresModal, setShowManageChoresModal] = useState(false);
-    const [showParticipationModal, setShowParticipationModal] = useState(false);
     const [useDraggableCalendar, setUseDraggableCalendar] = useState(true);
+    const [panelSizes, setPanelSizes] = useState<[number, number]>([65, 35]);
     const isMobile = useIsMobile();
+
+    useEffect(() => {
+        // Load saved panel sizes from localStorage
+        const savedSizes = localStorage.getItem('chore-panel-sizes');
+        if (savedSizes) {
+            try {
+                const sizes = JSON.parse(savedSizes);
+                setPanelSizes(sizes);
+            } catch (e) {
+                // Invalid data, use defaults
+            }
+        }
+    }, []);
+
+    const handlePanelResize = (sizes: number[]) => {
+        const newSizes: [number, number] = [sizes[0], sizes[1]];
+        setPanelSizes(newSizes);
+        localStorage.setItem('chore-panel-sizes', JSON.stringify(newSizes));
+    };
 
     if (isLoading) {
         return (
@@ -61,82 +86,56 @@ const ChoreHubContent: React.FC<ChoreHubContentProps> = ({ householdId }) => {
 
     return (
         <div className="space-y-6">
-            {/* Quick Tasks Widget */}
-            {user && (
-                <QuickTasksWidget
-                    householdId={householdId}
-                    currentUserId={user.id}
-                    members={members}
-                />
-            )}
-
             {/* Header */}
-            <div className="bg-gradient-to-r from-primary/10 to-primary/5 p-6 rounded-xl shadow-sm border border-primary/20">
+            <div className="bg-background border border-border rounded-lg p-6">
                 <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
                     <div>
-                        <h1 className="text-3xl font-bold text-foreground flex items-center gap-2">
-                            <Sparkles className="h-8 w-8 text-primary" />
-                            Chore Hub
+                        <h1 className="text-2xl font-semibold text-foreground">
+                            Chore Management
                         </h1>
-                        <p className="text-muted-foreground mt-1">Keep your household running smoothly</p>
+                        <p className="text-sm text-muted-foreground mt-1">Manage and track household tasks</p>
                     </div>
                     {isAdmin ? (
-                        <div className="flex flex-wrap items-center gap-2">
+                        <div className="flex items-center gap-2">
                             <Button 
                                 onClick={() => setShowAddChoreModal(true)} 
-                                variant="outline"
                                 size="sm"
-                                className="hover:bg-primary/10"
+                                className="bg-primary hover:bg-primary/90 text-primary-foreground"
                             >
                                 <PlusCircle className="h-4 w-4 mr-2" />
-                                {isMobile ? 'Add' : 'Add Task'}
-                            </Button>
-                            <Button 
-                                onClick={() => setShowManageChoresModal(true)} 
-                                variant="outline"
-                                size="sm"
-                                className="hover:bg-primary/10"
-                            >
-                                <Settings className="h-4 w-4 mr-2" />
-                                Manage
-                            </Button>
-                            <Button 
-                                onClick={() => setShowParticipationModal(true)} 
-                                variant="outline"
-                                size="sm"
-                                className="hover:bg-primary/10"
-                            >
-                                <Users className="h-4 w-4 mr-2" />
-                                {isMobile ? 'Participate' : 'Participation'}
+                                Add Chore
                             </Button>
                             <Button 
                                 onClick={handleGenerateSchedule} 
                                 disabled={isGenerating}
-                                size="sm"
-                                className="bg-primary hover:bg-primary/90"
-                            >
-                                {isGenerating ? (
-                                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                                ) : (
-                                    <RefreshCw className="h-4 w-4 mr-2" />
-                                )}
-                                {isMobile ? 'Generate' : 'Generate Schedule'}
-                            </Button>
-                        </div>
-                    ) : (
-                        <div className="flex items-center gap-4">
-                            <Button 
-                                onClick={() => setShowParticipationModal(true)} 
                                 variant="outline"
                                 size="sm"
-                                className="hover:bg-primary/10"
                             >
-                                <Users className="h-4 w-4 mr-2" />
-                                My Participation
+                                {isGenerating ? (
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                    <RefreshCw className="h-4 w-4" />
+                                )}
+                                {!isMobile && <span className="ml-2">Generate</span>}
                             </Button>
-                            <div className="text-sm text-muted-foreground">
-                                <p>Contact admin for more options</p>
-                            </div>
+                            <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                    <Button variant="ghost" size="sm" className="h-9 w-9 p-0">
+                                        <MoreVertical className="h-4 w-4" />
+                                        <span className="sr-only">More options</span>
+                                    </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                    <DropdownMenuItem onClick={() => setShowManageChoresModal(true)}>
+                                        <Settings className="h-4 w-4 mr-2" />
+                                        Manage Chores
+                                    </DropdownMenuItem>
+                                </DropdownMenuContent>
+                            </DropdownMenu>
+                        </div>
+                    ) : (
+                        <div className="text-sm text-muted-foreground">
+                            <p>Contact admin for more options</p>
                         </div>
                     )}
                 </div>
@@ -152,17 +151,20 @@ const ChoreHubContent: React.FC<ChoreHubContentProps> = ({ householdId }) => {
 
             {/* Due Soon Tasks */}
             {hasDueTasks && (
-                <div className="space-y-4">
-                    <div className="flex items-center gap-2">
-                        <div className="h-1 w-1 bg-orange-500 rounded-full animate-pulse" />
-                        <h2 className="text-xl font-semibold">
-                            Tasks Due Soon
+                <div className="bg-orange-50 dark:bg-orange-950/20 border border-orange-200 dark:border-orange-800 rounded-lg p-4 space-y-4">
+                    <div className="flex items-center justify-between">
+                        <h2 className="text-lg font-semibold text-orange-900 dark:text-orange-100">
+                            {(() => {
+                                const today = new Date().toISOString().split('T')[0];
+                                const taskDate = dueSoonTasks[0].due_date;
+                                return taskDate === today ? 'Tasks Due Today' : 'Next Due Tasks';
+                            })()}
                         </h2>
-                        <span className="text-sm text-muted-foreground">
-                            ({new Date(dueSoonTasks[0].due_date + 'T00:00:00').toLocaleDateString()})
+                        <span className="text-sm text-orange-700 dark:text-orange-300">
+                            {new Date(dueSoonTasks[0].due_date).toLocaleDateString()}
                         </span>
                     </div>
-                    <div className={`grid gap-4 ${isMobile ? 'grid-cols-1' : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4'}`}>
+                    <div className={`grid gap-3 ${isMobile ? 'grid-cols-1' : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3'}`}>
                         {dueSoonTasks.map(assignment => (
                             <ChoreTaskCard
                                 key={assignment.id}
@@ -178,54 +180,98 @@ const ChoreHubContent: React.FC<ChoreHubContentProps> = ({ householdId }) => {
                 </div>
             )}
 
-            {/* Main Dashboard Grid - Responsive Layout */}
+            {/* Main Dashboard - Responsive Layout */}
             {hasChores && (
-                <div className={`grid gap-6 ${isMobile ? 'grid-cols-1' : 'grid-cols-1 xl:grid-cols-3'}`}>
-                    <div className={`${isMobile ? '' : 'xl:col-span-2'} space-y-4`}>
-                        <div className="flex items-center gap-2 mb-2 justify-between">
-                            <div className="flex items-center gap-2">
-                                <Calendar className="h-5 w-5 text-primary" />
+                isMobile ? (
+                    // Mobile layout - stacked vertically
+                    <div className="space-y-6">
+                        <div className="bg-background border border-border rounded-lg p-6">
+                            <div className="flex items-center justify-between mb-4">
                                 <h2 className="text-lg font-semibold">Monthly Overview</h2>
                             </div>
-                            {!isMobile && (
-                                <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => setUseDraggableCalendar(!useDraggableCalendar)}
-                                    className="text-xs"
-                                >
-                                    {useDraggableCalendar ? 'Simple View' : 'Drag View'}
-                                </Button>
+                            {useDraggableCalendar ? (
+                                <DraggableChoreCalendar 
+                                    assignments={assignments} 
+                                    onChoreMove={isAdmin ? updateChoreDate : undefined}
+                                />
+                            ) : (
+                                <ChoreCalendar assignments={assignments} />
                             )}
                         </div>
-                        {useDraggableCalendar ? (
-                            <DraggableChoreCalendar 
-                                assignments={assignments} 
-                                onChoreMove={isAdmin ? updateChoreDate : undefined}
-                            />
-                        ) : (
-                            <ChoreCalendar assignments={assignments} />
-                        )}
                     </div>
-                    {!isMobile && (
-                        <div className="space-y-6">
-                            <div>
-                                <div className="flex items-center gap-2 mb-4">
-                                    <RefreshCw className="h-5 w-5 text-primary" />
-                                    <h2 className="text-lg font-semibold">Upcoming Rotations</h2>
+                ) : (
+                    // Desktop layout - resizable panels
+                    <ResizableChoreLayout
+                        defaultSizes={panelSizes}
+                        onLayout={handlePanelResize}
+                        mainContent={
+                            <div className="bg-background border border-border rounded-lg p-6 h-full">
+                                <div className="flex items-center justify-between mb-4">
+                                    <h2 className="text-lg font-semibold">Monthly Overview</h2>
+                                    <div className="flex items-center gap-2">
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            onClick={() => {
+                                                setPanelSizes([65, 35]);
+                                                localStorage.removeItem('chore-panel-sizes');
+                                            }}
+                                            className="text-xs"
+                                            title="Reset layout to default sizes"
+                                        >
+                                            Reset Layout
+                                        </Button>
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            onClick={() => setUseDraggableCalendar(!useDraggableCalendar)}
+                                            className="text-xs"
+                                        >
+                                            {useDraggableCalendar ? 'Simple View' : 'Drag View'}
+                                        </Button>
+                                    </div>
                                 </div>
-                                <UpcomingRotations assignments={assignments} />
+                                {useDraggableCalendar ? (
+                                    <DraggableChoreCalendar 
+                                        assignments={assignments} 
+                                        onChoreMove={isAdmin ? updateChoreDate : undefined}
+                                    />
+                                ) : (
+                                    <ChoreCalendar assignments={assignments} />
+                                )}
                             </div>
-                            <div>
-                                <div className="flex items-center gap-2 mb-4">
-                                    <History className="h-5 w-5 text-primary" />
-                                    <h2 className="text-lg font-semibold">Recent Activity</h2>
+                        }
+                        sidebarContent={
+                            <div className="space-y-4">
+                                {/* Quick Tasks Widget for desktop */}
+                                {user && (
+                                    <QuickTasksWidget
+                                        householdId={householdId}
+                                        currentUserId={user.id}
+                                        members={members}
+                                    />
+                                )}
+                                <div className="bg-background border border-border rounded-lg p-4">
+                                    <h2 className="text-base font-semibold mb-3">Upcoming Rotations</h2>
+                                    <UpcomingRotations assignments={assignments} />
                                 </div>
-                                <ChoreHistory assignments={assignments} />
+                                <div className="bg-background border border-border rounded-lg p-4">
+                                    <h2 className="text-base font-semibold mb-3">Recent Activity</h2>
+                                    <ChoreHistory assignments={assignments} />
+                                </div>
                             </div>
-                        </div>
-                    )}
-                </div>
+                        }
+                    />
+                )
+            )}
+
+            {/* Quick Tasks Widget for mobile - after calendar */}
+            {isMobile && user && hasChores && (
+                <QuickTasksWidget
+                    householdId={householdId}
+                    currentUserId={user.id}
+                    members={members}
+                />
             )}
 
             {/* Modals */}
@@ -248,30 +294,6 @@ const ChoreHubContent: React.FC<ChoreHubContentProps> = ({ householdId }) => {
                         refreshData();
                     }}
                 />
-            )}
-            
-            {/* Participation Modal */}
-            {showParticipationModal && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-                    <div className="bg-background rounded-lg shadow-xl max-w-6xl w-full max-h-[90vh] overflow-hidden">
-                        <div className="flex items-center justify-between p-6 border-b border-border">
-                            <h2 className="text-xl font-semibold text-foreground">Chore Participation</h2>
-                            <button
-                                onClick={() => setShowParticipationModal(false)}
-                                className="text-secondary-foreground hover:text-foreground transition-colors"
-                            >
-                                <X className="h-5 w-5" />
-                            </button>
-                        </div>
-                        <div className="p-6 overflow-y-auto max-h-[calc(90vh-80px)]">
-                            <ChoreParticipationMatrix
-                                householdId={householdId}
-                                currentUserId={user?.id || ''}
-                                isAdmin={isAdmin}
-                            />
-                        </div>
-                    </div>
-                </div>
             )}
         </div>
     );

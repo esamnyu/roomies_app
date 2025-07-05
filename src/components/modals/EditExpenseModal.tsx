@@ -6,6 +6,7 @@ import React, { useState } from 'react';
 import { Loader2, AlertTriangle } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { updateExpense } from '@/lib/api/expenses';
+import { createFriendlyErrorMessage } from '@/lib/utils/errorFormatter';
 import type { Expense, HouseholdMember, UpdateExpensePayload } from '@/lib/types/types';
 import { useSimpleExpenseSplits } from '@/hooks/useSimpleExpenseSplits';
 import { ExpenseSplitterV2 } from '@/components/ExpenseSplitterV2';
@@ -118,7 +119,7 @@ export const EditExpenseModal: React.FC<EditExpenseModalProps> = ({ expense, mem
                 // Refresh the expense data
                 onExpenseUpdated();
             } else {
-                toast.error(errorMessage || 'Failed to update expense');
+                toast.error(createFriendlyErrorMessage(error));
             }
             setSubmitting(false);
         }
@@ -146,7 +147,7 @@ export const EditExpenseModal: React.FC<EditExpenseModalProps> = ({ expense, mem
                 // Refresh the expense data
                 onExpenseUpdated();
             } else {
-                toast.error(errorMessage || 'Failed to update expense');
+                toast.error(createFriendlyErrorMessage(error));
             }
             setSubmitting(false);
         } finally {

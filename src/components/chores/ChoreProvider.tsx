@@ -73,7 +73,14 @@ export const ChoreProvider: React.FC<ChoreProviderProps> = ({ householdId, child
         const pending = assignments.filter(a => a.status === 'pending');
         if (pending.length === 0) return [];
         
-        // Find the earliest due date more efficiently
+        // Get today's date in YYYY-MM-DD format
+        const today = new Date().toISOString().split('T')[0];
+        
+        // First check if there are tasks due today
+        const todayTasks = pending.filter(a => a.due_date === today);
+        if (todayTasks.length > 0) return todayTasks;
+        
+        // If no tasks due today, find the earliest due date
         let nextDueDate = pending[0].due_date;
         for (let i = 1; i < pending.length; i++) {
             if (pending[i].due_date < nextDueDate) {

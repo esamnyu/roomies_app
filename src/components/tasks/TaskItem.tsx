@@ -51,19 +51,19 @@ export const TaskItem: React.FC<TaskItemProps> = ({
       </span>
       
       {assignedMember && (
-        <div className="flex items-center gap-1 text-xs text-secondary-foreground">
-          <User className="w-3 h-3" />
-          <span>{assignedMember.name}</span>
+        <div className="flex items-center gap-0.5 text-xs text-secondary-foreground">
+          <User className="w-2.5 h-2.5" />
+          <span className="truncate max-w-[60px]">{assignedMember.name}</span>
         </div>
       )}
       
       {task.completed && (
         <button
           onClick={() => onDelete(task.id)}
-          className={`${isMobile ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} transition-opacity p-1 hover:bg-destructive/10 rounded`}
+          className={`${isMobile ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} transition-opacity p-0.5 hover:bg-destructive/10 rounded`}
           title="Remove task"
         >
-          <X className="w-3 h-3 text-destructive" />
+          <X className="w-2.5 h-2.5 text-destructive" />
         </button>
       )}
     </div>

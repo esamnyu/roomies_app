@@ -5,6 +5,7 @@ import React, { useState, useEffect } from 'react';
 import { Loader2 } from 'lucide-react';
 import { createExpenseWithCustomSplits } from '@/lib/api/expenses';
 import { toast } from 'react-hot-toast';
+import { createFriendlyErrorMessage } from '@/lib/utils/errorFormatter';
 import type { HouseholdMember } from '@/lib/types/types';
 import { useSimpleExpenseSplits } from '@/hooks/useSimpleExpenseSplits';
 import { useAuth } from '../AuthProvider'; // NEW: Import useAuth
@@ -69,7 +70,7 @@ export const AddExpenseModal: React.FC<AddExpenseModalProps> = ({ householdId, m
       onClose();
     } catch (error) {
       console.error('Error creating expense:', error);
-      toast.error((error as Error).message || 'Failed to create expense');
+      toast.error(createFriendlyErrorMessage(error));
     } finally {
       setSubmitting(false);
     }

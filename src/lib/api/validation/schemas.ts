@@ -1,5 +1,6 @@
 // src/lib/api/validation/schemas.ts
 import { z } from 'zod';
+import { formatValidationErrors } from '../../utils/errorFormatter';
 
 // First, create the ValidationError class in the same file or import it
 export class ValidationError extends Error {
@@ -7,9 +8,8 @@ export class ValidationError extends Error {
     super('Validation failed');
     this.name = 'ValidationError';
     
-    // Create a user-friendly message
-    const messages = errors.map(err => `${err.path.join('.')}: ${err.message}`);
-    this.message = messages.join(', ');
+    // Use the friendly error formatter
+    this.message = formatValidationErrors({ errors } as z.ZodError);
   }
 }
 
