@@ -2,15 +2,15 @@
 import React from 'react';
 import { Users, DollarSign, Percent, Calculator } from 'lucide-react';
 import type { HouseholdMember } from '@/lib/types/types';
-import type { SplitType } from '@/hooks/useExpenseSplits';
+import type { SplitMode } from '@/lib/expense-calculations';
 import { Button } from '@/components/primitives/Button';
 import { Input } from '@/components/primitives/Input';
 
 interface ExpenseSplitterV2Props {
     members: HouseholdMember[];
     amount: number;
-    splitType: SplitType;
-    setSplitType: (type: SplitType) => void;
+    splitMode: SplitMode;
+    setSplitMode: (mode: SplitMode) => void;
     includedMembers: Set<string>;
     toggleMemberInclusion: (userId: string) => void;
     customSplits: Record<string, number>;
@@ -26,8 +26,8 @@ interface ExpenseSplitterV2Props {
 export const ExpenseSplitterV2: React.FC<ExpenseSplitterV2Props> = ({
     members,
     amount,
-    splitType,
-    setSplitType,
+    splitMode,
+    setSplitMode,
     includedMembers,
     toggleMemberInclusion,
     customSplits,
@@ -60,22 +60,22 @@ export const ExpenseSplitterV2: React.FC<ExpenseSplitterV2Props> = ({
             <div>
                 <label className="block text-sm font-semibold text-foreground mb-3">How should we split this?</label>
                 <div className="grid grid-cols-3 gap-3">
-                    {(['equal', 'custom', 'percentage'] as SplitType[]).map(type => {
+                    {(['equal', 'custom', 'percentage'] as SplitMode[]).map(type => {
                         const config = splitTypeConfig[type];
                         const Icon = config.icon;
                         return (
                             <Button
                                 key={type}
                                 type="button"
-                                onClick={() => setSplitType(type)}
-                                variant={splitType === type ? 'primary' : 'outline'}
+                                onClick={() => setSplitMode(type)}
+                                variant={splitMode === type ? 'primary' : 'outline'}
                                 className={`relative flex flex-col items-center p-4 h-auto ${
-                                    splitType === type ? '' : 'hover:border-primary/50'
+                                    splitMode === type ? '' : 'hover:border-primary/50'
                                 }`}
                             >
-                                <Icon className={`h-5 w-5 mb-1 ${splitType === type ? 'text-primary-foreground' : config.color}`} />
+                                <Icon className={`h-5 w-5 mb-1 ${splitMode === type ? 'text-primary-foreground' : config.color}`} />
                                 <span className="text-xs">{config.label}</span>
-                                {splitType === type && (
+                                {splitMode === type && (
                                     <div className="absolute -top-1 -right-1 w-3 h-3 bg-primary rounded-full"></div>
                                 )}
                             </Button>
@@ -101,10 +101,10 @@ export const ExpenseSplitterV2: React.FC<ExpenseSplitterV2Props> = ({
                 {!isValid && amount > 0 && (
                     <div className="mb-3 p-3 bg-destructive/10 border border-destructive/20 rounded-lg">
                         <p className="text-sm text-destructive">
-                            {splitType === 'custom' && totalSplitValue !== amount && (
+                            {splitMode === 'custom' && totalSplitValue !== amount && (
                                 <>Split amounts don't match the total. {remainingAmount > 0 ? `$${remainingAmount.toFixed(2)} remaining` : `$${Math.abs(remainingAmount).toFixed(2)} over`}</>
                             )}
-                            {splitType === 'percentage' && Math.abs(totalPercentageValue - 100) > 0.01 && (
+                            {splitMode === 'percentage' && Math.abs(totalPercentageValue - 100) > 0.01 && (
                                 <>Percentages must equal 100%. Currently: {totalPercentageValue.toFixed(1)}%</>
                             )}
                             {includedMembers.size === 0 && 'Please select at least one person'}
@@ -148,7 +148,7 @@ export const ExpenseSplitterV2: React.FC<ExpenseSplitterV2Props> = ({
 
                                 <div className="flex items-center space-x-3">
                                     {/* Custom Amount Input */}
-                                    {splitType === 'custom' && isIncluded && (
+                                    {splitMode === 'custom' && isIncluded && (
                                         <div className="flex items-center">
                                             <span className="text-secondary-foreground mr-1">$</span>
                                             <Input 
@@ -166,7 +166,7 @@ export const ExpenseSplitterV2: React.FC<ExpenseSplitterV2Props> = ({
                                     )}
 
                                     {/* Percentage Input */}
-                                    {splitType === 'percentage' && isIncluded && (
+                                    {splitMode === 'percentage' && isIncluded && (
                                         <div className="flex items-center">
                                             <Input 
                                                 type="number" 
@@ -207,12 +207,12 @@ export const ExpenseSplitterV2: React.FC<ExpenseSplitterV2Props> = ({
                 </div>
 
                 {/* Helper Text */}
-                {splitType === 'equal' && includedMembers.size > 0 && amount > 0 && (
+                {splitMode === 'equal' && includedMembers.size > 0 && amount > 0 && (
                     <p className="mt-2 text-xs text-secondary-foreground text-center">
                         Each selected person will pay ${(amount / includedMembers.size).toFixed(2)}
                     </p>
                 )}
-                {splitType === 'percentage' && (
+                {splitMode === 'percentage' && (
                     <div className="mt-2 flex items-center justify-between text-xs">
                         <span className="text-secondary-foreground">Total percentage:</span>
                         <span className={`font-medium ${Math.abs(totalPercentageValue - 100) < 0.01 ? 'text-primary' : 'text-destructive'}`}>

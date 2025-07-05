@@ -528,7 +528,8 @@ const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = (
             setRecurringExpenses(recurringData);
             setBalances(balanceData);
 
-            if (showToast) toast.success("Data refreshed!");
+            // Only show toast for explicit user actions, not automatic refreshes
+            // if (showToast) toast.success("Data refreshed!");
         } catch (error) {
             console.error('Error loading household data:', error);
             if (isMountedRef.current) toast.error('Failed to load household data.');
@@ -646,6 +647,7 @@ const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = (
                         <BalanceSummaryCard 
                             balances={balances}
                             currentUserId={user?.id || ''}
+                            householdId={householdId}
                             settlementSuggestions={settlementSuggestions}
                             onSettleUp={(suggestion) => {
                                 setShowSettleUp(true);

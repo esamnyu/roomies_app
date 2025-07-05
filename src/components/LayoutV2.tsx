@@ -13,6 +13,8 @@ import { SkipToContent } from './accessibility';
 import { Toaster } from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
 
+export type { NavItemId } from './navigation/BottomNav';
+
 interface LayoutV2Props {
   children: React.ReactNode;
   title?: string;
@@ -211,14 +213,16 @@ export const LayoutV2: React.FC<LayoutV2Props> = ({
         />
       </div>
       <Toaster 
-        position="top-center"
+        position="bottom-right"
         toastOptions={{
-          className: 'mt-14 md:mt-0',
-          duration: 4000,
+          className: '',
+          duration: 2500,
           style: {
             background: '#ffffff',
             color: '#1f2937',
             boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1)',
+            fontSize: '14px',
+            padding: '12px 16px',
           },
         }}
       />

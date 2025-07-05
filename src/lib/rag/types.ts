@@ -19,6 +19,11 @@ export interface IntentClassification {
     chore_types?: string[];
   };
   confidence: number;
+  metadata?: {
+    isOffTopic: boolean;
+    isSafeGeneral: boolean;
+    topicRelevance: number;
+  };
 }
 
 export interface RAGRequest {

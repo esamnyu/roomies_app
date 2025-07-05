@@ -6,8 +6,9 @@ import React, { useState } from 'react';
 import { Loader2, AlertTriangle } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { updateExpense } from '@/lib/api/expenses';
+import { createFriendlyErrorMessage } from '@/lib/utils/errorFormatter';
 import type { Expense, HouseholdMember, UpdateExpensePayload } from '@/lib/types/types';
-import { useExpenseSplits } from '@/hooks/useExpenseSplits';
+import { useSimpleExpenseSplits } from '@/hooks/useSimpleExpenseSplits';
 import { ExpenseSplitterV2 } from '@/components/ExpenseSplitterV2';
 import { Button } from '@/components/primitives/Button';
 import { Input } from '@/components/primitives/Input';
@@ -55,28 +56,37 @@ export const EditExpenseModal: React.FC<EditExpenseModalProps> = ({ expense, mem
     const {
         amount,
         setAmount,
-        splitType,
-        setSplitType,
-        finalSplits,
-        isValid,
-        customSplits,
-        setCustomSplits,
-        ...splitterProps
-    } = useExpenseSplits(members, expense);
+        splitMode,
+        setSplitMode,
+        selectedParticipants,
+        toggleParticipant,
+        customAmounts,
+        setCustomAmount,
+        percentages,
+        setPercentage,
+        splits: finalSplits,
+        validation,
+        totalSplitAmount,
+        totalPercentage
+    } = useSimpleExpenseSplits(members, expense);
 
     // REMOVED: The problematic useEffect hook has been completely removed.
     // This was the source of the state reverting issue.
 
     const handleSubmit = async () => {
-        if (!description || !isValid) return;
+        if (!description || !validation.isValid) {
+            if (!validation.isValid && validation.errors.length > 0) {
+                toast.error(validation.errors[0]);
+            }
+            return;
+        }
 
         const payload: UpdateExpensePayload = {
             description,
             amount,
             splits: finalSplits,
             paid_by: paidBy,
-            date: date,
-            version: expense.version
+            date: date
         };
         
         // Check if any splits are settled
@@ -109,7 +119,7 @@ export const EditExpenseModal: React.FC<EditExpenseModalProps> = ({ expense, mem
                 // Refresh the expense data
                 onExpenseUpdated();
             } else {
-                toast.error(errorMessage || 'Failed to update expense');
+                toast.error(createFriendlyErrorMessage(error));
             }
             setSubmitting(false);
         }
@@ -137,7 +147,7 @@ export const EditExpenseModal: React.FC<EditExpenseModalProps> = ({ expense, mem
                 // Refresh the expense data
                 onExpenseUpdated();
             } else {
-                toast.error(errorMessage || 'Failed to update expense');
+                toast.error(createFriendlyErrorMessage(error));
             }
             setSubmitting(false);
         } finally {
@@ -213,18 +223,31 @@ export const EditExpenseModal: React.FC<EditExpenseModalProps> = ({ expense, mem
                         <ExpenseSplitterV2
                             members={members}
                             amount={amount}
-                            splitType={splitType}
-                            setSplitType={setSplitType}
+                            splitMode={splitMode}
+                            setSplitMode={setSplitMode}
+                            includedMembers={selectedParticipants}
+                            toggleMemberInclusion={toggleParticipant}
+                            customSplits={customAmounts}
+                            setCustomSplits={(splits) => {
+                                Object.entries(splits).forEach(([userId, amount]) => {
+                                    setCustomAmount(userId, amount);
+                                });
+                            }}
+                            percentageSplits={percentages}
+                            setPercentageSplits={(splits) => {
+                                Object.entries(splits).forEach(([userId, percentage]) => {
+                                    setPercentage(userId, percentage);
+                                });
+                            }}
                             finalSplits={finalSplits}
-                            isValid={isValid}
-                            customSplits={customSplits}
-                            setCustomSplits={setCustomSplits}
-                            {...splitterProps}
+                            isValid={validation.isValid}
+                            totalSplitValue={totalSplitAmount}
+                            totalPercentageValue={totalPercentage}
                         />
                     </div>
                     <div className="mt-6 flex justify-end space-x-3">
                         <Button onClick={onClose} variant="secondary" disabled={submitting}>Cancel</Button>
-                        <Button onClick={handleSubmit} disabled={submitting || !description || !amount || !isValid}>
+                        <Button onClick={handleSubmit} disabled={submitting || !description || !amount || !validation.isValid}>
                             {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Save Changes'}
                         </Button>
                     </div>

@@ -346,7 +346,7 @@ export const markChoreAssignmentComplete = async (assignmentId: string, userId: 
   return data;
 };
 
-export const generateChoresForDuration = async (householdId: string, monthsToGenerate: number): Promise<ChoreAssignment[]> => {
+export const generateChoresForDurationLegacy = async (householdId: string, monthsToGenerate: number): Promise<ChoreAssignment[]> => {
     const household = await getHouseholdDetails(householdId);
     if (!household) throw new Error('Household not found');
 
@@ -456,6 +456,11 @@ export const generateChoresForDuration = async (householdId: string, monthsToGen
     }
     
     return [];
+};
+
+// Use the legacy generation function
+export const generateChoresForDuration = async (householdId: string, monthsToGenerate: number): Promise<ChoreAssignment[]> => {
+    return generateChoresForDurationLegacy(householdId, monthsToGenerate);
 };
 
 

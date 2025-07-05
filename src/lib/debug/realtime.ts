@@ -82,6 +82,12 @@ export const debugRealtime = {
 };
 
 // Export to window for debugging in browser console
+declare global {
+  interface Window {
+    debugRealtime: typeof debugRealtime;
+  }
+}
+
 if (typeof window !== 'undefined') {
-  (window as any).debugRealtime = debugRealtime;
+  window.debugRealtime = debugRealtime;
 }

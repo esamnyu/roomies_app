@@ -9,7 +9,7 @@ import {
     getHouseholdChores, 
     updateHouseholdChore, 
     deleteHouseholdChore, 
-    toggleChoreActive 
+    toggleChoreActive,
 } from '@/lib/api/chores';
 import { toast } from 'react-hot-toast';
 import type { HouseholdChore } from '@/lib/types/types';
@@ -199,6 +199,7 @@ export const ManageChoresModal: React.FC<ManageChoresModalProps> = ({
                         </div>
                     )}
                 </div>
+
             </div>
         </div>
     );

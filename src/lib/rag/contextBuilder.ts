@@ -1,12 +1,12 @@
 import { createClient } from '@supabase/supabase-js';
 import { RAGContext, IntentClassification } from './types';
-import { Database } from '@/lib/types/supabase';
+// import { Database } from '@/lib/types/supabase';
 
 export class ContextBuilder {
   private supabase;
   
   constructor(supabaseUrl: string, supabaseKey: string) {
-    this.supabase = createClient<Database>(supabaseUrl, supabaseKey);
+    this.supabase = createClient(supabaseUrl, supabaseKey);
   }
   
   async buildExpenseContext(householdId: string, entities: IntentClassification['entities']): Promise<RAGContext> {
@@ -34,9 +34,9 @@ export class ContextBuilder {
     
     let content = "Recent expenses:\n";
     recentExpenses?.forEach(expense => {
-      content += `- ${expense.description}: $${expense.amount} paid by ${expense.profiles?.name} on ${expense.date}\n`;
+      content += `- ${expense.description}: $${expense.amount} paid by ${(expense as any).profiles?.name} on ${expense.date}\n`;
       if (expense.expense_splits?.length) {
-        content += `  Split: ${expense.expense_splits.map(s => `${s.profiles?.name}: $${s.amount}`).join(', ')}\n`;
+        content += `  Split: ${expense.expense_splits.map((s: any) => `${s.profiles?.name}: $${s.amount}`).join(', ')}\n`;
       }
     });
     
@@ -91,7 +91,7 @@ export class ContextBuilder {
     
     Object.entries(groupedByDate || {}).forEach(([date, chores]) => {
       content += `\n${date}:\n`;
-      chores.forEach(chore => {
+      (chores as any[]).forEach((chore: any) => {
         content += `- ${chore.household_chores?.name}: ${chore.profiles?.name} (${chore.status})\n`;
       });
     });
@@ -128,7 +128,7 @@ export class ContextBuilder {
     }
     
     content += "Members:\n";
-    household?.household_members?.forEach(member => {
+    household?.household_members?.forEach((member: any) => {
       content += `- ${member.profiles?.name} (${member.role})\n`;
     });
     

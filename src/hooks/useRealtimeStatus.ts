@@ -20,9 +20,9 @@ export const useRealtimeStatus = () => {
         setConnectionState('connected');
       } else {
         const states = channels.map(c => c.state);
-        if (states.includes('closed' as any)) {
+        if (states.some(s => s === 'closed')) {
           setConnectionState('closed');
-        } else if (states.includes('errored' as any)) {
+        } else if (states.some(s => s === 'errored')) {
           setConnectionState('error');
         } else {
           setConnectionState('connecting');

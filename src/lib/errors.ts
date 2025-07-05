@@ -164,7 +164,7 @@ export function getErrorMessage(error: Error): string {
 /**
  * Wraps async functions to convert thrown errors into standardized AppErrors
  */
-export function withErrorHandling<T extends any[], R>(
+export function withErrorHandling<T extends unknown[], R>(
   fn: (...args: T) => Promise<R>,
   context?: string
 ) {
@@ -192,7 +192,7 @@ export function withErrorHandling<T extends any[], R>(
 export function logError(
   error: Error, 
   context?: string, 
-  metadata?: Record<string, any>
+  metadata?: Record<string, unknown>
 ) {
   const errorInfo = {
     message: error.message,
@@ -263,7 +263,12 @@ export async function withRetry<T>(
 /**
  * Legacy function for backward compatibility
  */
-export function handleSupabaseError(error: any): never {
+interface SupabaseError {
+  code?: string;
+  message?: string;
+}
+
+export function handleSupabaseError(error: SupabaseError): never {
   if (error?.code === 'PGRST301') {
     throw new NotFoundError('Resource not found');
   }

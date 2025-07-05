@@ -189,6 +189,11 @@ export interface HouseholdChore {
   created_at: string;
   updated_at: string;
   is_active: boolean;
+  frequency?: 'household_default' | 'daily' | 'weekly' | 'bi-weekly' | 'monthly' | 'custom';
+  frequency_days?: number | null;
+  allocation_mode?: 'household_default' | 'split' | 'single_owner' | 'weighted' | 'sequential' | 'volunteer';
+  single_owner_id?: string | null;
+  min_participants?: number;
 }
 
 export interface ChoreAssignment {
@@ -206,6 +211,8 @@ export interface ChoreAssignment {
   updated_at: string;
   chore_definition?: HouseholdChore;
   assigned_profile?: Profile | null;
+  assignment_idempotency_id?: string | null;
+  generation_method?: string;
 }
 
 export interface ChoreRotationPeriod {
@@ -225,3 +232,14 @@ export interface CreateHouseholdParams {
   chore_frequency?: string;
   chore_framework?: string;
 }
+
+export interface ChoreAssignmentIdempotency {
+  id: string;
+  household_chore_id: string;
+  cycle_start_date: string;
+  assignment_hash: string;
+  created_at: string;
+}
+
+export type ChoreFrequency = 'household_default' | 'daily' | 'weekly' | 'bi-weekly' | 'monthly' | 'custom';
+export type ChoreAllocationMode = 'household_default' | 'split' | 'single_owner' | 'weighted' | 'sequential' | 'volunteer';

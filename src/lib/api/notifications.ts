@@ -1,6 +1,5 @@
 // src/lib/api/notifications.ts
 import { supabase } from '../supabase';
-import { enhancedSubscriptionManager as subscriptionManager } from '../enhancedSubscriptionManager';
 import type { Notification } from '../types/types';
 import { getProfile } from './profile';
 
@@ -87,16 +86,8 @@ export const createNotification = async (
 };
 
 export const subscribeToNotifications = (userId: string, onNotification: (notification: Notification) => void) => {
-  const key = `notifications:${userId}`;
-  
-  // Check if already subscribed
-  if (subscriptionManager.hasSubscription(key)) {
-    console.log(`Already subscribed to ${key}, skipping...`);
-    return;
-  }
-  
   const channel = supabase
-    .channel(key)
+    .channel(`notifications:${userId}`)
     .on('postgres_changes', { 
       event: 'INSERT', 
       schema: 'public', 
@@ -107,15 +98,11 @@ export const subscribeToNotifications = (userId: string, onNotification: (notifi
         onNotification(payload.new as Notification);
       }
     })
-    .subscribe((status, err) => {
-      if (err) {
-        console.error(`Subscription error for ${key}:`, err);
-      } else {
-        console.log(`Subscription status for ${key}:`, status);
-      }
-    });
+    .subscribe();
 
-  return subscriptionManager.subscribe(key, channel);
+  return () => {
+    channel.unsubscribe();
+  };
 };
 
 export const sendPaymentReminder = async (householdId: string, debtorId: string, amount: number) => {

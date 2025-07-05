@@ -11,7 +11,6 @@ import {
 import type { Notification } from '@/lib/types/types';
 import { useAuth } from './AuthProvider';
 import { Button } from '@/components/primitives/Button';
-import { useThrottledSubscription } from '@/hooks/useThrottledSubscription';
 import { supabase } from '@/lib/supabase';
 
 interface NotificationsPanelProps {
@@ -241,10 +240,11 @@ export const NotificationBell: React.FC = () => {
     };
   }, [user?.id]);
 
-  // Use throttled subscription for real-time updates
-  useThrottledSubscription(
-    `notifications:${user?.id}`,
-    () => user?.id ? supabase
+  // Subscribe to real-time notifications
+  useEffect(() => {
+    if (!user?.id) return;
+
+    const channel = supabase
       .channel(`notifications:${user.id}`)
       .on(
         'postgres_changes',
@@ -254,17 +254,14 @@ export const NotificationBell: React.FC = () => {
           table: 'notifications',
           filter: `user_id=eq.${user.id}`
         },
-        () => {} // Callback handled by handleNewNotification
-      ) : null,
-    handleNewNotification,
-    [user?.id],
-    {
-      throttleMs: 500,
-      dedupWindow: 1000,
-      maxRetries: 3,
-      enabled: !!user?.id
-    }
-  );
+        handleNewNotification
+      )
+      .subscribe();
+
+    return () => {
+      channel.unsubscribe();
+    };
+  }, [user?.id, handleNewNotification]);
 
   return (
     <>

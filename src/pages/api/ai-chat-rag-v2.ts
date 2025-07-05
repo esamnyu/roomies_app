@@ -2,6 +2,9 @@ import { NextApiRequest, NextApiResponse } from 'next';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { createClient } from '@supabase/supabase-js';
 import { IntentClassifier } from '@/lib/rag/intentClassifier';
+import { geminiEmbeddingService, generateEmbeddingWithFallback } from '@/lib/services/geminiEmbeddingService';
+import { intelligentEmbeddingService } from '@/lib/services/intelligentEmbeddingService';
+import { promptSecurity } from '@/lib/security/promptSecurity';
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
 const supabase = createClient(
@@ -10,33 +13,6 @@ const supabase = createClient(
 );
 
 const intentClassifier = new IntentClassifier();
-
-async function storeConversation(
-  householdId: string,
-  userId: string,
-  userMessage: string,
-  assistantResponse: string
-) {
-  try {
-    // Store conversations for similarity search (no embeddings needed)
-    await supabase.rpc('store_conversation', {
-      p_household_id: householdId,
-      p_user_id: userId,
-      p_message_role: 'user',
-      p_message_content: userMessage
-    });
-
-    await supabase.rpc('store_conversation', {
-      p_household_id: householdId,
-      p_user_id: userId,
-      p_message_role: 'assistant',
-      p_message_content: assistantResponse
-    });
-  } catch (error) {
-    console.error('Error storing conversation:', error);
-    // Don't fail the request if storage fails
-  }
-}
 
 function formatContextForPrompt(context: any): string {
   let formattedContext = "=== HOUSEHOLD CONTEXT ===\n\n";
@@ -177,24 +153,89 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(400).json({ error: 'Message and householdId are required' });
     }
 
+    // Security check on user input
+    const securityCheck = await promptSecurity.checkInput(message, user.id);
+    if (!securityCheck.safe) {
+      return res.status(400).json({ 
+        error: securityCheck.reason || 'Invalid input',
+        category: securityCheck.category 
+      });
+    }
+
+    // Use sanitized input
+    const sanitizedMessage = securityCheck.sanitizedInput || message;
+
     // Classify intent
-    const intent = intentClassifier.classify(message);
+    const intent = intentClassifier.classify(sanitizedMessage);
     const intentType = intent.primary_intent === 'expense_query' ? 'expense' :
                       intent.primary_intent === 'chore_query' ? 'chore' :
                       intent.primary_intent === 'household_info' ? 'info' : 'all';
 
-    // Get context with text similarity search (no embeddings needed!)
-    const { data: context, error: contextError } = await supabase
-      .rpc('get_rag_context_with_similarity', {
-        p_household_id: householdId,
-        p_user_id: user.id,
-        p_intent: intentType,
-        p_options: {
-          expense_limit: 10,
-          days_ahead: 7
-        },
-        p_query: message  // Just pass the text query
-      });
+    // Try to get context with embeddings first, fallback to text similarity
+    let context;
+    let contextError;
+    let useVectorSearch = false;
+    
+    try {
+      // First, check if we have a similar query with embedding already
+      const { exists, embedding: cachedEmbedding } = await intelligentEmbeddingService
+        .checkSimilarEmbeddingExists(sanitizedMessage, householdId, 0.95);
+      
+      let queryEmbedding: number[] | undefined = cachedEmbedding || undefined;
+      
+      if (!queryEmbedding) {
+        // Generate embedding with intelligent fallback
+        const embedding = await generateEmbeddingWithFallback(sanitizedMessage, {
+          maxRetries: 2,
+          priority: true
+        });
+        if (embedding) {
+          queryEmbedding = embedding;
+        }
+      }
+      
+      if (queryEmbedding) {
+        // Get context with vector search
+        const vectorResult = await supabase
+          .rpc('get_rag_context_with_vectors', {
+            p_household_id: householdId,
+            p_user_id: user.id,
+            p_intent: intentType,
+            p_options: {
+              expense_limit: 10,
+              days_ahead: 7,
+              vector_limit: 5,
+              vector_threshold: 0.7
+            },
+            p_query_embedding: queryEmbedding
+          });
+        
+        context = vectorResult.data;
+        contextError = vectorResult.error;
+        useVectorSearch = !contextError;
+      }
+      
+    } catch (embeddingError) {
+      console.warn('Embedding generation failed, falling back to text search:', embeddingError);
+    }
+    
+    // Fallback to text similarity if vector search fails
+    if (!useVectorSearch) {
+      const textResult = await supabase
+        .rpc('get_rag_context_with_similarity', {
+          p_household_id: householdId,
+          p_user_id: user.id,
+          p_intent: intentType,
+          p_options: {
+            expense_limit: 10,
+            days_ahead: 7
+          },
+          p_query: sanitizedMessage
+        });
+      
+      context = textResult.data;
+      contextError = textResult.error;
+    }
 
     if (contextError) {
       console.error('Context retrieval error:', contextError);
@@ -207,19 +248,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // Calculate approximate token usage
     const contextTokens = Math.ceil(contextPrompt.split(/\s+/).length * 1.3);
 
-    // Build the enhanced prompt
-    const enhancedPrompt = `${contextPrompt}
+    // Limit conversation history to prevent manipulation
+    const safeHistory = conversationHistory.slice(-3).map((m: any) => ({
+      role: m.role,
+      content: m.content.substring(0, 200) // Limit each message length
+    }));
 
-You are an AI assistant for a co-living household. Use the context above to answer questions accurately. 
-If the information needed is not in the context, say so clearly.
-Be specific with names, amounts, and dates when available.
-
-User question: ${message}
-
-${conversationHistory.length > 0 ? `Previous conversation:
-${conversationHistory.slice(-4).map((m: any) => `${m.role}: ${m.content}`).join('\n')}
-
-` : ''}Provide a helpful, accurate response based on the household context provided.`;
+    // Build the safe prompt using our security service
+    const enhancedPrompt = promptSecurity.createSafePrompt(
+      sanitizedMessage,
+      contextPrompt,
+      safeHistory
+    );
 
     // Generate response with Gemini
     const model = genAI.getGenerativeModel({ 
@@ -240,11 +280,32 @@ ${conversationHistory.slice(-4).map((m: any) => `${m.role}: ${m.content}`).join(
       clearTimeout(timeoutId);
       response = result.response.text();
 
-      // Store conversation asynchronously (don't wait for completion)
-      storeConversation(householdId, user.id, message, response);
+      // Validate and filter the response
+      const validationResult = promptSecurity.validateResponse(response);
+      if (!validationResult.valid || validationResult.filteredResponse) {
+        response = validationResult.filteredResponse || 'I apologize, but I cannot provide that information.';
+      }
+
+      // Store conversation with intelligent embedding
+      Promise.all([
+        intelligentEmbeddingService.storeConversationWithEmbedding(
+          householdId,
+          user.id,
+          'user',
+          sanitizedMessage,
+          { priority: 'high', processImmediately: true }
+        ),
+        intelligentEmbeddingService.storeConversationWithEmbedding(
+          householdId,
+          user.id,
+          'assistant',
+          response,
+          { priority: 'normal', processImmediately: false }
+        )
+      ]).catch(err => console.error('Error storing conversation:', err));
     } catch (error) {
       clearTimeout(timeoutId);
-      if (error.name === 'AbortError') {
+      if (error instanceof Error && error.name === 'AbortError') {
         throw new Error('Request timeout - Gemini API took too long to respond');
       }
       throw error;
@@ -255,7 +316,8 @@ ${conversationHistory.slice(-4).map((m: any) => `${m.role}: ${m.content}`).join(
       debug: {
         context_tokens: contextTokens,
         intent: intentType,
-        confidence: intent.confidence
+        confidence: intent.confidence,
+        vector_search_used: useVectorSearch
       }
     });
 

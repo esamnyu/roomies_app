@@ -1,6 +1,5 @@
 // src/lib/api/settlements.ts
 import { supabase } from '../supabase';
-import { enhancedSubscriptionManager as subscriptionManager } from '../enhancedSubscriptionManager';
 import type { Settlement, Profile } from '../types/types';
 
 // This function is updated to accept a single object.
@@ -48,15 +47,8 @@ export const getHouseholdSettlements = async (householdId: string) => {
 };
 
 export const subscribeToSettlements = (householdId: string, onSettlement: (settlement: Settlement) => void) => {
-  const key = `settlements:${householdId}`;
-  
-  if (subscriptionManager.hasSubscription(key)) {
-    console.log(`Already subscribed to ${key}, skipping...`);
-    return;
-  }
-  
   const channel = supabase
-    .channel(key)
+    .channel(`settlements:${householdId}`)
     .on('postgres_changes', {
       event: 'INSERT',
       schema: 'public',
@@ -77,15 +69,11 @@ export const subscribeToSettlements = (householdId: string, onSettlement: (settl
         if (data) onSettlement(data);
       }
     })
-    .subscribe((status, err) => {
-      if (err) {
-        console.error(`Subscription error for ${key}:`, err);
-      } else {
-        console.log(`Subscription status for ${key}:`, status);
-      }
-    });
+    .subscribe();
     
-  return subscriptionManager.subscribe(key, channel);
+  return () => {
+    channel.unsubscribe();
+  };
 };
 
 // --- NEW EFFICIENT BALANCE CALCULATION ---

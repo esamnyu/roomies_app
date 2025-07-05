@@ -22,13 +22,11 @@ export const createTask = withErrorHandling(async (
   assignedTo?: string
 ) => {
   // Validate input
-  console.log('Raw input to createTask:', { householdId, title, assignedTo });
   const validatedData = validateInput(createTaskSchema, {
     householdId,
     title,
     assignedTo
   });
-  console.log('Validated data:', validatedData);
 
   // Ensure the user is authenticated and a member of the household
   await requireHouseholdMember(validatedData.householdId);
@@ -45,8 +43,6 @@ export const createTask = withErrorHandling(async (
     assigned_to: validatedData.assignedTo || undefined,
   };
   
-  console.log('Creating task with data:', taskData);
-  
   // Insert the new task and immediately select it with the profile information
   const { data: insertedTask, error } = await supabase
     .from('tasks')
@@ -62,7 +58,6 @@ export const createTask = withErrorHandling(async (
     throw new Error('Failed to create task');
   }
 
-  console.log('Task created successfully:', insertedTask);
   return insertedTask;
 }, 'createTask');
 

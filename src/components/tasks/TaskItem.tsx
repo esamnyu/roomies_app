@@ -3,6 +3,7 @@
 import React from 'react';
 import { Check, X, User } from 'lucide-react';
 import type { Task } from '@/lib/types/types';
+import { useIsMobile } from '@/hooks/useMediaQuery';
 
 interface TaskItemProps {
   task: Task;
@@ -17,14 +18,11 @@ export const TaskItem: React.FC<TaskItemProps> = ({
   onDelete,
   members 
 }) => {
-  console.log('TaskItem rendering with task:', task);
   const assignedMember = members?.find(m => m.id === task.assigned_to);
+  const isMobile = useIsMobile();
   
   return (
     <div 
-      onClick={(e) => {
-        console.log('Parent div clicked', e.target);
-      }}
       className={`flex items-center gap-3 py-2 px-3 rounded-lg transition-all ${
         task.completed 
           ? 'bg-secondary/20 opacity-60' 
@@ -32,7 +30,6 @@ export const TaskItem: React.FC<TaskItemProps> = ({
       }`}>
       <button
         onClick={() => {
-          console.log('Toggle clicked for task:', task);
           onToggle(task.id);
         }}
         className={`flex-shrink-0 w-5 h-5 rounded border-2 transition-all flex items-center justify-center ${
@@ -54,19 +51,19 @@ export const TaskItem: React.FC<TaskItemProps> = ({
       </span>
       
       {assignedMember && (
-        <div className="flex items-center gap-1 text-xs text-secondary-foreground">
-          <User className="w-3 h-3" />
-          <span>{assignedMember.name}</span>
+        <div className="flex items-center gap-0.5 text-xs text-secondary-foreground">
+          <User className="w-2.5 h-2.5" />
+          <span className="truncate max-w-[60px]">{assignedMember.name}</span>
         </div>
       )}
       
       {task.completed && (
         <button
           onClick={() => onDelete(task.id)}
-          className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-destructive/10 rounded"
+          className={`${isMobile ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} transition-opacity p-0.5 hover:bg-destructive/10 rounded`}
           title="Remove task"
         >
-          <X className="w-3 h-3 text-destructive" />
+          <X className="w-2.5 h-2.5 text-destructive" />
         </button>
       )}
     </div>

@@ -204,7 +204,7 @@ export function AIMateChatRAG({ householdId }: AIMateChatRAGProps) {
                         <div className="mt-1 px-1 text-xs text-muted-foreground">
                           <span className="opacity-60">
                             {message.debug.context_tokens} tokens • 
-                            Intent: {message.debug.intent} ({(message.debug.confidence * 100).toFixed(0)}%)
+                            Types: {message.debug.context_types.join(', ')}
                           </span>
                         </div>
                       )}
@@ -248,7 +248,7 @@ export function AIMateChatRAG({ householdId }: AIMateChatRAGProps) {
               onChange={(e) => setInput(e.target.value)}
               onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
               placeholder="Ask about expenses, chores, or household info..."
-              className="pr-12 py-5 rounded-full border-border/50 bg-background/80 backdrop-blur-sm focus:bg-background transition-colors"
+              className="pr-12 py-6 rounded-full border-border/50 bg-background/80 backdrop-blur-sm focus:bg-background transition-colors"
               disabled={isLoading}
             />
             <Button 
