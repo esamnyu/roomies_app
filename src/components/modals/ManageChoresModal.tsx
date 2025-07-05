@@ -2,17 +2,19 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { X, Loader2, Edit2, Trash2, ToggleLeft, ToggleRight, Save, AlertCircle } from 'lucide-react';
+import { X, Loader2, Edit2, Trash2, ToggleLeft, ToggleRight, Save, AlertCircle, Settings, Users } from 'lucide-react';
 import { Button } from '@/components/primitives/Button';
 import { Input } from '@/components/primitives/Input';
 import { 
     getHouseholdChores, 
     updateHouseholdChore, 
     deleteHouseholdChore, 
-    toggleChoreActive 
+    toggleChoreActive,
+    getHouseholdChoresWithParticipants
 } from '@/lib/api/chores';
 import { toast } from 'react-hot-toast';
 import type { HouseholdChore } from '@/lib/types/types';
+import { ChoreSettings } from '@/components/chores/ChoreSettings';
 
 interface ManageChoresModalProps {
     householdId: string;
@@ -31,6 +33,7 @@ export const ManageChoresModal: React.FC<ManageChoresModalProps> = ({
     const [editValues, setEditValues] = useState<{ name: string; description: string }>({ name: '', description: '' });
     const [deletingChore, setDeletingChore] = useState<string | null>(null);
     const [togglingChore, setTogglingChore] = useState<string | null>(null);
+    const [settingsChore, setSettingsChore] = useState<HouseholdChore | null>(null);
 
     useEffect(() => {
         loadChores();
@@ -39,7 +42,7 @@ export const ManageChoresModal: React.FC<ManageChoresModalProps> = ({
     const loadChores = async () => {
         try {
             setIsLoading(true);
-            const choresList = await getHouseholdChores(householdId);
+            const choresList = await getHouseholdChoresWithParticipants(householdId);
             setChores(choresList);
         } catch (error) {
             console.error('Error loading chores:', error);
@@ -164,6 +167,7 @@ export const ManageChoresModal: React.FC<ManageChoresModalProps> = ({
                                                 onSaveEdit={() => handleSaveEdit(chore.id)}
                                                 onToggle={() => handleToggleActive(chore)}
                                                 onDelete={() => handleDelete(chore.id)}
+                                                onSettings={() => setSettingsChore(chore)}
                                                 isToggling={togglingChore === chore.id}
                                                 isDeleting={deletingChore === chore.id}
                                             />
@@ -189,6 +193,7 @@ export const ManageChoresModal: React.FC<ManageChoresModalProps> = ({
                                                 onSaveEdit={() => handleSaveEdit(chore.id)}
                                                 onToggle={() => handleToggleActive(chore)}
                                                 onDelete={() => handleDelete(chore.id)}
+                                                onSettings={() => setSettingsChore(chore)}
                                                 isToggling={togglingChore === chore.id}
                                                 isDeleting={deletingChore === chore.id}
                                             />
@@ -199,6 +204,20 @@ export const ManageChoresModal: React.FC<ManageChoresModalProps> = ({
                         </div>
                     )}
                 </div>
+
+                {/* Settings Dialog */}
+                {settingsChore && (
+                    <ChoreSettings
+                        chore={settingsChore}
+                        householdId={householdId}
+                        open={!!settingsChore}
+                        onOpenChange={(open) => !open && setSettingsChore(null)}
+                        onUpdate={() => {
+                            loadChores();
+                            onChoresUpdated();
+                        }}
+                    />
+                )}
             </div>
         </div>
     );
@@ -215,6 +234,7 @@ interface ChoreItemProps {
     onSaveEdit: () => void;
     onToggle: () => void;
     onDelete: () => void;
+    onSettings: () => void;
     isToggling: boolean;
     isDeleting: boolean;
 }
@@ -229,6 +249,7 @@ const ChoreItem: React.FC<ChoreItemProps> = ({
     onSaveEdit,
     onToggle,
     onDelete,
+    onSettings,
     isToggling,
     isDeleting
 }) => {
@@ -275,8 +296,36 @@ const ChoreItem: React.FC<ChoreItemProps> = ({
                         {chore.description && (
                             <p className="text-sm text-secondary-foreground mt-1">{chore.description}</p>
                         )}
+                        {/* Display chore configuration badges */}
+                        <div className="flex gap-2 mt-2">
+                            {chore.frequency && chore.frequency !== 'household_default' && (
+                                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs bg-secondary text-secondary-foreground">
+                                    {chore.frequency === 'custom' ? `Every ${chore.frequency_days} days` : chore.frequency}
+                                </span>
+                            )}
+                            {chore.allocation_mode && chore.allocation_mode !== 'household_default' && (
+                                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs border border-border">
+                                    {chore.allocation_mode.replace('_', ' ')}
+                                </span>
+                            )}
+                            {chore.participants && (
+                                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs border border-border">
+                                    <Users className="h-3 w-3 mr-1" />
+                                    {chore.participants.filter(p => p.opted_in).length} participants
+                                </span>
+                            )}
+                        </div>
                     </div>
                     <div className="flex items-center gap-1">
+                        <Button
+                            size="icon"
+                            variant="ghost"
+                            onClick={onSettings}
+                            className="h-8 w-8"
+                            title="Chore Settings"
+                        >
+                            <Settings className="h-4 w-4" />
+                        </Button>
                         <Button
                             size="icon"
                             variant="ghost"

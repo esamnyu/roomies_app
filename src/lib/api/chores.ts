@@ -4,9 +4,11 @@ import { supabase } from '../supabase';
 import type { Household, HouseholdChore, ChoreAssignment, HouseholdMember, Profile } from '../types/types';
 import { getHouseholdDetails, getHouseholdMembers } from './households';
 import { requireHouseholdMember, requireHouseholdAdmin } from './auth/middleware';
+import { generateIdempotentChoreAssignments } from './choreEnhancements';
 
 // Re-export chore management functions
 export * from './choreManagement';
+export * from './choreEnhancements';
 
 // Helper to check if a user is on vacation
 const isUserOnVacation = (member: HouseholdMember): boolean => {
@@ -346,7 +348,7 @@ export const markChoreAssignmentComplete = async (assignmentId: string, userId: 
   return data;
 };
 
-export const generateChoresForDuration = async (householdId: string, monthsToGenerate: number): Promise<ChoreAssignment[]> => {
+export const generateChoresForDurationLegacy = async (householdId: string, monthsToGenerate: number): Promise<ChoreAssignment[]> => {
     const household = await getHouseholdDetails(householdId);
     if (!household) throw new Error('Household not found');
 
@@ -456,6 +458,18 @@ export const generateChoresForDuration = async (householdId: string, monthsToGen
     }
     
     return [];
+};
+
+// New generation function that uses the enhanced system
+export const generateChoresForDuration = async (householdId: string, monthsToGenerate: number): Promise<ChoreAssignment[]> => {
+    const startDate = new Date();
+    startDate.setHours(0, 0, 0, 0);
+    
+    const endDate = new Date();
+    endDate.setMonth(endDate.getMonth() + monthsToGenerate);
+    
+    // Use the enhanced idempotent generation
+    return generateIdempotentChoreAssignments(householdId, startDate, endDate);
 };
 
 

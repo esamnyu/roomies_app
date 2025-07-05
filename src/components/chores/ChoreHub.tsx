@@ -1,7 +1,7 @@
 // src/components/chores/ChoreHub.tsx
 "use client";
 import React, { useState } from 'react';
-import { PlusCircle, RefreshCw, Settings, Loader2, Sparkles, Calendar, History } from 'lucide-react';
+import { PlusCircle, RefreshCw, Settings, Loader2, Sparkles, Calendar, History, Users, X } from 'lucide-react';
 import { Button } from '@/components/primitives/Button';
 import { useAuth } from '../AuthProvider';
 import { useIsMobile } from '@/hooks/useMediaQuery';
@@ -15,6 +15,7 @@ import { EmptyChoreState } from './EmptyChoreState';
 import { AddChoreModal } from '@/components/modals/AddChoreModal';
 import { ManageChoresModal } from '@/components/modals/ManageChoresModal';
 import { QuickTasksWidget } from '@/components/tasks/QuickTasksWidget';
+import { ChoreParticipationMatrix } from './ChoreParticipationMatrix';
 
 // Separate component for the dashboard content to use context
 interface ChoreHubContentProps {
@@ -39,6 +40,7 @@ const ChoreHubContent: React.FC<ChoreHubContentProps> = ({ householdId }) => {
     const { user } = useAuth();
     const [showAddChoreModal, setShowAddChoreModal] = useState(false);
     const [showManageChoresModal, setShowManageChoresModal] = useState(false);
+    const [showParticipationModal, setShowParticipationModal] = useState(false);
     const [useDraggableCalendar, setUseDraggableCalendar] = useState(true);
     const isMobile = useIsMobile();
 
@@ -99,6 +101,15 @@ const ChoreHubContent: React.FC<ChoreHubContentProps> = ({ householdId }) => {
                                 Manage
                             </Button>
                             <Button 
+                                onClick={() => setShowParticipationModal(true)} 
+                                variant="outline"
+                                size="sm"
+                                className="hover:bg-primary/10"
+                            >
+                                <Users className="h-4 w-4 mr-2" />
+                                {isMobile ? 'Participate' : 'Participation'}
+                            </Button>
+                            <Button 
                                 onClick={handleGenerateSchedule} 
                                 disabled={isGenerating}
                                 size="sm"
@@ -113,8 +124,19 @@ const ChoreHubContent: React.FC<ChoreHubContentProps> = ({ householdId }) => {
                             </Button>
                         </div>
                     ) : (
-                        <div className="text-sm text-muted-foreground">
-                            <p>Admin features are available to household admins only</p>
+                        <div className="flex items-center gap-4">
+                            <Button 
+                                onClick={() => setShowParticipationModal(true)} 
+                                variant="outline"
+                                size="sm"
+                                className="hover:bg-primary/10"
+                            >
+                                <Users className="h-4 w-4 mr-2" />
+                                My Participation
+                            </Button>
+                            <div className="text-sm text-muted-foreground">
+                                <p>Contact admin for more options</p>
+                            </div>
                         </div>
                     )}
                 </div>
@@ -226,6 +248,30 @@ const ChoreHubContent: React.FC<ChoreHubContentProps> = ({ householdId }) => {
                         refreshData();
                     }}
                 />
+            )}
+            
+            {/* Participation Modal */}
+            {showParticipationModal && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+                    <div className="bg-background rounded-lg shadow-xl max-w-6xl w-full max-h-[90vh] overflow-hidden">
+                        <div className="flex items-center justify-between p-6 border-b border-border">
+                            <h2 className="text-xl font-semibold text-foreground">Chore Participation</h2>
+                            <button
+                                onClick={() => setShowParticipationModal(false)}
+                                className="text-secondary-foreground hover:text-foreground transition-colors"
+                            >
+                                <X className="h-5 w-5" />
+                            </button>
+                        </div>
+                        <div className="p-6 overflow-y-auto max-h-[calc(90vh-80px)]">
+                            <ChoreParticipationMatrix
+                                householdId={householdId}
+                                currentUserId={user?.id || ''}
+                                isAdmin={isAdmin}
+                            />
+                        </div>
+                    </div>
+                </div>
             )}
         </div>
     );
