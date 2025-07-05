@@ -124,7 +124,7 @@ class EmbeddingMonitor {
       };
     } catch (error) {
       console.error('Failed to get queue health:', error);
-      return { status: 'unknown', error: error.message };
+      return { status: 'unknown', error: error instanceof Error ? error.message : 'Unknown error' };
     }
   }
 
@@ -190,7 +190,7 @@ class EmbeddingMonitor {
       Object.keys(byTableType).forEach(type => {
         const times = byTableType[type].times;
         byTableType[type].avgTime = times.length > 0 
-          ? times.reduce((a, b) => a + b) / times.length 
+          ? times.reduce((a: number, b: number) => a + b) / times.length 
           : 0;
         delete byTableType[type].times;
       });
@@ -221,7 +221,7 @@ class EmbeddingMonitor {
       };
     } catch (error) {
       console.error('Failed to get detailed metrics:', error);
-      return { error: error.message };
+      return { error: error instanceof Error ? error.message : 'Unknown error' };
     }
   }
 }

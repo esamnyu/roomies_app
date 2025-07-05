@@ -54,8 +54,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(200).json({ message: 'No items to process' });
     }
 
-    const processed = [];
-    const failed = [];
+    const processed: any[] = [];
+    const failed: any[] = [];
 
     // Process embeddings with timeout and concurrency limit
     const EMBEDDING_TIMEOUT = 15000; // 15 seconds per embedding
@@ -138,11 +138,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         await supabase
           .from('embedding_queue')
           .update({ 
-            error: error.message || 'Processing failed'
+            error: error instanceof Error ? error.message : 'Processing failed'
           })
           .eq('id', item.id);
 
-        failed.push({ id: item.id, error: error.message });
+        failed.push({ id: item.id, error: error instanceof Error ? error.message : 'Unknown error' });
         
         // Log failure
         await embeddingMonitor.logEmbeddingGeneration(
@@ -150,7 +150,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           item.table_name,
           false,
           Date.now() - startTime,
-          error.message
+          error instanceof Error ? error.message : undefined
         );
       }
       }))

@@ -205,7 +205,7 @@ async function processSmallBatch() {
         console.error('❌ Failed:', err);
         await supabase
           .from('embedding_queue')
-          .update({ error: err.message })
+          .update({ error: err instanceof Error ? err.message : 'Unknown error' })
           .eq('id', item.id);
       }
     }

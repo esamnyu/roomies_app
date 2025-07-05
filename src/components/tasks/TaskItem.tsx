@@ -3,6 +3,7 @@
 import React from 'react';
 import { Check, X, User } from 'lucide-react';
 import type { Task } from '@/lib/types/types';
+import { useIsMobile } from '@/hooks/useMediaQuery';
 
 interface TaskItemProps {
   task: Task;
@@ -18,6 +19,7 @@ export const TaskItem: React.FC<TaskItemProps> = ({
   members 
 }) => {
   const assignedMember = members?.find(m => m.id === task.assigned_to);
+  const isMobile = useIsMobile();
   
   return (
     <div 
@@ -58,7 +60,7 @@ export const TaskItem: React.FC<TaskItemProps> = ({
       {task.completed && (
         <button
           onClick={() => onDelete(task.id)}
-          className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-destructive/10 rounded"
+          className={`${isMobile ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} transition-opacity p-1 hover:bg-destructive/10 rounded`}
           title="Remove task"
         >
           <X className="w-3 h-3 text-destructive" />

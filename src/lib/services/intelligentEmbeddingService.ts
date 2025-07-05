@@ -187,7 +187,7 @@ export class IntelligentEmbeddingService {
   }
 
   private async updateEmbedding(tableName: string, recordId: string, embedding: number[]) {
-    const tableMap = {
+    const tableMap: Record<string, string> = {
       'conversations': 'conversation_embeddings',
       'expenses': 'expense_embeddings',
       'household_rules': 'household_context_embeddings'

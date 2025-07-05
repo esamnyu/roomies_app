@@ -42,7 +42,7 @@ export function FormComponentsExample() {
           <Checkbox 
             id="checkbox-example" 
             checked={checked}
-            onCheckedChange={setChecked}
+            onCheckedChange={(checked) => setChecked(checked === true)}
           />
           <Label htmlFor="checkbox-example">Accept terms and conditions</Label>
         </div>

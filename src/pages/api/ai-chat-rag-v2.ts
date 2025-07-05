@@ -181,14 +181,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const { exists, embedding: cachedEmbedding } = await intelligentEmbeddingService
         .checkSimilarEmbeddingExists(sanitizedMessage, householdId, 0.95);
       
-      let queryEmbedding = cachedEmbedding;
+      let queryEmbedding: number[] | undefined = cachedEmbedding || undefined;
       
       if (!queryEmbedding) {
         // Generate embedding with intelligent fallback
-        queryEmbedding = await generateEmbeddingWithFallback(sanitizedMessage, {
+        const embedding = await generateEmbeddingWithFallback(sanitizedMessage, {
           maxRetries: 2,
           priority: true
         });
+        if (embedding) {
+          queryEmbedding = embedding;
+        }
       }
       
       if (queryEmbedding) {
@@ -302,7 +305,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       ]).catch(err => console.error('Error storing conversation:', err));
     } catch (error) {
       clearTimeout(timeoutId);
-      if (error.name === 'AbortError') {
+      if (error instanceof Error && error.name === 'AbortError') {
         throw new Error('Request timeout - Gemini API took too long to respond');
       }
       throw error;

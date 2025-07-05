@@ -87,7 +87,7 @@ export async function generateEmbeddingWithFallback(
     } catch (error) {
       lastError = error as Error;
       // If rate limited, wait before retry
-      if (error.message?.includes('429') && i < maxRetries - 1) {
+      if (error instanceof Error && error.message?.includes('429') && i < maxRetries - 1) {
         await new Promise(resolve => setTimeout(resolve, 1000 * (i + 1)));
       }
     }

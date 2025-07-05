@@ -1,10 +1,12 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Plus, ListTodo, ChevronDown, ChevronUp } from 'lucide-react';
+import { Plus, ListTodo, ChevronDown, ChevronUp, CheckSquare } from 'lucide-react';
 import { TaskItem } from './TaskItem';
+import { SwipeableTaskItem } from './SwipeableTaskItem';
 import { useTasks } from '@/hooks/useTasks';
 import type { HouseholdMember } from '@/lib/types/types';
+import { useIsMobile, useIsTouchDevice } from '@/hooks/useMediaQuery';
 
 interface QuickTasksWidgetProps {
   householdId: string;
@@ -21,6 +23,8 @@ export const QuickTasksWidget: React.FC<QuickTasksWidgetProps> = ({
   const [newTaskTitle, setNewTaskTitle] = useState('');
   const [isExpanded, setIsExpanded] = useState(true);
   const [isAdding, setIsAdding] = useState(false);
+  const isMobile = useIsMobile();
+  const isTouch = useIsTouchDevice();
 
   const handleAddTask = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -48,8 +52,8 @@ export const QuickTasksWidget: React.FC<QuickTasksWidgetProps> = ({
     return (
       <div className="bg-background rounded-lg border border-border p-4 mb-6">
         <div className="flex items-center gap-2 mb-3">
-          <ListTodo className="h-5 w-5 text-primary" />
-          <h3 className="font-semibold">Quick Tasks</h3>
+          <CheckSquare className="h-5 w-5 text-primary" />
+          <h3 className="font-semibold">Today's Tasks</h3>
         </div>
         <div className="text-sm text-secondary-foreground">Loading tasks...</div>
       </div>
@@ -60,8 +64,8 @@ export const QuickTasksWidget: React.FC<QuickTasksWidgetProps> = ({
     <div className="bg-background rounded-lg border border-border p-4 mb-6">
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
-          <ListTodo className="h-5 w-5 text-primary" />
-          <h3 className="font-semibold">Quick Tasks</h3>
+          <CheckSquare className="h-5 w-5 text-primary" />
+          <h3 className="font-semibold">{isMobile ? "Today's Tasks" : "Quick Actions"}</h3>
           {pendingTasks.length > 0 && (
             <span className="text-xs bg-primary/10 text-primary px-2 py-1 rounded-full">
               {pendingTasks.length}
@@ -71,7 +75,8 @@ export const QuickTasksWidget: React.FC<QuickTasksWidgetProps> = ({
         {tasks.length > 3 && (
           <button
             onClick={() => setIsExpanded(!isExpanded)}
-            className="text-sm text-secondary-foreground hover:text-foreground transition-colors"
+            className="text-sm text-secondary-foreground hover:text-foreground transition-colors p-1"
+            aria-label={isExpanded ? 'Collapse tasks' : 'Expand tasks'}
           >
             {isExpanded ? (
               <ChevronUp className="h-4 w-4" />
@@ -88,9 +93,9 @@ export const QuickTasksWidget: React.FC<QuickTasksWidgetProps> = ({
             type="text"
             value={newTaskTitle}
             onChange={(e) => setNewTaskTitle(e.target.value)}
-            placeholder="Add a quick task..."
+            placeholder={isMobile ? "Add a task..." : "Add a quick task..."}
             disabled={isAdding}
-            className="flex-1 px-3 py-2 text-sm bg-secondary/10 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent placeholder:text-secondary-foreground/60"
+            className={`flex-1 px-3 py-2 text-sm bg-secondary/10 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent placeholder:text-secondary-foreground/60 ${isMobile ? 'min-h-[44px]' : ''}`}
           />
           <button
             type="submit"
@@ -109,13 +114,23 @@ export const QuickTasksWidget: React.FC<QuickTasksWidgetProps> = ({
       ) : (
         <div className="space-y-1 group">
           {displayTasks.map(task => (
-            <TaskItem
-              key={task.id}
-              task={task}
-              onToggle={toggleTask}
-              onDelete={removeTask}
-              members={memberProfiles}
-            />
+            isTouch ? (
+              <SwipeableTaskItem
+                key={task.id}
+                task={task}
+                onToggle={toggleTask}
+                onDelete={removeTask}
+                members={memberProfiles}
+              />
+            ) : (
+              <TaskItem
+                key={task.id}
+                task={task}
+                onToggle={toggleTask}
+                onDelete={removeTask}
+                members={memberProfiles}
+              />
+            )
           ))}
           
           {!isExpanded && tasks.length > 3 && (
@@ -130,9 +145,16 @@ export const QuickTasksWidget: React.FC<QuickTasksWidgetProps> = ({
       )}
 
       {completedTasks.length > 0 && isExpanded && (
-        <p className="text-xs text-secondary-foreground mt-3 text-center">
-          Completed tasks auto-remove after 7 days
-        </p>
+        <div className="mt-3">
+          <p className="text-xs text-secondary-foreground text-center">
+            Completed tasks auto-remove after 7 days
+          </p>
+          {isTouch && (
+            <p className="text-xs text-secondary-foreground text-center mt-1">
+              Swipe right to complete • Swipe left to delete
+            </p>
+          )}
+        </div>
       )}
     </div>
   );

@@ -1,7 +1,6 @@
 // src/hooks/useRealtimeStatus.ts
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
-import { CHANNEL_STATES } from '@supabase/supabase-js';
 
 export const useRealtimeStatus = () => {
   const [isConnected, setIsConnected] = useState(false);
@@ -21,9 +20,9 @@ export const useRealtimeStatus = () => {
         setConnectionState('connected');
       } else {
         const states = channels.map(c => c.state);
-        if (states.includes(CHANNEL_STATES.closed)) {
+        if (states.some(s => s === 'closed')) {
           setConnectionState('closed');
-        } else if (states.includes(CHANNEL_STATES.errored)) {
+        } else if (states.some(s => s === 'errored')) {
           setConnectionState('error');
         } else {
           setConnectionState('connecting');

@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { PlusCircle, RefreshCw, Settings, Loader2, Sparkles, Calendar, History } from 'lucide-react';
 import { Button } from '@/components/primitives/Button';
 import { useAuth } from '../AuthProvider';
+import { useIsMobile } from '@/hooks/useMediaQuery';
 import { ChoreProvider, useChoreContext } from './ChoreProvider';
 import { ChoreHistory } from './ChoreHistory';
 import { UpcomingRotations } from './UpcomingRotations';
@@ -39,6 +40,7 @@ const ChoreHubContent: React.FC<ChoreHubContentProps> = ({ householdId }) => {
     const [showAddChoreModal, setShowAddChoreModal] = useState(false);
     const [showManageChoresModal, setShowManageChoresModal] = useState(false);
     const [useDraggableCalendar, setUseDraggableCalendar] = useState(true);
+    const isMobile = useIsMobile();
 
     if (isLoading) {
         return (
@@ -85,7 +87,7 @@ const ChoreHubContent: React.FC<ChoreHubContentProps> = ({ householdId }) => {
                                 className="hover:bg-primary/10"
                             >
                                 <PlusCircle className="h-4 w-4 mr-2" />
-                                Add Task
+                                {isMobile ? 'Add' : 'Add Task'}
                             </Button>
                             <Button 
                                 onClick={() => setShowManageChoresModal(true)} 
@@ -107,7 +109,7 @@ const ChoreHubContent: React.FC<ChoreHubContentProps> = ({ householdId }) => {
                                 ) : (
                                     <RefreshCw className="h-4 w-4 mr-2" />
                                 )}
-                                Generate Schedule
+                                {isMobile ? 'Generate' : 'Generate Schedule'}
                             </Button>
                         </div>
                     ) : (
@@ -138,7 +140,7 @@ const ChoreHubContent: React.FC<ChoreHubContentProps> = ({ householdId }) => {
                             ({new Date(dueSoonTasks[0].due_date + 'T00:00:00').toLocaleDateString()})
                         </span>
                     </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                    <div className={`grid gap-4 ${isMobile ? 'grid-cols-1' : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4'}`}>
                         {dueSoonTasks.map(assignment => (
                             <ChoreTaskCard
                                 key={assignment.id}
@@ -154,23 +156,25 @@ const ChoreHubContent: React.FC<ChoreHubContentProps> = ({ householdId }) => {
                 </div>
             )}
 
-            {/* Main Dashboard Grid */}
+            {/* Main Dashboard Grid - Responsive Layout */}
             {hasChores && (
-                <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-                    <div className="xl:col-span-2 space-y-4">
+                <div className={`grid gap-6 ${isMobile ? 'grid-cols-1' : 'grid-cols-1 xl:grid-cols-3'}`}>
+                    <div className={`${isMobile ? '' : 'xl:col-span-2'} space-y-4`}>
                         <div className="flex items-center gap-2 mb-2 justify-between">
                             <div className="flex items-center gap-2">
                                 <Calendar className="h-5 w-5 text-primary" />
                                 <h2 className="text-lg font-semibold">Monthly Overview</h2>
                             </div>
-                            <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => setUseDraggableCalendar(!useDraggableCalendar)}
-                                className="text-xs"
-                            >
-                                {useDraggableCalendar ? 'Switch to Simple View' : 'Switch to Drag & Drop View'}
-                            </Button>
+                            {!isMobile && (
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => setUseDraggableCalendar(!useDraggableCalendar)}
+                                    className="text-xs"
+                                >
+                                    {useDraggableCalendar ? 'Simple View' : 'Drag View'}
+                                </Button>
+                            )}
                         </div>
                         {useDraggableCalendar ? (
                             <DraggableChoreCalendar 
@@ -181,22 +185,24 @@ const ChoreHubContent: React.FC<ChoreHubContentProps> = ({ householdId }) => {
                             <ChoreCalendar assignments={assignments} />
                         )}
                     </div>
-                    <div className="space-y-6">
-                        <div>
-                            <div className="flex items-center gap-2 mb-4">
-                                <RefreshCw className="h-5 w-5 text-primary" />
-                                <h2 className="text-lg font-semibold">Upcoming Rotations</h2>
+                    {!isMobile && (
+                        <div className="space-y-6">
+                            <div>
+                                <div className="flex items-center gap-2 mb-4">
+                                    <RefreshCw className="h-5 w-5 text-primary" />
+                                    <h2 className="text-lg font-semibold">Upcoming Rotations</h2>
+                                </div>
+                                <UpcomingRotations assignments={assignments} />
                             </div>
-                            <UpcomingRotations assignments={assignments} />
-                        </div>
-                        <div>
-                            <div className="flex items-center gap-2 mb-4">
-                                <History className="h-5 w-5 text-primary" />
-                                <h2 className="text-lg font-semibold">Recent Activity</h2>
+                            <div>
+                                <div className="flex items-center gap-2 mb-4">
+                                    <History className="h-5 w-5 text-primary" />
+                                    <h2 className="text-lg font-semibold">Recent Activity</h2>
+                                </div>
+                                <ChoreHistory assignments={assignments} />
                             </div>
-                            <ChoreHistory assignments={assignments} />
                         </div>
-                    </div>
+                    )}
                 </div>
             )}
 
