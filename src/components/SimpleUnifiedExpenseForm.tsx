@@ -205,7 +205,7 @@ export const SimpleUnifiedExpenseForm: React.FC<SimpleUnifiedExpenseFormProps> =
             totalPercentageValue={totalPercentage}
           />
 
-          <div className="flex justify-between pt-4">
+          <div className="flex justify-between pt-4 border-t mt-4">
             <div>
               {mode === 'edit' && (
                 <>
@@ -214,13 +214,22 @@ export const SimpleUnifiedExpenseForm: React.FC<SimpleUnifiedExpenseFormProps> =
                       <Button 
                         onClick={handleDelete}
                         variant="danger"
+                        size="sm"
                         disabled={isDeleting}
                       >
-                        {isDeleting ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Confirm Delete'}
+                        {isDeleting ? (
+                          <>
+                            <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                            Deleting...
+                          </>
+                        ) : (
+                          'Confirm Delete'
+                        )}
                       </Button>
                       <Button 
                         onClick={() => setShowDeleteConfirm(false)}
                         variant="secondary"
+                        size="sm"
                       >
                         Cancel
                       </Button>
@@ -229,8 +238,9 @@ export const SimpleUnifiedExpenseForm: React.FC<SimpleUnifiedExpenseFormProps> =
                     <Button 
                       onClick={() => setShowDeleteConfirm(true)}
                       variant="danger"
+                      size="sm"
                     >
-                      Delete
+                      Delete Expense
                     </Button>
                   )}
                 </>
@@ -239,8 +249,15 @@ export const SimpleUnifiedExpenseForm: React.FC<SimpleUnifiedExpenseFormProps> =
             
             <div className="flex space-x-2">
               <Button onClick={onCancel} variant="secondary">Cancel</Button>
-              <Button onClick={handleSubmit} disabled={submitting}>
-                {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : mode === 'edit' ? 'Update' : 'Add Expense'}
+              <Button onClick={handleSubmit} disabled={submitting || !validation.isValid}>
+                {submitting ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                    {mode === 'edit' ? 'Updating...' : 'Adding...'}
+                  </>
+                ) : (
+                  mode === 'edit' ? 'Update Expense' : 'Add Expense'
+                )}
               </Button>
             </div>
           </div>

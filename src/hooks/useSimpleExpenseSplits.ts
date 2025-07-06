@@ -44,13 +44,39 @@ export function useSimpleExpenseSplits(
   // Initialize amount
   const [amount, setAmount] = useState(() => initialExpense?.amount || 0);
   
-  // Initialize split mode
-  const [splitMode, setSplitMode] = useState<SplitMode>(() => {
+  // Determine initial split mode
+  const determineInitialSplitMode = (): SplitMode => {
     if (initialExpense?.expense_splits && initialExpense.expense_splits.length > 0) {
-      return 'custom';
+      // Check if all splits are equal
+      const splitAmounts = initialExpense.expense_splits.map(s => s.amount);
+      const uniqueAmounts = new Set(splitAmounts);
+      
+      if (uniqueAmounts.size === 1) {
+        // All amounts are equal, likely an equal split
+        return 'equal';
+      } else {
+        // Check if splits are proportional (percentage-based)
+        const total = initialExpense.amount;
+        const percentages = initialExpense.expense_splits.map(s => (s.amount / total) * 100);
+        const roundedPercentages = percentages.map(p => Math.round(p));
+        const percentageSum = roundedPercentages.reduce((a, b) => a + b, 0);
+        
+        // If percentages add up to 100 (with some tolerance), it's likely percentage-based
+        if (Math.abs(percentageSum - 100) < 1) {
+          return 'percentage';
+        }
+        
+        // Otherwise, it's custom
+        return 'custom';
+      }
     }
     return 'equal';
-  });
+  };
+  
+  const initialSplitMode = determineInitialSplitMode();
+  
+  // Initialize split mode
+  const [splitMode, setSplitMode] = useState<SplitMode>(initialSplitMode);
   
   // Initialize selected participants
   const [selectedParticipants, setSelectedParticipants] = useState<Set<string>>(() => {
@@ -73,6 +99,13 @@ export function useSimpleExpenseSplits(
   
   // Initialize percentages
   const [percentages, setPercentages] = useState<Record<string, number>>(() => {
+    if (initialExpense?.expense_splits && initialSplitMode === 'percentage') {
+      // Calculate percentages from existing splits
+      return initialExpense.expense_splits.reduce((acc, split) => {
+        acc[split.user_id] = (split.amount / initialExpense.amount) * 100;
+        return acc;
+      }, {} as Record<string, number>);
+    }
     return initializeEqualPercentages(Array.from(selectedParticipants));
   });
   
