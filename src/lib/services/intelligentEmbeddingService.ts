@@ -21,6 +21,9 @@ interface EmbeddingOptions {
   priority?: 'high' | 'normal' | 'low';
   processImmediately?: boolean;
   similarityThreshold?: number;
+  entityType?: 'conversation' | 'expense' | 'household_context' | 'message' | 'chore';
+  entityId?: string;
+  metadata?: Record<string, any>;
 }
 
 export class IntelligentEmbeddingService {
@@ -28,25 +31,50 @@ export class IntelligentEmbeddingService {
     return getSupabaseClient();
   }
 
-  // Store conversation with intelligent embedding
-  async storeConversationWithEmbedding(
+  // Store any content with intelligent embedding using unified table
+  async storeEmbedding(
     householdId: string,
-    userId: string,
-    role: 'user' | 'assistant',
     content: string,
     options: EmbeddingOptions = {}
   ) {
-    const { processImmediately = true, priority = 'normal' } = options;
+    const { 
+      processImmediately = true, 
+      priority = 'normal',
+      entityType = 'conversation',
+      entityId,
+      metadata = {},
+      similarityThreshold = 0.95
+    } = options;
     
     try {
-      // Store conversation first
-      const { data: conversation, error } = await this.supabase
-        .from('conversation_embeddings')
+      // Check for duplicate first
+      const { data: duplicateCheck } = await this.supabase
+        .rpc('check_duplicate_embedding', {
+          p_content: content,
+          p_household_id: householdId,
+          p_entity_type: entityType,
+          p_threshold: similarityThreshold
+        });
+
+      if (duplicateCheck && duplicateCheck[0]?.exists) {
+        return { 
+          id: duplicateCheck[0].embedding_id, 
+          embedded: true, 
+          duplicate: true,
+          similarity: duplicateCheck[0].similarity 
+        };
+      }
+
+      // Store in unified embeddings table
+      const { data: embedding, error } = await this.supabase
+        .from('embeddings')
         .insert({
           household_id: householdId,
-          user_id: userId,
-          message_role: role,
-          message_content: content,
+          entity_type: entityType,
+          entity_id: entityId,
+          user_id: options.entityType === 'conversation' ? metadata.userId : null,
+          content: content,
+          metadata: metadata
         })
         .select()
         .single();
@@ -55,67 +83,87 @@ export class IntelligentEmbeddingService {
       
       // Try to generate embedding immediately if requested
       if (processImmediately && priority === 'high') {
-        const embedding = await generateEmbeddingWithFallback(content, {
+        const vector = await generateEmbeddingWithFallback(content, {
           maxRetries: 3,
           priority: true
         });
         
-        if (embedding) {
+        if (vector) {
           await this.supabase
-            .from('conversation_embeddings')
-            .update({ embedding })
-            .eq('id', conversation.id);
+            .from('embeddings')
+            .update({ embedding: vector })
+            .eq('id', embedding.id);
           
-          return { conversation, embedded: true };
+          return { id: embedding.id, embedded: true };
         }
       }
       
       // Queue for background processing
-      await this.supabase.from('embedding_queue').insert({
-        table_name: 'conversations',
-        record_id: conversation.id,
-        content: content,
-        household_id: householdId,
-        metadata: { priority }
+      await this.supabase.rpc('queue_embedding_generation', {
+        p_table_name: entityType,
+        p_record_id: embedding.id,
+        p_content: content,
+        p_household_id: householdId,
+        p_metadata: { priority, ...metadata },
+        p_priority: priority
       });
       
-      return { conversation, embedded: false, queued: true };
+      return { id: embedding.id, embedded: false, queued: true };
       
     } catch (error) {
-      console.error('Error storing conversation:', error);
+      console.error('Error storing embedding:', error);
       throw error;
     }
+  }
+
+  // Store conversation with intelligent embedding (backward compatible)
+  async storeConversationWithEmbedding(
+    householdId: string,
+    userId: string,
+    role: 'user' | 'assistant',
+    content: string,
+    options: EmbeddingOptions = {}
+  ) {
+    return this.storeEmbedding(householdId, content, {
+      ...options,
+      entityType: 'conversation',
+      metadata: {
+        ...options.metadata,
+        userId,
+        message_role: role
+      }
+    });
   }
 
   // Check if similar content already has embedding
   async checkSimilarEmbeddingExists(
     content: string,
     householdId: string,
-    threshold: number = 0.9
+    threshold: number = 0.9,
+    entityType?: string
   ): Promise<{ exists: boolean; embedding?: number[] }> {
     try {
-      // Use trigram similarity to find very similar text
-      const { data: similar } = await this.supabase
-        .from('conversation_embeddings')
-        .select('id, message_content, embedding')
-        .eq('household_id', householdId)
-        .not('embedding', 'is', null)
-        .textSearch('message_content', content, {
-          type: 'websearch',
-          config: 'english'
-        })
-        .limit(5);
-      
-      if (!similar || similar.length === 0) {
-        return { exists: false };
-      }
-      
-      // Check for high similarity using simple text comparison
-      for (const item of similar) {
-        const similarity = this.calculateTextSimilarity(content, item.message_content);
-        if (similarity > threshold && item.embedding) {
-          return { exists: true, embedding: item.embedding };
-        }
+      // First check for exact duplicate using the database function
+      const { data: duplicateCheck } = await this.supabase
+        .rpc('check_duplicate_embedding', {
+          p_content: content,
+          p_household_id: householdId,
+          p_entity_type: entityType || 'conversation',
+          p_threshold: threshold
+        });
+
+      if (duplicateCheck && duplicateCheck[0]?.exists) {
+        // Get the actual embedding
+        const { data: embedding } = await this.supabase
+          .from('embeddings')
+          .select('embedding')
+          .eq('id', duplicateCheck[0].embedding_id)
+          .single();
+        
+        return { 
+          exists: true, 
+          embedding: embedding?.embedding 
+        };
       }
       
       return { exists: false };
@@ -160,8 +208,11 @@ export class IntelligentEmbeddingService {
           });
           
           if (embedding) {
-            // Update the appropriate table
-            await this.updateEmbedding(item.table_name, item.record_id, embedding);
+            // Update unified embeddings table
+            await this.supabase
+              .from('embeddings')
+              .update({ embedding })
+              .eq('id', item.record_id);
             
             // Mark as processed
             await this.supabase
@@ -186,48 +237,119 @@ export class IntelligentEmbeddingService {
     }
   }
 
-  private async updateEmbedding(tableName: string, recordId: string, embedding: number[]) {
-    const tableMap: Record<string, string> = {
-      'conversations': 'conversation_embeddings',
-      'expenses': 'expense_embeddings',
-      'household_rules': 'household_context_embeddings'
-    };
-    
-    const table = tableMap[tableName];
-    if (!table) throw new Error(`Unknown table: ${tableName}`);
-    
-    await this.supabase
-      .from(table)
-      .update({ embedding })
-      .eq('id', recordId);
+  // Batch store embeddings for better performance
+  async storeEmbeddingsBatch(embeddings: Array<{
+    householdId: string;
+    content: string;
+    entityType: string;
+    entityId?: string;
+    userId?: string;
+    metadata?: any;
+  }>) {
+    try {
+      const formattedEmbeddings = embeddings.map(e => ({
+        household_id: e.householdId,
+        entity_type: e.entityType,
+        entity_id: e.entityId,
+        user_id: e.userId,
+        content: e.content,
+        metadata: e.metadata || {}
+      }));
+
+      const { data } = await this.supabase
+        .rpc('store_embeddings_batch', {
+          p_embeddings: formattedEmbeddings
+        });
+
+      return data;
+    } catch (error) {
+      console.error('Error storing batch embeddings:', error);
+      throw error;
+    }
   }
 
   // Get embedding stats for monitoring
   async getEmbeddingStats(householdId?: string) {
-    const baseQuery = this.supabase
-      .from('conversation_embeddings')
-      .select('id', { count: 'exact' });
-    
-    if (householdId) {
-      baseQuery.eq('household_id', householdId);
+    try {
+      // Get stats from unified embeddings table
+      const { data: stats } = await this.supabase
+        .from('embedding_statistics')
+        .select('*');
+
+      // Get household-specific stats if requested
+      let householdStats = null;
+      if (householdId) {
+        const { data } = await this.supabase
+          .from('embedding_coverage_by_household')
+          .select('*')
+          .eq('household_id', householdId);
+        householdStats = data;
+      }
+
+      // Get queue stats
+      const { data: queueStats } = await this.supabase
+        .rpc('get_embedding_queue_stats');
+      
+      return {
+        overall: stats || [],
+        household: householdStats,
+        queue: queueStats?.[0] || { unprocessed: 0, processed: 0, failed: 0 },
+        summary: {
+          total_embeddings: stats?.reduce((acc, s) => acc + s.total_count, 0) || 0,
+          with_vectors: stats?.reduce((acc, s) => acc + s.with_embedding, 0) || 0,
+          coverage_percentage: stats && stats.length > 0
+            ? Math.round((stats.reduce((acc, s) => acc + s.with_embedding, 0) / 
+                stats.reduce((acc, s) => acc + s.total_count, 0)) * 100)
+            : 0
+        }
+      };
+    } catch (error) {
+      console.error('Error getting embedding stats:', error);
+      return {
+        overall: [],
+        household: null,
+        queue: { unprocessed: 0, processed: 0, failed: 0 },
+        summary: { total_embeddings: 0, with_vectors: 0, coverage_percentage: 0 }
+      };
     }
-    
-    const [withEmbedding, withoutEmbedding, queueStats] = await Promise.all([
-      baseQuery.not('embedding', 'is', null),
-      baseQuery.is('embedding', null),
-      supabase.rpc('get_embedding_queue_stats')
-    ]);
-    
-    return {
-      conversations: {
-        with_embeddings: withEmbedding.count || 0,
-        without_embeddings: withoutEmbedding.count || 0,
-        percentage: withEmbedding.count 
-          ? Math.round((withEmbedding.count / (withEmbedding.count + (withoutEmbedding.count || 0))) * 100)
-          : 0
-      },
-      queue: queueStats.data?.[0] || { unprocessed: 0, processed: 0, failed: 0 }
-    };
+  }
+
+  // Search similar embeddings across entity types
+  async searchSimilarEmbeddings(
+    householdId: string,
+    queryEmbedding: number[],
+    options: {
+      entityTypes?: string[];
+      limit?: number;
+      threshold?: number;
+    } = {}
+  ) {
+    const { 
+      entityTypes = ['conversation', 'expense', 'household_context'],
+      limit = 10,
+      threshold = 0.7
+    } = options;
+
+    try {
+      const { data } = await this.supabase
+        .rpc('search_similar_embeddings', {
+          p_household_id: householdId,
+          p_query_embedding: queryEmbedding,
+          p_entity_type: null, // null means search all types
+          p_limit: limit,
+          p_threshold: threshold
+        });
+
+      // Filter by entity types if specified
+      const filtered = entityTypes.length > 0 
+        ? data?.filter(item => entityTypes.includes(item.entity_type))
+        : data;
+
+      return filtered || [];
+    } catch (error) {
+      console.error('Error searching similar embeddings:', error);
+      return [];
+    }
   }
 }
 

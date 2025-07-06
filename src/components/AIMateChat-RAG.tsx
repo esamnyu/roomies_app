@@ -63,7 +63,7 @@ export function AIMateChatRAG({ householdId }: AIMateChatRAGProps) {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       const token = session?.access_token;
-      const response = await fetch('/api/ai-chat-rag-v2', {
+      const response = await fetch('/api/ai-chat-rag-unified', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

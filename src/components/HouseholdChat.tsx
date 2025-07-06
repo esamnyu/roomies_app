@@ -4,7 +4,6 @@ import { sendMessage as sendMessageAPI, getHouseholdMessages, subscribeToMessage
 import { useAuth } from './AuthProvider';
 import { Input } from '@/components/primitives/Input';
 import { Button } from '@/components/primitives/Button';
-import AIMateChat from './AIMateChat';
 import { AIMateChatRAG } from './AIMateChat-RAG';
 import { Loader2, Send } from 'lucide-react';
 import { toast } from 'react-hot-toast';

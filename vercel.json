@@ -1,0 +1,13 @@
+{
+  "crons": [
+    {
+      "path": "/api/background-embeddings",
+      "schedule": "*/2 * * * *"
+    }
+  ],
+  "functions": {
+    "api/background-embeddings.ts": {
+      "maxDuration": 60
+    }
+  }
+}
