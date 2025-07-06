@@ -1,47 +1,5 @@
 {
-  "tables": {
-    "households": {
-      "sampleRow": {
-        "id": "ca63a3f7-18cd-440e-be63-c2e1f54e432e",
-        "name": "Hello",
-        "created_by": "b5d636a8-2303-4679-a54d-54c505034506",
-        "created_at": "2025-05-30T18:58:13.614624+00:00",
-        "updated_at": "2025-05-30T18:58:13.614624+00:00",
-        "member_count": 2,
-        "core_chores": null,
-        "chore_frequency": null,
-        "chore_framework": null,
-        "join_code": null,
-        "last_chore_rotation_date": null,
-        "next_chore_rotation_date": null,
-        "chore_current_assignee_index": null,
-        "rules_document": null,
-        "rules_last_updated": null,
-        "rules": null
-      },
-      "columns": [
-        "id",
-        "name",
-        "created_by",
-        "created_at",
-        "updated_at",
-        "member_count",
-        "core_chores",
-        "chore_frequency",
-        "chore_framework",
-        "join_code",
-        "last_chore_rotation_date",
-        "next_chore_rotation_date",
-        "chore_current_assignee_index",
-        "rules_document",
-        "rules_last_updated",
-        "rules"
-      ]
-    },
-    "expenses": {
-      "sampleRow": {},
-      "columns": []
-    }
-  },
-  "timestamp": "2025-07-04T04:10:53.889Z"
+  "error": "Could not fetch complete database schema",
+  "message": "The create_expense_atomic function likely has multiple overloaded versions",
+  "timestamp": "2025-07-06T01:00:28.006Z"
 }

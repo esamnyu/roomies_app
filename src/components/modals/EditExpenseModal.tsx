@@ -1,6 +1,11 @@
 // src/components/EditExpenseModal.tsx
 "use client";
 
+/**
+ * @deprecated This component is deprecated. Please use UnifiedExpenseForm with mode="edit" from '../expenses' instead.
+ * Migration guide: src/components/expenses/MIGRATION_GUIDE.md
+ */
+
 // MODIFIED: Removed useEffect from import
 import React, { useState } from 'react';
 import { Loader2, AlertTriangle } from 'lucide-react';

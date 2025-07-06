@@ -1,6 +1,11 @@
 // src/components/AddExpenseModal.tsx
 "use client";
 
+/**
+ * @deprecated This component is deprecated. Please use UnifiedExpenseForm from '../expenses' instead.
+ * Migration guide: src/components/expenses/MIGRATION_GUIDE.md
+ */
+
 import React, { useState, useEffect } from 'react';
 import { Loader2 } from 'lucide-react';
 import { createExpenseWithCustomSplits } from '@/lib/api/expenses';

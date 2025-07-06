@@ -39,7 +39,7 @@ interface UseSimpleExpenseSplitsReturn {
 
 export function useSimpleExpenseSplits(
   members: HouseholdMember[],
-  initialExpense?: Expense
+  initialExpense?: Expense | null
 ): UseSimpleExpenseSplitsReturn {
   // Initialize amount
   const [amount, setAmount] = useState(() => initialExpense?.amount || 0);

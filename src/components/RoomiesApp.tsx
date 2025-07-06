@@ -40,20 +40,18 @@ import { HouseholdSetupForm } from './HouseholdSetupForm';
 import { OnboardingChoice } from './OnboardingChoice';
 import HouseholdChat from './HouseholdChat';
 import { ChoreHub } from './chores/ChoreHub';
-import { AddExpense } from './AddExpense';
-import { createExpenseWithCustomSplits } from '@/lib/api/expenses';
-import { AddRecurringExpenseModal } from './modals/AddRecurringExpenseModal';
+import { ExpenseCard } from './expenses';
+import { SimpleUnifiedExpenseForm } from './SimpleUnifiedExpenseForm';
+import { ExpenseService } from '@/lib/services/expenseService';
 import { SettleUpModalV2 } from './modals/SettleUpModalV2';
 import { ManageJoinCodeModal } from './modals/ManageJoinCodeModal';
 import { Button } from '@/components/primitives/Button';
 import { Input } from '@/components/primitives/Input';
 import { ProfileModal } from './modals/ProfileModal';
 import { HouseholdSettingsModal } from './modals/HouseholdSettingsModal';
-import { EditExpenseModal } from './modals/EditExpenseModal';
 import { AuthForm } from './AuthForm';
 import { LayoutV2, NavItemId } from './LayoutV2';
 import { BalanceSummaryCard } from './BalanceSummaryCard';
-import { ExpenseCard } from './ExpenseCard';
 import { UnifiedErrorBoundary } from './ErrorBoundary/UnifiedErrorBoundary';
 
 
@@ -889,37 +887,34 @@ const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = (
             </div>
 
             {showAddExpense && (
-                <AddExpense
+                <SimpleUnifiedExpenseForm
                     householdId={householdId}
-                    householdMembers={members.map(m => ({ 
-                        id: m.user_id, 
-                        name: m.profiles?.name || 'Unknown', 
-                        avatar: m.profiles?.avatar_url || undefined
-                    }))}
+                    householdMembers={members}
                     isOpen={showAddExpense}
                     onCancel={() => setShowAddExpense(false)}
-                    onAddExpense={async (expense) => {
-                        try {
-                            await createExpenseWithCustomSplits(
-                                expense.householdId,
-                                expense.description,
-                                expense.amount,
-                                expense.splits,
-                                expense.date,
-                                expense.paidById
-                            );
-                            await refreshData(true);
-                            setShowAddExpense(false);
-                        } catch (error) {
-                            console.error('Failed to add expense:', error);
-                            toast.error('Failed to add expense');
-                        }
+                    onSuccess={() => {
+                        setShowAddExpense(false);
+                        refreshData(true);
                     }}
                     currentUserId={user?.id || ''}
+                    mode="create"
                 />
             )}
             {showSettleUp && <SettleUpModalV2 householdId={householdId} members={members} settlementSuggestions={settlementSuggestions} onClose={() => setShowSettleUp(false)} onSettlementCreated={() => refreshData(true)} />}
-            {showAddRecurring && <AddRecurringExpenseModal householdId={householdId} onClose={() => setShowAddRecurring(false)} onExpenseAdded={() => refreshData(true)} />}
+            {showAddRecurring && (
+                <SimpleUnifiedExpenseForm
+                    householdId={householdId}
+                    householdMembers={members}
+                    isOpen={showAddRecurring}
+                    onCancel={() => setShowAddRecurring(false)}
+                    onSuccess={() => {
+                        setShowAddRecurring(false);
+                        refreshData(true);
+                    }}
+                    currentUserId={user?.id || ''}
+                    mode="create"
+                />
+            )}
             {showManageJoinCode && householdId && <ManageJoinCodeModal householdId={householdId} currentCode={household?.join_code} onClose={() => setShowManageJoinCode(false)} onCodeRefreshed={(newCode) => { if(household) setHousehold({...household, join_code: newCode }); }} />}
             
             {isProfileModalOpen && user && <ProfileModal user={user} onClose={() => setIsProfileModalOpen(false)} onUpdate={() => refreshData(true)} />}
@@ -928,14 +923,18 @@ const HouseholdDetail: React.FC<{ householdId: string; onBack: () => void }> = (
             {showAddRuleModal && household && <AddRuleModal householdId={household.id} onClose={() => setShowAddRuleModal(false)} onRuleAdded={() => {setShowAddRuleModal(false); refreshData(true);}} />}
             {showEditRuleModal && ruleToEdit && household && <EditRuleModal householdId={household.id} rule={ruleToEdit} onClose={() => setRuleToEdit(null)} onRuleUpdated={() => {setRuleToEdit(null); refreshData(true);}} />}
             {editingExpense && (
-                <EditExpenseModal
-                    expense={editingExpense}
-                    members={members}
-                    onClose={() => setEditingExpense(null)}
-                    onExpenseUpdated={() => {
+                <SimpleUnifiedExpenseForm
+                    householdId={householdId}
+                    householdMembers={members}
+                    isOpen={!!editingExpense}
+                    onCancel={() => setEditingExpense(null)}
+                    onSuccess={() => {
                         setEditingExpense(null);
                         refreshData(true);
                     }}
+                    currentUserId={user?.id || ''}
+                    mode="edit"
+                    expense={editingExpense}
                 />
             )}
         </LayoutV2>

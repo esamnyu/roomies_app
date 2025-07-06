@@ -1,6 +1,11 @@
 // src/components/AddRecurringExpenseModal.tsx
 "use client";
 
+/**
+ * @deprecated This component is deprecated. Please use UnifiedExpenseForm with recurring options from '../expenses' instead.
+ * Migration guide: src/components/expenses/MIGRATION_GUIDE.md
+ */
+
 import React, { useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import * as api from '@/lib/api';

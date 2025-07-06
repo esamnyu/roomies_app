@@ -1,5 +1,10 @@
 'use client';
 
+/**
+ * @deprecated This component is deprecated. Please use UnifiedExpenseForm from './expenses' instead.
+ * Migration guide: src/components/expenses/MIGRATION_GUIDE.md
+ */
+
 import React, { useEffect, useState } from 'react';
 import { ExpenseSplitterSingleScreen } from './ExpenseSplitterSingleScreen';
 import { Modal } from './surfaces/Modal';

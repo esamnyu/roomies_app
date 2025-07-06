@@ -343,3 +343,61 @@ export const processDueRecurringExpenses = async (householdId: string): Promise<
     errors: data.errors || 0
   };
 };
+
+// Toggle recurring expense active status
+export const toggleRecurringExpense = async (recurringExpenseId: string, isActive: boolean): Promise<RecurringExpense> => {
+  const validatedId = z.string().uuid().parse(recurringExpenseId);
+  
+  const { data, error } = await supabase
+    .from('recurring_expenses')
+    .update({ is_active: isActive })
+    .eq('id', validatedId)
+    .select()
+    .single();
+    
+  if (error) {
+    throw new ExpenseError(`Failed to toggle recurring expense: ${error.message}`, 'UPDATE_ERROR');
+  }
+  
+  return data;
+};
+
+// Delete recurring expense
+export const deleteRecurringExpense = async (recurringExpenseId: string): Promise<{ success: boolean }> => {
+  const validatedId = z.string().uuid().parse(recurringExpenseId);
+  
+  const { error } = await supabase
+    .from('recurring_expenses')
+    .delete()
+    .eq('id', validatedId);
+    
+  if (error) {
+    throw new ExpenseError(`Failed to delete recurring expense: ${error.message}`, 'DELETE_ERROR');
+  }
+  
+  return { success: true };
+};
+
+// Delete expense with proper ledger handling
+export const deleteExpense = async (expenseId: string): Promise<{ success: boolean; message: string }> => {
+  const validatedId = z.string().uuid().parse(expenseId);
+  
+  // Call the database function that handles deletion with ledger updates
+  // It will check permissions and handle both settled and unsettled expenses
+  const { data, error } = await supabase.rpc('delete_expense_with_ledger', {
+    p_expense_id: validatedId
+  });
+  
+  if (error) {
+    throw new ExpenseError(`Failed to delete expense: ${error.message}`, 'DELETE_ERROR');
+  }
+  
+  if (!data?.success) {
+    throw new ExpenseError(data?.message || 'Failed to delete expense', 'DELETE_ERROR');
+  }
+  
+  return {
+    success: true,
+    message: data.message || 'Expense deleted successfully'
+  };
+};
